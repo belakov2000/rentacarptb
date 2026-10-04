@@ -20,7 +20,7 @@ export const bookings = pgTable("bookings", {
   dropoff: text().notNull(),
   total: text().notNull().default(""),
   note: text().notNull().default(""),
-  payment: text().notNull().default(""), // bank (фактура и банков път) | cash (в брой на място с касов бон)
+  payment: text().notNull().default(""), // bankp (банков път, физическо лице) | bank (банков път, фирма) | cash (в брой на място с касов бон)
   invoice: text().notNull().default(""), // данни за фактурата, ако клиентът я е поискал
   createdAt: timestamp("created_at").defaultNow().notNull(),
   decidedAt: timestamp("decided_at"),
