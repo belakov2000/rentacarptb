@@ -1,5 +1,5 @@
 import type { Config, Context } from "@netlify/functions";
-import { and, eq } from "drizzle-orm";
+import { and, eq, gte, lte, ne } from "drizzle-orm";
 import { db } from "../../db/index.js";
 import { bookings } from "../../db/schema.js";
 
@@ -14,11 +14,26 @@ const SENDER_NAME = "Rent a Car PTB";
 const PHONE = "0877748693";
 const ID_RE = /^[a-f0-9]{32}$/;
 const TOKEN_RE = /^[a-f0-9]{64}$/;
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const CAR_RE = /^[a-z0-9-]{1,40}$/;
 
 const rnd = (n: number) => Array.from({ length: n }, () => crypto.randomUUID().replace(/-/g, "")).join("");
 const esc = (s: string) =>
   String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 const str = (v: unknown, max = 300) => (typeof v === "string" ? v.trim().slice(0, max) : "");
+
+// Текстова версия на писмото – пощенските услуги (Gmail, Abv и др.) гледат по-благосклонно на писма, които имат и HTML, и текст
+const toText = (html: string) =>
+  html
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(p|tr|div|pre|h\d)>/gi, "\n")
+    .replace(/<a [^>]*href="([^"]+)"[^>]*>([^<]*)<\/a>/gi, "$2: $1")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+    .replace(/[ \t]+/g, " ")
+    .replace(/ *\n */g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 
 async function sendMail(to: string, toName: string, subject: string, html: string, replyTo?: string) {
   const key = process.env.BREVO_API_KEY;
@@ -31,7 +46,8 @@ async function sendMail(to: string, toName: string, subject: string, html: strin
       to: [{ email: to, name: toName || to }],
       ...(replyTo ? { replyTo: { email: replyTo } } : {}),
       subject,
-      htmlContent: html,
+      htmlContent: `<!doctype html><html><head><meta charset="utf-8"><title>${esc(subject)}</title></head><body>${html}</body></html>`,
+      textContent: toText(html),
     }),
   });
   if (!r.ok) throw new Error(`Brevo error ${r.status}: ${await r.text()}`);
@@ -44,6 +60,25 @@ const wrapMail = (body: string) =>
 
 type Booking = typeof bookings.$inferSelect;
 
+// Потвърдена резервация за същия автомобил, която се застъпва с периода [start, end]
+async function findConflict(carId: string, start: string, end: string, exceptId = "") {
+  if (!carId || !start || !end) return null;
+  const [c] = await db
+    .select({ id: bookings.id, name: bookings.name, pickup: bookings.pickup, dropoff: bookings.dropoff })
+    .from(bookings)
+    .where(
+      and(
+        eq(bookings.carId, carId),
+        eq(bookings.status, "confirmed"),
+        lte(bookings.startDate, end),
+        gte(bookings.endDate, start),
+        ...(exceptId ? [ne(bookings.id, exceptId)] : []),
+      ),
+    )
+    .limit(1);
+  return c || null;
+}
+
 // ===== Имейл до клиента след решението на фирмата =====
 const CUSTOMER: Record<string, Record<string, string>> = {
   bg: {
@@ -55,6 +90,9 @@ const CUSTOMER: Record<string, Record<string, string>> = {
     note: "Съобщение от нас:",
     car: "Автомобил", pickup: "Получаване", dropoff: "Връщане", total: "Общо за услугите", deposit: "Гаранционен депозит",
     q: "Въпроси? Обадете ни се на {phone} или отговорете на този имейл.",
+    pay: "Плащане", bank: "По банков път срещу фактура", cash: "В брой на място при получаване (с касов бон)",
+    bankInfo: "Ще ви изпратим фактура с банковите ни данни за плащане.",
+    cashInfo: "Плащането е в брой при получаване на автомобила – ще ви издадем касов бон.",
   },
   en: {
     okSubj: "Your booking is confirmed – Rent a Car PTB",
@@ -65,6 +103,9 @@ const CUSTOMER: Record<string, Record<string, string>> = {
     note: "Message from us:",
     car: "Car", pickup: "Pick-up", dropoff: "Return", total: "Total for services", deposit: "Security deposit",
     q: "Questions? Call us on {phone} or reply to this email.",
+    pay: "Payment", bank: "Bank transfer against invoice", cash: "Cash on pick-up (with fiscal receipt)",
+    bankInfo: "We will send you an invoice with our bank details for payment.",
+    cashInfo: "Payment is in cash when you pick up the car – you will receive a fiscal receipt.",
   },
   de: {
     okSubj: "Ihre Buchung ist bestätigt – Rent a Car PTB",
@@ -75,6 +116,9 @@ const CUSTOMER: Record<string, Record<string, string>> = {
     note: "Nachricht von uns:",
     car: "Fahrzeug", pickup: "Abholung", dropoff: "Rückgabe", total: "Gesamt für Leistungen", deposit: "Kaution",
     q: "Fragen? Rufen Sie uns an unter {phone} oder antworten Sie auf diese E-Mail.",
+    pay: "Zahlung", bank: "Banküberweisung gegen Rechnung", cash: "Bar bei Abholung (mit Kassenbon)",
+    bankInfo: "Wir senden Ihnen eine Rechnung mit unseren Bankdaten zur Zahlung.",
+    cashInfo: "Die Zahlung erfolgt bar bei Abholung des Fahrzeugs – Sie erhalten einen Kassenbon.",
   },
 };
 
@@ -87,7 +131,8 @@ function customerMail(b: Booking) {
     `<p>${esc(t.hi.replace("{name}", b.name))}</p>` +
       `<p style="font-size:18px"><b>${esc(ok ? t.ok : t.no)}</b></p>` +
       (b.note ? `<p>${esc(t.note)}<br>${esc(b.note).replace(/\n/g, "<br>")}</p>` : "") +
-      `<table style="border-collapse:collapse;margin:14px 0">${row(t.car, b.car)}${row(t.pickup, b.pickup)}${row(t.dropoff, b.dropoff)}${ok ? row(t.total, b.total) + row(t.deposit, "100 €") : ""}</table>` +
+      `<table style="border-collapse:collapse;margin:14px 0">${row(t.car, b.car)}${row(t.pickup, b.pickup)}${row(t.dropoff, b.dropoff)}${ok ? row(t.total, b.total) + row(t.deposit, "100 €") + row(t.pay, b.payment === "bank" ? t.bank : b.payment === "cash" ? t.cash : "") : ""}</table>` +
+      (ok && b.payment ? `<p>${esc(b.payment === "bank" ? t.bankInfo : t.cashInfo)}</p>` : "") +
       `<p>${esc(t.q.replace("{phone}", PHONE))}</p><p>Рента ПТБ Строй ЕООД<br>гр. Пловдив, бул. Дунав 10</p>`,
   );
   return { subject: ok ? t.okSubj : t.noSubj, html };
@@ -115,13 +160,18 @@ textarea{width:100%;box-sizing:border-box;font:inherit;padding:10px;border:1px s
   );
 }
 
+const PAY_BG: Record<string, string> = { bank: "Фактура и плащане по банков път", cash: "В брой на място с касов бон" };
 const STATUS_BG: Record<string, string> = { pending: "Очаква потвърждение", confirmed: "Потвърдена", rejected: "Отказана" };
 
-function managePage(b: Booking, msg = "") {
+function managePage(b: Booking, msg = "", conflict: { name: string; pickup: string; dropoff: string } | null = null) {
   const kv = [
     ["Клиент", b.name], ["Телефон", b.phone], ["Имейл", b.email], ["Автомобил", b.car],
-    ["Получаване", b.pickup], ["Връщане", b.dropoff], ["Общо", b.total],
-  ].map(([k, v]) => `<div><span>${esc(k)}</span><b>${esc(v || "-")}</b></div>`).join("");
+    ["Получаване", b.pickup], ["Връщане", b.dropoff], ["Общо", b.total], ["Плащане", PAY_BG[b.payment] || ""],
+  ].map(([k, v]) => `<div><span>${esc(k)}</span><b>${esc(v || "-")}</b></div>`).join("") +
+    (b.invoice ? `<div><span>Данни за фактура</span><b style="white-space:pre-line;text-align:right">${esc(b.invoice)}</b></div>` : "");
+  const warn = conflict && b.status === "pending"
+    ? `<p class="badge rejected" style="display:block;border-radius:14px">Внимание: автомобилът вече е потвърден за ${esc(conflict.name)} (${esc(conflict.pickup)} → ${esc(conflict.dropoff)}). Тази заявка не може да бъде потвърдена за същите дати.</p>`
+    : "";
   const actions =
     b.status === "pending"
       ? `<form method="post"><label for="note">Съобщение до клиента (по избор)</label><textarea id="note" name="note" maxlength="1000" placeholder="Напр. час и място за среща или причина за отказ"></textarea>
@@ -130,7 +180,7 @@ function managePage(b: Booking, msg = "") {
       : `<p>Решението е взето${b.decidedAt ? " на " + esc(b.decidedAt.toLocaleString("bg-BG", { timeZone: "Europe/Sofia" })) : ""}. Клиентът е уведомен по имейл и на сайта.</p>`;
   return page(
     "Резервация – " + b.name,
-    `<h1>Резервация</h1><span class="badge ${b.status}">${STATUS_BG[b.status] || b.status}</span>${msg ? `<p><b>${esc(msg)}</b></p>` : ""}<div class="kv">${kv}</div>${actions}`,
+    `<h1>Резервация</h1><span class="badge ${b.status}">${STATUS_BG[b.status] || b.status}</span>${msg ? `<p><b>${esc(msg)}</b></p>` : ""}${warn}<div class="kv">${kv}</div>${actions}`,
   );
 }
 
@@ -152,10 +202,19 @@ export default async (req: Request, context: Context) => {
       pickup: str(body.pickup),
       dropoff: str(body.dropoff),
       total: str(body.total, 200),
+      carId: CAR_RE.test(str(body.carId, 40)) ? str(body.carId, 40) : "",
+      startDate: DATE_RE.test(str(body.startDate, 10)) ? str(body.startDate, 10) : null,
+      endDate: DATE_RE.test(str(body.endDate, 10)) ? str(body.endDate, 10) : null,
+      payment: ["bank", "cash"].includes(body.payment) ? body.payment : "",
+      invoice: body.payment === "bank" ? str(body.invoice, 1000) : "",
     };
+    if (b.startDate && b.endDate && b.startDate > b.endDate) return Response.json({ error: "Invalid dates" }, { status: 400 });
     const message = str(body.message, 20000);
     if (!b.name || !/^\S+@\S+\.\S+$/.test(b.email) || !b.phone || !b.car || !b.pickup || !b.dropoff || !message) {
       return Response.json({ error: "Missing fields" }, { status: 400 });
+    }
+    if (await findConflict(b.carId, b.startDate || "", b.endDate || "")) {
+      return Response.json({ error: "busy" }, { status: 409 });
     }
     const row = { id: rnd(1), viewToken: rnd(2), adminToken: rnd(2), ...b };
     await db.insert(bookings).values(row);
@@ -203,11 +262,13 @@ export default async (req: Request, context: Context) => {
   if (!b) return page("Не е намерена", "<h1>Резервацията не е намерена</h1>", 404);
 
   // GET само показва страницата – решението става с бутон (POST), за да не се задейства от предварителни прегледи на линкове
-  if (req.method !== "POST") return managePage(b);
+  const conflict = b.status === "pending" ? await findConflict(b.carId, b.startDate || "", b.endDate || "", b.id) : null;
+  if (req.method !== "POST") return managePage(b, "", conflict);
 
   const form = await req.formData().catch(() => null);
   const action = form?.get("action");
-  if (action !== "confirm" && action !== "reject") return managePage(b);
+  if (action !== "confirm" && action !== "reject") return managePage(b, "", conflict);
+  if (action === "confirm" && conflict) return managePage(b, "Резервацията не е потвърдена – датите вече са заети.", conflict);
   if (b.status !== "pending") return managePage(b, "Тази резервация вече е обработена.");
 
   const note = typeof form?.get("note") === "string" ? String(form!.get("note")).trim().slice(0, 1000) : "";
