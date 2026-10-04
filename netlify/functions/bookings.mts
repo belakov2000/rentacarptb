@@ -90,7 +90,7 @@ const CUSTOMER: Record<string, Record<string, string>> = {
     note: "Съобщение от нас:",
     car: "Автомобил", pickup: "Получаване", dropoff: "Връщане", total: "Общо за услугите", deposit: "Гаранционен депозит",
     q: "Въпроси? Обадете ни се на {phone} или отговорете на този имейл.",
-    pay: "Плащане", bank: "По банков път срещу фактура", cash: "В брой на място при получаване (с касов бон)",
+    pay: "Плащане", bank: "По банков път срещу фактура (фирма)", bankp: "По банков път срещу фактура (физическо лице)", cash: "В брой на място при получаване (с касов бон)",
     bankInfo: "Ще ви изпратим фактура с банковите ни данни за плащане.",
     cashInfo: "Плащането е в брой при получаване на автомобила – ще ви издадем касов бон.",
   },
@@ -103,7 +103,7 @@ const CUSTOMER: Record<string, Record<string, string>> = {
     note: "Message from us:",
     car: "Car", pickup: "Pick-up", dropoff: "Return", total: "Total for services", deposit: "Security deposit",
     q: "Questions? Call us on {phone} or reply to this email.",
-    pay: "Payment", bank: "Bank transfer against invoice", cash: "Cash on pick-up (with fiscal receipt)",
+    pay: "Payment", bank: "Bank transfer against invoice (company)", bankp: "Bank transfer against invoice (private person)", cash: "Cash on pick-up (with fiscal receipt)",
     bankInfo: "We will send you an invoice with our bank details for payment.",
     cashInfo: "Payment is in cash when you pick up the car – you will receive a fiscal receipt.",
   },
@@ -116,7 +116,7 @@ const CUSTOMER: Record<string, Record<string, string>> = {
     note: "Nachricht von uns:",
     car: "Fahrzeug", pickup: "Abholung", dropoff: "Rückgabe", total: "Gesamt für Leistungen", deposit: "Kaution",
     q: "Fragen? Rufen Sie uns an unter {phone} oder antworten Sie auf diese E-Mail.",
-    pay: "Zahlung", bank: "Banküberweisung gegen Rechnung", cash: "Bar bei Abholung (mit Kassenbon)",
+    pay: "Zahlung", bank: "Banküberweisung gegen Rechnung (Firma)", bankp: "Banküberweisung gegen Rechnung (Privatperson)", cash: "Bar bei Abholung (mit Kassenbon)",
     bankInfo: "Wir senden Ihnen eine Rechnung mit unseren Bankdaten zur Zahlung.",
     cashInfo: "Die Zahlung erfolgt bar bei Abholung des Fahrzeugs – Sie erhalten einen Kassenbon.",
   },
@@ -131,8 +131,8 @@ function customerMail(b: Booking) {
     `<p>${esc(t.hi.replace("{name}", b.name))}</p>` +
       `<p style="font-size:18px"><b>${esc(ok ? t.ok : t.no)}</b></p>` +
       (b.note ? `<p>${esc(t.note)}<br>${esc(b.note).replace(/\n/g, "<br>")}</p>` : "") +
-      `<table style="border-collapse:collapse;margin:14px 0">${row(t.car, b.car)}${row(t.pickup, b.pickup)}${row(t.dropoff, b.dropoff)}${ok ? row(t.total, b.total) + row(t.deposit, "100 €") + row(t.pay, b.payment === "bank" ? t.bank : b.payment === "cash" ? t.cash : "") : ""}</table>` +
-      (ok && b.payment ? `<p>${esc(b.payment === "bank" ? t.bankInfo : t.cashInfo)}</p>` : "") +
+      `<table style="border-collapse:collapse;margin:14px 0">${row(t.car, b.car)}${row(t.pickup, b.pickup)}${row(t.dropoff, b.dropoff)}${ok ? row(t.total, b.total) + row(t.deposit, "100 €") + row(t.pay, t[b.payment] || "") : ""}</table>` +
+      (ok && t[b.payment] ? `<p>${esc(b.payment === "cash" ? t.cashInfo : t.bankInfo)}</p>` : "") +
       `<p>${esc(t.q.replace("{phone}", PHONE))}</p><p>Рента ПТБ Строй ЕООД<br>гр. Пловдив, бул. Дунав 10</p>`,
   );
   return { subject: ok ? t.okSubj : t.noSubj, html };
@@ -160,7 +160,11 @@ textarea{width:100%;box-sizing:border-box;font:inherit;padding:10px;border:1px s
   );
 }
 
-const PAY_BG: Record<string, string> = { bank: "Фактура и плащане по банков път", cash: "В брой на място с касов бон" };
+const PAY_BG: Record<string, string> = {
+  bankp: "По банков път – физическо лице (фактура)",
+  bank: "По банков път – фирма (фактура)",
+  cash: "В брой на място с касов бон",
+};
 const STATUS_BG: Record<string, string> = { pending: "Очаква потвърждение", confirmed: "Потвърдена", rejected: "Отказана" };
 
 function managePage(b: Booking, msg = "", conflict: { name: string; pickup: string; dropoff: string } | null = null) {
@@ -205,8 +209,8 @@ export default async (req: Request, context: Context) => {
       carId: CAR_RE.test(str(body.carId, 40)) ? str(body.carId, 40) : "",
       startDate: DATE_RE.test(str(body.startDate, 10)) ? str(body.startDate, 10) : null,
       endDate: DATE_RE.test(str(body.endDate, 10)) ? str(body.endDate, 10) : null,
-      payment: ["bank", "cash"].includes(body.payment) ? body.payment : "",
-      invoice: body.payment === "bank" ? str(body.invoice, 1000) : "",
+      payment: ["bank", "bankp", "cash"].includes(body.payment) ? body.payment : "",
+      invoice: ["bank", "bankp"].includes(body.payment) ? str(body.invoice, 1000) : "",
     };
     if (b.startDate && b.endDate && b.startDate > b.endDate) return Response.json({ error: "Invalid dates" }, { status: 400 });
     const message = str(body.message, 20000);
@@ -227,7 +231,7 @@ export default async (req: Request, context: Context) => {
         `Нова заявка за наем: ${b.car} – ${b.name}`,
         wrapMail(
           `<p style="font-size:17px"><b>Нова заявка за наем от сайта.</b> Потвърдете или откажете – клиентът ще получи имейл и ще види решението на сайта.</p>` +
-            `<p>${btn(manage, "✓ Потвърди резервацията", "#1a8f4c")}${btn(manage, "✕ Откажи", "#c0392b")}</p>` +
+            `<p>${btn(manage, "Потвърди резервацията", "#1a8f4c")}${btn(manage, "Откажи", "#c0392b")}</p>` +
             `<pre style="white-space:pre-wrap;font-family:Arial,sans-serif;background:#f3f5f9;padding:16px;border-radius:12px">${esc(message).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1">$1</a>')}</pre>`,
         ),
         b.email,

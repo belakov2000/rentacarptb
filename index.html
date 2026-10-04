@@ -327,6 +327,20 @@ button.btn-ghost{background:transparent}
 #bk .fbox legend{display:flex;align-items:center;gap:10px;float:left;width:100%;margin-bottom:12px}
 #bk .fn{width:30px;height:30px;border-radius:50%;background:var(--navy);color:#fff;display:grid;place-items:center;font-size:.9rem;flex:none}
 #bk .seg{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+#bk .paybox{clear:both;display:grid;gap:12px;width:100%;min-width:0}
+#bk .paybox .free{display:flex;align-items:flex-start;gap:10px;margin:0;width:100%;max-width:none}
+#bk .paybox .free p{margin:0;flex:1;min-width:0}
+#bk .paybox .free svg{width:22px;height:22px;margin-top:1px}
+#bk .payopts{display:grid;grid-template-columns:1fr;gap:10px}
+@media(min-width:720px){#bk .payopts{grid-template-columns:repeat(3,1fr)}}
+#bk .payopts .opt{display:flex;gap:12px;width:100%;margin:0;padding:14px 16px;align-items:flex-start;min-width:0}
+#bk .payopts .opt input{width:20px;height:20px;min-height:0;padding:0;margin:2px 0 0;flex:none}
+#bk .pt{display:grid;gap:3px;min-width:0}
+#bk .pt b{font-size:.98rem;line-height:1.3}
+#bk .pt small{font-weight:500;font-size:.84rem;color:var(--muted);line-height:1.4}
+#bk .invbox{display:grid;gap:12px;padding:16px;border-radius:14px;background:var(--soft)}
+#bk .invbox[hidden]{display:none}
+#bk .invh{margin:0;font-weight:800}
 #bk .seg .opt{padding:12px 14px;margin:0}
 #bk .hint{display:block;margin-top:4px;font-size:.78rem;color:var(--muted)}
 #bk .phin{padding:10px;background:var(--soft)}
@@ -378,7 +392,7 @@ button.btn-ghost{background:transparent}
 <h1>Коли под наем <em>от 15 € на ден</em></h1>
 <p class="sub">Надеждни и обслужени автомобили. Чисти и заредени до горе. Неограничен пробег при наем над 2 дни и 100 € гаранционен депозит.</p>
 <p class="fine">15 € на ден е минималната цена при наем над 30 дни за избрани автомобили.</p>
-<p class="free"><svg width="22" height="22" aria-hidden="true"><use href="#i-check"/></svg><span><b>Резервацията е безплатна.</b> След резервацията избирате как да платите: по банков път срещу фактура от фирмата или в брой на място при вземане на автомобила с касов бон.</span></p>
+<p class="free"><svg width="22" height="22" aria-hidden="true"><use href="#i-check"/></svg><span><b>Резервацията е безплатна.</b> След резервацията избирате как да платите: по банков път срещу фактура (за физически лица и фирми) или в брой на място при вземане на автомобила с касов бон.</span></p>
 <div class="stats" data-stats></div>
 </div>
 <aside class="hcard">
@@ -693,13 +707,26 @@ button.btn-ghost{background:transparent}
 <div class="row"><div><label for="p-dlf">Снимка – лицева страна</label><input id="p-dlf" class="phin" type="file" accept="image/*" required><img class="phprev" id="p-dlf-v" alt="" hidden></div><div><label for="p-dlb">Снимка – гръб</label><input id="p-dlb" class="phin" type="file" accept="image/*" required><img class="phprev" id="p-dlb-v" alt="" hidden></div></div>
 </fieldset>
 <fieldset class="fbox"><legend><span class="fn">4</span>Начин на плащане</legend>
-<p class="free lt" style="margin:0 0 14px"><svg width="22" height="22" aria-hidden="true"><use href="#i-check"/></svg><span><b>Резервацията е безплатна.</b> Изберете как предпочитате да платите наема.</span></p>
-<div class="seg" role="radiogroup" aria-label="Начин на плащане"><label class="opt"><input type="radio" name="pay" value="bank"><span>Фактура от фирмата и плащане по банков път</span></label><label class="opt"><input type="radio" name="pay" value="cash"><span>В брой на място при вземане на автомобила – с касов бон</span></label></div>
-<div id="inv" hidden>
-<div class="row"><div><label for="b-icn">Фирма / име за фактурата</label><input id="b-icn" autocomplete="organization"></div><div><label for="b-ieik">ЕИК / Булстат</label><input id="b-ieik" inputmode="numeric" autocomplete="off"></div></div>
+<div class="paybox">
+<div class="free lt"><svg width="22" height="22" aria-hidden="true"><use href="#i-check"/></svg><p><b>Резервацията е безплатна.</b> Изберете как предпочитате да платите наема.</p></div>
+<div class="payopts" role="radiogroup" aria-label="Начин на плащане">
+<label class="opt"><input type="radio" name="pay" value="bankp"><span class="pt"><b>По банков път – физическо лице</b><small>Получавате фактура на ваше име с банковите ни данни.</small></span></label>
+<label class="opt"><input type="radio" name="pay" value="bank"><span class="pt"><b>По банков път – фирма</b><small>Фактура на фирмата и плащане по банков път.</small></span></label>
+<label class="opt"><input type="radio" name="pay" value="cash"><span class="pt"><b>В брой на място</b><small>При вземане на автомобила – с касов бон.</small></span></label>
+</div>
+<div id="invp" class="invbox" hidden>
+<p class="invh">Данни за фактурата – физическо лице</p>
+<div class="row"><div><label for="b-pname">Имена за фактурата</label><input id="b-pname" autocomplete="name"></div><div><label for="b-pegn">ЕГН (по избор)</label><input id="b-pegn" inputmode="numeric" autocomplete="off"></div></div>
+<div><label for="b-paddr">Адрес за фактурата</label><input id="b-paddr" placeholder="Град, улица, номер"></div>
+<small class="hint">Ако оставите полетата празни, използваме данните от документа ви за самоличност. Ще ви изпратим фактура с банковите ни данни за плащане.</small>
+</div>
+<div id="inv" class="invbox" hidden>
+<p class="invh">Данни за фактурата – фирма</p>
+<div class="row"><div><label for="b-icn">Име на фирмата</label><input id="b-icn" autocomplete="organization"></div><div><label for="b-ieik">ЕИК / Булстат</label><input id="b-ieik" inputmode="numeric" autocomplete="off"></div></div>
 <div class="row"><div><label for="b-ivat">ДДС номер (ако има)</label><input id="b-ivat" autocomplete="off"></div><div><label for="b-imol">МОЛ</label><input id="b-imol" autocomplete="off"></div></div>
 <div><label for="b-iaddr">Адрес по регистрация</label><input id="b-iaddr" placeholder="Град, улица, номер"></div>
 <small class="hint">Ще ви изпратим фактура с банковите ни данни за плащане.</small>
+</div>
 </div>
 </fieldset>
 <fieldset class="fbox"><legend><span class="fn">5</span>Допълнително</legend>
@@ -988,9 +1015,25 @@ const I18N={
 "Моля, потвърдете, че сте запознат с Общите условия и информацията за защита на личните данни.":["Please confirm that you have read the General Terms and the privacy information.","Bitte bestätigen Sie, dass Sie die AGB und die Datenschutzhinweise gelesen haben."],
 "Заявката не беше изпратена. Опитайте отново или се обадете на 0877748693.":["The request was not sent. Please try again or call 0877748693.","Die Anfrage wurde nicht gesendet. Bitte versuchen Sie es erneut oder rufen Sie 0877748693 an."],
 "Резервацията е безплатна.":["Booking is free of charge.", "Die Reservierung ist kostenlos."],
-"След резервацията избирате как да платите: по банков път срещу фактура от фирмата или в брой на място при вземане на автомобила с касов бон.":["After booking you choose how to pay: by bank transfer against an invoice from our company, or in cash on pick-up with a fiscal receipt.", "Nach der Reservierung wählen Sie die Zahlungsart: Banküberweisung gegen Rechnung unserer Firma oder bar bei Abholung mit Kassenbon."],
+"След резервацията избирате как да платите: по банков път срещу фактура (за физически лица и фирми) или в брой на място при вземане на автомобила с касов бон.":["After booking you choose how to pay: by bank transfer against an invoice (for private persons and companies), or in cash on pick-up with a fiscal receipt.", "Nach der Reservierung wählen Sie die Zahlungsart: Banküberweisung gegen Rechnung (für Privatpersonen und Firmen) oder bar bei Abholung mit Kassenbon."],
 "Остави данните си, избери период и автомобил и виж цената за твоите дати. Резервацията е безплатна.":["Leave your details, choose dates and a car and see the price for your period. Booking is free of charge.", "Geben Sie Ihre Daten ein, wählen Sie Zeitraum und Fahrzeug und sehen Sie den Preis für Ihre Daten. Die Reservierung ist kostenlos."],
 "Начин на плащане":["Payment method", "Zahlungsart"],
+"По банков път – физическо лице":["Bank transfer – private person", "Banküberweisung – Privatperson"],
+"Получавате фактура на ваше име с банковите ни данни.":["You receive an invoice in your name with our bank details.", "Sie erhalten eine Rechnung auf Ihren Namen mit unseren Bankdaten."],
+"По банков път – фирма":["Bank transfer – company", "Banküberweisung – Firma"],
+"Фактура на фирмата и плащане по банков път.":["Invoice to your company and payment by bank transfer.", "Rechnung an Ihre Firma und Zahlung per Banküberweisung."],
+"В брой на място":["Cash on site", "Bar vor Ort"],
+"При вземане на автомобила – с касов бон.":["When you pick up the car – with a fiscal receipt.", "Bei Abholung des Fahrzeugs – mit Kassenbon."],
+"Данни за фактурата – физическо лице":["Invoice details – private person", "Rechnungsdaten – Privatperson"],
+"Данни за фактурата – фирма":["Invoice details – company", "Rechnungsdaten – Firma"],
+"Имена за фактурата":["Full name for the invoice", "Vollständiger Name für die Rechnung"],
+"ЕГН (по избор)":["Personal number / EGN (optional)", "Persönliche Nummer / EGN (optional)"],
+"Адрес за фактурата":["Address for the invoice", "Rechnungsanschrift"],
+"Ако оставите полетата празни, използваме данните от документа ви за самоличност. Ще ви изпратим фактура с банковите ни данни за плащане.":["If you leave these fields empty, we use the details from your ID document. We will send you an invoice with our bank details for payment.", "Wenn Sie die Felder leer lassen, verwenden wir die Daten aus Ihrem Ausweis. Wir senden Ihnen eine Rechnung mit unseren Bankdaten zur Zahlung."],
+"Име на фирмата":["Company name", "Firmenname"],
+"По банков път – физическо лице (фактура)":["Bank transfer – private person (invoice)", "Banküberweisung – Privatperson (Rechnung)"],
+"По банков път – фирма (фактура)":["Bank transfer – company (invoice)", "Banküberweisung – Firma (Rechnung)"],
+"Моля, попълнете име на фирмата, ЕИК и адрес за фактурата.":["Please enter the company name, company ID and address for the invoice.", "Bitte geben Sie Firmenname, Firmennummer und Anschrift für die Rechnung ein."],
 "Изберете как предпочитате да платите наема.":["Choose how you prefer to pay for the rental.", "Wählen Sie, wie Sie die Miete bezahlen möchten."],
 "Фактура от фирмата и плащане по банков път":["Invoice from our company and bank transfer", "Rechnung unserer Firma und Banküberweisung"],
 "В брой на място при вземане на автомобила – с касов бон":["Cash on pick-up – with a fiscal receipt", "Bar bei Abholung – mit Kassenbon"],
@@ -1135,24 +1178,25 @@ bg.addEventListener("click",()=>{const o=nav.classList.toggle("open");bg.setAttr
 nav.addEventListener("click",e=>{if(e.target.tagName==="A"){nav.classList.remove("open");bg.setAttribute("aria-expanded",false)}});
 $$("[data-open]").forEach(a=>a.addEventListener("click",()=>{$("#"+a.dataset.open).open=true}));
 // ===== Форма с данни (началната страница) =====
-const fields={name:"#b-name",phone:"#b-phone",mail:"#b-mail",idn:"#b-idn",egn:"#b-egn",idd:"#b-idd",idp:"#b-idp",city:"#b-city",addr:"#b-addr",dln:"#b-dln",dlname:"#b-dlname",dld:"#b-dld",dlp:"#b-dlp",note:"#b-note",icn:"#b-icn",ieik:"#b-ieik",ivat:"#b-ivat",imol:"#b-imol",iaddr:"#b-iaddr"};
+const fields={name:"#b-name",phone:"#b-phone",mail:"#b-mail",idn:"#b-idn",egn:"#b-egn",idd:"#b-idd",idp:"#b-idp",city:"#b-city",addr:"#b-addr",dln:"#b-dln",dlname:"#b-dlname",dld:"#b-dld",dlp:"#b-dlp",note:"#b-note",icn:"#b-icn",ieik:"#b-ieik",ivat:"#b-ivat",imol:"#b-imol",iaddr:"#b-iaddr",pname:"#b-pname",pegn:"#b-pegn",paddr:"#b-paddr"};
 Object.entries(fields).forEach(([k,s])=>{if(S[k])$(s).value=S[k]});
 if(S.idt==="pass")document.querySelector("input[name=idt][value=pass]").checked=true;
 const idt=()=>document.querySelector("input[name=idt]:checked").value;
-// Начин на плащане: bank – фактура и банков път, cash – в брой на място с касов бон
-const PAY={bank:"Фактура и плащане по банков път",cash:"В брой на място с касов бон"};
-if(S.pay)document.querySelector(`input[name=pay][value=${S.pay==="bank"?"bank":"cash"}]`).checked=true;
+// Начин на плащане: bankp – по банков път, физическо лице; bank – по банков път, фирма; cash – в брой на място с касов бон
+const PAY={bankp:"По банков път – физическо лице (фактура)",bank:"По банков път – фирма (фактура)",cash:"В брой на място с касов бон"};
+if(PAY[S.pay])document.querySelector(`input[name=pay][value=${S.pay}]`).checked=true;
 const pay=()=>{const e=document.querySelector("input[name=pay]:checked");return e?e.value:""};
-const syncPay=()=>{$("#inv").hidden=pay()!=="bank"};syncPay();
+const syncPay=()=>{$("#inv").hidden=pay()!=="bank";$("#invp").hidden=pay()!=="bankp"};syncPay();
 $$("input[name=pay]").forEach(e=>e.addEventListener("change",syncPay));
-const invText=R=>R.pay!=="bank"?"":[`Фирма / име: ${R.icn||"-"}`,`ЕИК / Булстат: ${R.ieik||"-"}`,R.ivat?`ДДС номер: ${R.ivat}`:"",R.imol?`МОЛ: ${R.imol}`:"",`Адрес: ${R.iaddr||"-"}`].filter(Boolean).join("\n");
+const invText=R=>R.pay==="bank"?[`Фирма: ${R.icn||"-"}`,`ЕИК / Булстат: ${R.ieik||"-"}`,R.ivat?`ДДС номер: ${R.ivat}`:"",R.imol?`МОЛ: ${R.imol}`:"",`Адрес: ${R.iaddr||"-"}`].filter(Boolean).join("\n")
+:R.pay==="bankp"?["Физическо лице",`Имена: ${R.pname||R.name||"-"}`,`ЕГН: ${R.pegn||R.egn||"-"}`,`Адрес: ${R.paddr||[R.city,R.addr].filter(Boolean).join(", ")||"-"}`].join("\n"):"";
 // Имената в шофьорската книжка се попълват от личната карта, докато клиентът не ги промени ръчно
 let dlPrev=$("#b-name").value.trim();
 $("#b-name").addEventListener("input",()=>{const d=$("#b-dlname"),n=$("#b-name").value.trim();if(!d.value.trim()||d.value.trim()===dlPrev)d.value=n;dlPrev=n});
 function fail(t){const e=$("#b-err");e.textContent=t;e.hidden=false;e.scrollIntoView({behavior:"smooth",block:"center"})}
 function buildText(){const R=S,c=CARS.find(x=>x.id===R.car),q=c&&hasD()?quote(c,R):null;
 return[`Заявка за наем${c?": "+c.name:" (автомобилът още не е избран)"}`,R.d1?`Получаване: ${bf(R.d1,R.t1)}, ${R.m1==="addr"?"доставка до "+R.a1:BASE}`:"",R.d2?`Връщане: ${bf(R.d2,R.t2)}, ${R.m2==="addr"?"вземане от "+R.a2:BASE}`:"",R.d1?`Детско столче: ${R.seat?"да":"не"}`:"",q&&!q.err?`Общо за услугите: ${fmt(q.tot)}${q.pend.length?" (без "+q.pend.join(" и ")+")":""}. Депозит: ${fmt(DEPOSIT)}`:"",q&&!q.err?`Брой дни: ${q.d}, цена на ден: ${fmt(q.r)}, наем на автомобила: ${fmt(q.base)}`:"",
-R.pay?`\nПЛАЩАНЕ: ${PAY[R.pay]}`:"",R.pay==="bank"?"ДАННИ ЗА ФАКТУРА\n"+invText(R):"",
+R.pay?`\nПЛАЩАНЕ: ${PAY[R.pay]}`:"",invText(R)?"ДАННИ ЗА ФАКТУРА\n"+invText(R):"",
 "\nКЛИЕНТ",`Имена: ${R.name}`,`Телефон: ${R.phone}`,`Имейл: ${R.mail}`,
 "\nДОКУМЕНТ ЗА САМОЛИЧНОСТ",`Вид: ${R.idt==="pass"?"паспорт":"лична карта"}`,`Номер: ${R.idn||"-"}`,`ЕГН: ${R.egn||"-"}`,`Дата на издаване: ${R.idd?bf(R.idd):"-"}`,`Издаден от: ${R.idp||"-"}`,`Град: ${R.city||"-"}`,`Адрес: ${R.addr||"-"}`,
 "\nШОФЬОРСКА КНИЖКА",`Номер: ${R.dln||"-"}`,`Имена: ${R.dlname||"-"}`,`Дата на издаване: ${R.dld?bf(R.dld):"-"}`,`Издадена от: ${R.dlp||"-"}`,
@@ -1211,7 +1255,7 @@ if(!v("#b-dld"))return fail("Моля, попълнете датата на из
 if(!v("#b-dlp"))return fail("Моля, попълнете от кого е издадена шофьорската книжка.");
 if(!PH["p-dlf"]||!PH["p-dlb"])return fail("Моля, приложете снимки на шофьорската книжка от двете страни.");
 if(!pay())return fail("Моля, изберете начин на плащане.");
-if(pay()==="bank"&&(!v("#b-icn")||!v("#b-ieik")||!v("#b-iaddr")))return fail("Моля, попълнете фирма / име, ЕИК и адрес за фактурата.");
+if(pay()==="bank"&&(!v("#b-icn")||!v("#b-ieik")||!v("#b-iaddr")))return fail("Моля, попълнете име на фирмата, ЕИК и адрес за фактурата.");
 if(!$("#b-ok").checked)return fail("Моля, потвърдете, че сте запознат с Общите условия и информацията за защита на личните данни.");
 S=Object.assign(S,Object.fromEntries(Object.entries(fields).map(([k,s])=>[k,v(s)])),{idt:idt(),pay:pay(),done:"",bid:"",btok:"",bst:"",bnote:""});store.set(S);
 if(BOOKING_ENDPOINT){const b=$("#bk button[type=submit]"),m=$("#b-msg");b.disabled=true;m.textContent="Изпращаме резервацията…";
@@ -1300,7 +1344,7 @@ $("#th-step").className=st==="confirmed"?"done":"now";$("#th-ic").classList.togg
 $("#th-ic").innerHTML=st==="rejected"?'<svg width="34" height="34" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="3" stroke-linecap="round" fill="none"/></svg>':'<svg width="34" height="34" aria-hidden="true"><use href="#i-check"/></svg>';
 $("#th-note").hidden=!(st==="rejected"&&R.bnote);$("#th-note").textContent=R.bnote||"";
 $("#th-cta").innerHTML='<a class="btn btn-ghost" href="#home">Към началото</a>';
-$("#th-sum").innerHTML=`<h2>Вашата резервация</h2><div class="kv"><div><span>Име</span><b>${esc(R.name)}</b></div><div><span>Телефон</span><b>${esc(R.phone)}</b></div><div><span>Автомобил</span><b>${c?c.name:""}</b></div><div><span>Получаване</span><b>${bf(R.d1,R.t1)}</b></div><div><span>Връщане</span><b>${bf(R.d2,R.t2)}</b></div>${R.pay?`<div><span>Плащане</span><b>${PAY[R.pay]}</b></div>`:""}</div>`}
+$("#th-sum").innerHTML=`<h2>Вашата резервация</h2><div class="kv"><div><span>Име</span><b>${esc(R.name)}</b></div><div><span>Телефон</span><b>${esc(R.phone)}</b></div><div><span>Автомобил</span><b>${c?c.name:""}</b></div><div><span>Получаване</span><b>${bf(R.d1,R.t1)}</b></div><div><span>Връщане</span><b>${bf(R.d2,R.t2)}</b></div>${PAY[R.pay]?`<div><span>Плащане</span><b>${PAY[R.pay]}</b></div>`:""}</div>`}
 // Проверява статуса, докато клиентът е на страницата „Благодарим“
 let pollT;async function pollStatus(){clearTimeout(pollT);if(cur!=="blagodarim"||!S.bid||S.bst!=="pending")return;
 if(!document.hidden)try{const r=await fetch(`${BOOKINGS_ENDPOINT}/${S.bid}?t=${S.btok}`,{cache:"no-store"});const j=await r.json();if(r.ok&&j.status&&j.status!==S.bst){S.bst=j.status;S.bnote=j.note||"";store.set(S);renderThanks()}}catch(e){}
