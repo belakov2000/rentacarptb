@@ -78,6 +78,16 @@ nav a{display:block;padding:14px 0;font-size:1.05rem;border-bottom:1px solid rgb
 /* why */
 .why-grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
 .card{background:var(--soft);border-radius:var(--r);padding:26px}
+.wcal{border:1px solid var(--line);border-radius:var(--r);overflow:hidden;background:#fff;box-shadow:0 10px 30px rgba(15,27,45,.06)}
+.wcal-top{height:22px;background:var(--navy);display:flex;justify-content:space-around;align-items:center}
+.wcal-top i{width:10px;height:10px;border-radius:50%;background:var(--acc)}
+.wcal-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:1px;background:var(--line)}
+.wcal-grid .card{border-radius:0;background:#fff;padding:14px 12px;opacity:1;transform:none}
+.wcal-grid .ico{width:34px;height:34px;border-radius:10px;margin-bottom:10px}
+.wcal-grid .ico svg{width:19px;height:19px}
+.wcal-grid h3{font-size:.98rem;line-height:1.25;margin-bottom:5px}
+.wcal-grid p{font-size:.84rem;line-height:1.4}
+@media(min-width:760px){.wcal-grid{grid-template-columns:repeat(3,1fr)}.wcal-grid .card{padding:22px 20px}.wcal-grid .ico{width:42px;height:42px;border-radius:12px;margin-bottom:12px}.wcal-grid h3{font-size:1.1rem}.wcal-grid p{font-size:.92rem}}
 .card.hl{background:var(--navy);color:#fff}
 .card.hl p{color:#c5d0e0}
 .card h3{font-size:1.2rem;font-weight:800;margin-bottom:8px}
@@ -393,7 +403,7 @@ button.btn-ghost{background:transparent}
 <h1>Коли под наем <em>от 15 € на ден</em></h1>
 <p class="sub">Надеждни и обслужени автомобили. Чисти и заредени до горе. Неограничен пробег при наем над 2 дни и 100 € гаранционен депозит.</p>
 <p class="fine">15 € на ден е минималната цена при наем над 30 дни за избрани автомобили.</p>
-<p class="free"><svg width="22" height="22" aria-hidden="true"><use href="#i-check"/></svg><span><b>Резервацията е безплатна.</b> След резервацията избирате как да платите: по банков път срещу фактура (за физически лица и фирми) или в брой на място при вземане на автомобила с касов бон.</span></p>
+<p class="free"><svg width="22" height="22" aria-hidden="true"><use href="#i-check"/></svg><span><b>Резервацията е безплатна.</b></span></p>
 <div class="stats" data-stats></div>
 </div>
 <aside class="hcard">
@@ -419,7 +429,7 @@ button.btn-ghost{background:transparent}
 <section id="why">
 <div class="wrap">
 <div class="sec-head rv"><h2>Всичко необходимо за спокойно пътуване</h2></div>
-<div class="why-grid" id="why-grid"></div>
+<div class="wcal rv"><div class="wcal-top" aria-hidden="true"><i></i><i></i></div><div class="wcal-grid" id="why-grid"></div></div>
 </div>
 </section>
 
@@ -428,7 +438,7 @@ button.btn-ghost{background:transparent}
 <div class="sec-head rv"><h2>Как работи</h2></div>
 <ol class="steps">
 <li class="step rv"><span class="num">1</span><h3>Избери автомобил</h3></li>
-<li class="step rv"><span class="num">2</span><h3>Свържи се с нас</h3></li>
+<li class="step rv"><span class="num">2</span><h3>Попълни данни за резервация</h3></li>
 <li class="step rv"><span class="num">3</span><h3>Получаваш чист и зареден автомобил</h3></li>
 <li class="step rv"><span class="num">4</span><h3>Пътуваш спокойно</h3></li>
 </ol>
@@ -452,10 +462,10 @@ button.btn-ghost{background:transparent}
 <div class="sec-head rv"><h2>Условия</h2></div>
 <ul class="terms">
 <li>Цена от 15 € / ден при наем над 30 дни за избрани автомобили</li>
-<li>Гаранционен депозит: 100 €. Връща се в деня на връщане на автомобила, при спазване на условията</li>
+<li>Гаранционен депозит: 100 €<br>Депозитът се възстановява в деня на връщане на автомобила, при условие че автомобилът е върнат както е бил получен - чист, с пълен резервоар и без установени щети.</li>
 <li>Неограничен пробег при наем над 2 дни</li>
 <li>При наем до 2 дни пробегът е до 250 км на ден. Над лимита се дължат 0,10 € за км</li>
-<li>Автомобилът се предоставя чист и зареден до горе</li>
+<li>Автомобилът се предоставя чист и зареден до горе и така очакваме да ни го върнете</li>
 <li>Автомобилите са обслужени и готови за път</li>
 </ul>
 <p class="warn">Крайната цена и условията могат да зависят от избрания автомобил и периода на наемане. Свържете се с нас за актуална оферта.</p>
@@ -846,7 +856,7 @@ const I18N={
 "Изпрати заявката":["Send request","Anfrage senden"],
 "Как работи":["How it works","So funktioniert es"],
 "Избери автомобил":["Choose a car","Fahrzeug wählen"],
-"Свържи се с нас":["Contact us","Kontaktieren Sie uns"],
+"Попълни данни за резервация":["Fill in your booking details","Buchungsdaten ausfüllen"],
 "Получаваш чист и зареден автомобил":["Get a clean car with a full tank","Sauberes, vollgetanktes Auto erhalten"],
 "Пътуваш спокойно":["Travel with peace of mind","Entspannt reisen"],
 "Какво казват нашите клиенти":["What our customers say","Was unsere Kunden sagen"],
@@ -860,10 +870,10 @@ const I18N={
 "Жанета Тороманова":["Zhaneta Toromanova","Zhaneta Toromanova"],
 "Клиент":["Customer","Kunde"],
 "Цена от 15 € / ден при наем над 30 дни за избрани автомобили":["Price from 15 € / day for rentals over 30 days on selected cars","Preis ab 15 € / Tag bei Mieten über 30 Tage für ausgewählte Fahrzeuge"],
-"Гаранционен депозит: 100 €. Връща се в деня на връщане на автомобила, при спазване на условията":["Security deposit: 100 €. Refunded on the day the car is returned, subject to the terms","Kaution: 100 €. Wird am Tag der Rückgabe erstattet, sofern die Bedingungen eingehalten werden"],
+"Депозитът се възстановява в деня на връщане на автомобила, при условие че автомобилът е върнат както е бил получен - чист, с пълен резервоар и без установени щети.":["The deposit is refunded on the day the car is returned, provided the car is returned as it was received - clean, with a full tank and with no damage found.","Die Kaution wird am Tag der Rückgabe erstattet, sofern das Fahrzeug so zurückgegeben wird, wie es übernommen wurde - sauber, vollgetankt und ohne festgestellte Schäden."],
 "Неограничен пробег при наем над 2 дни":["Unlimited mileage for rentals over 2 days","Unbegrenzte Kilometer bei Mieten über 2 Tage"],
 "При наем до 2 дни пробегът е до 250 км на ден. Над лимита се дължат 0,10 € за км":["For rentals up to 2 days mileage is limited to 250 km per day. Above the limit 0.10 € per km is charged","Bei Mieten bis 2 Tage sind 250 km pro Tag inklusive. Darüber hinaus werden 0,10 € pro km berechnet"],
-"Автомобилът се предоставя чист и зареден до горе":["The car is provided clean and with a full tank","Das Fahrzeug wird sauber und vollgetankt übergeben"],
+"Автомобилът се предоставя чист и зареден до горе и така очакваме да ни го върнете":["The car is provided clean and with a full tank, and we expect it to be returned the same way","Das Fahrzeug wird sauber und vollgetankt übergeben, und wir erwarten, dass es genauso zurückgegeben wird"],
 "Автомобилите са обслужени и готови за път":["The cars are serviced and ready for the road","Die Fahrzeuge sind gewartet und fahrbereit"],
 "Крайната цена и условията могат да зависят от избрания автомобил и периода на наемане. Свържете се с нас за актуална оферта.":["The final price and terms may depend on the chosen car and rental period. Contact us for a current offer.","Endpreis und Bedingungen können vom gewählten Fahrzeug und Mietzeitraum abhängen. Kontaktieren Sie uns für ein aktuelles Angebot."],
 "„Рента ПТБ Строй“ ЕООД предлага автомобили под наем за хора, които търсят надежден автомобил, ясни условия и конкурентна цена.":["Renta PTB Stroy Ltd. offers rental cars for people looking for a reliable car, clear terms and a competitive price.","Renta PTB Stroy EOOD bietet Mietwagen für alle, die ein zuverlässiges Fahrzeug, klare Bedingungen und einen fairen Preis suchen."],
@@ -1122,7 +1132,7 @@ const CARS=[
 {id:"golf",name:"Volkswagen Golf 5",color:"",year:2009,engine:"1.9 дизел",fuel:"Дизел",hp:105,body:"Комби",gear:"Ръчна",tiers:T25},
 {id:"passat",name:"Volkswagen Passat",color:"Черен",year:2008,engine:"2.0 дизел",fuel:"Дизел",hp:140,drive:"4x4",body:"Комби",gear:"Ръчна",tiers:T25}];
 const WHY=[
-["i-tag","От 15 € на ден","Минималната цена е при наем над 30 дни за избрани автомобили.",1],
+["i-tag","От 15 € на ден","Минималната цена е при наем над 30 дни за избрани автомобили."],
 ["i-wrench","Надеждни автомобили","Всички автомобили са обслужени и готови за път."],
 ["i-spark","Винаги чист автомобил","Получавате автомобила чист и подготвен за вашето пътуване."],
 ["i-fuel","Зареден до горе","Автомобилът се предава зареден до горе."],
