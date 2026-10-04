@@ -299,6 +299,18 @@ button.btn-ghost{background:transparent}
 .plancard fieldset{align-content:start}
 #plan .pick{margin:28px 0 0}
 #plan{padding:48px 0 72px}
+.lang{display:flex;gap:2px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);border-radius:999px;padding:3px;flex:none}
+.lang button{background:none;border:0;color:#d6deea;font:inherit;font-weight:800;font-size:.8rem;letter-spacing:.04em;padding:7px 10px;border-radius:999px;cursor:pointer;min-width:38px}
+.lang button:hover{color:#fff}
+.lang button[aria-pressed=true]{background:var(--acc);color:var(--acc-ink)}
+@media(max-width:900px){.bar{gap:10px}.bar .lang{margin-left:auto}}
+@media(max-width:420px){.logo{font-size:.86rem}.lang button{padding:6px 8px;min-width:32px}}
+#bk .fbox{border:1.5px solid var(--line);border-radius:var(--r);padding:20px 18px 22px;margin-bottom:18px;background:#fff}
+#bk .fbox legend{display:flex;align-items:center;gap:10px;float:left;width:100%;margin-bottom:12px}
+#bk .fn{width:30px;height:30px;border-radius:50%;background:var(--navy);color:#fff;display:grid;place-items:center;font-size:.9rem;flex:none}
+#bk .seg{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+#bk .seg .opt{padding:12px 14px;margin:0}
+#bk .hint{display:block;margin-top:4px;font-size:.78rem;color:var(--muted)}
 </style>
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"AutoRental","name":"Рента ПТБ Строй ЕООД","legalName":"РЕНТА ПТБ СТРОЙ ЕООД","telephone":"+359877748693","address":{"@type":"PostalAddress","streetAddress":"бул. Дунав 10","addressLocality":"Пловдив","postalCode":"4027","addressCountry":"BG"}}</script>
 </head>
@@ -328,6 +340,7 @@ button.btn-ghost{background:transparent}
 </ul>
 </nav>
 <a class="btn btn-acc" href="tel:0877748693">Обади се сега</a>
+<div class="lang" role="group" aria-label="Език / Language / Sprache"><button type="button" data-lang="bg" lang="bg" aria-pressed="true" title="Български">BG</button><button type="button" data-lang="en" lang="en" aria-pressed="false" title="English">EN</button><button type="button" data-lang="de" lang="de" aria-pressed="false" title="Deutsch">DE</button></div>
 <button class="burger" id="burger" aria-label="Отвори менюто" aria-expanded="false" aria-controls="nav">
 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
 </button>
@@ -378,9 +391,21 @@ button.btn-ghost{background:transparent}
 <div class="sec-head rv"><h2>Заяви резервация</h2><p>Оставете данните си. На следващата страница избирате период, място и автомобил и виждате цената за вашите дати.</p></div>
 <div class="bk-grid one">
 <form id="bk" novalidate>
-<fieldset><legend>Вашите данни</legend>
-<div class="row"><div><label for="b-name">Име</label><input id="b-name" autocomplete="name" required></div><div><label for="b-phone">Телефон</label><input id="b-phone" type="tel" autocomplete="tel" required></div></div>
-<div><label for="b-mail">Имейл</label><input id="b-mail" type="email" autocomplete="email" required></div>
+<fieldset class="fbox"><legend><span class="fn">1</span>Вашите данни</legend>
+<div><label for="b-name">Имена (както са в личната карта)</label><input id="b-name" autocomplete="name" placeholder="Име, презиме, фамилия" required></div>
+<div class="row"><div><label for="b-phone">Телефон</label><input id="b-phone" type="tel" autocomplete="tel" required></div><div><label for="b-mail">Имейл</label><input id="b-mail" type="email" autocomplete="email" required></div></div>
+</fieldset>
+<fieldset class="fbox"><legend><span class="fn">2</span>Лична карта / паспорт</legend>
+<div class="seg" role="radiogroup" aria-label="Вид документ"><label class="opt"><input type="radio" name="idt" value="id" checked><span>Лична карта</span></label><label class="opt"><input type="radio" name="idt" value="pass"><span>Паспорт</span></label></div>
+<div class="row"><div><label for="b-idn">Номер на документа</label><input id="b-idn" autocomplete="off" required></div><div><label for="b-egn">ЕГН</label><input id="b-egn" inputmode="numeric" autocomplete="off" maxlength="20" required></div></div>
+<div class="row"><div><label for="b-idd">Дата на издаване</label><input id="b-idd" type="date" required></div><div><label for="b-idp">Издаден от / къде</label><input id="b-idp" placeholder="напр. МВР Пловдив" required></div></div>
+<div class="row"><div><label for="b-city">Град</label><input id="b-city" autocomplete="address-level2" required></div><div><label for="b-addr">Адрес</label><input id="b-addr" autocomplete="street-address" placeholder="Улица, номер, вход, апартамент" required></div></div>
+</fieldset>
+<fieldset class="fbox"><legend><span class="fn">3</span>Шофьорска книжка</legend>
+<div class="row"><div><label for="b-dln">Номер на книжката</label><input id="b-dln" autocomplete="off" required></div><div><label for="b-dlname">Имена</label><input id="b-dlname" autocomplete="off" required><small class="hint">Попълват се автоматично от личната карта.</small></div></div>
+<div class="row"><div><label for="b-dld">Дата на издаване</label><input id="b-dld" type="date" required></div><div><label for="b-dlp">Издадена от / къде</label><input id="b-dlp" placeholder="напр. МВР Пловдив" required></div></div>
+</fieldset>
+<fieldset class="fbox"><legend><span class="fn">4</span>Допълнително</legend>
 <div><label for="b-note">Допълнителна информация</label><textarea id="b-note"></textarea></div>
 </fieldset>
 <label class="opt"><input type="checkbox" id="b-ok"><span>Запознат съм с <a href="#t-terms" data-open="t-terms">Общите условия</a> и <a href="#t-privacy" data-open="t-privacy">информацията за защита на личните данни</a> и съм съгласен данните ми да се обработват за целите на заявката.</span></label>
