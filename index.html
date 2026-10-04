@@ -269,6 +269,7 @@ input[type=date],input[type=time]{min-width:0;max-width:100%;-webkit-appearance:
 .flow li:not(:last-child)::after{content:"";width:22px;height:2px;background:rgba(255,255,255,.25);margin-left:2px}
 .flow li.done,.flow li.now{color:#fff}
 .flow li.done::before{content:"✓";background:var(--acc);border-color:var(--acc);color:var(--acc-ink)}
+.okic.no{background:#ff8a80;box-shadow:0 0 0 10px rgba(255,138,128,.18)}
 .flow li.now::before{background:#fff;color:var(--navy);border-color:#fff}
 .okic{width:68px;height:68px;border-radius:50%;background:var(--acc);color:var(--acc-ink);display:grid;place-items:center;margin-bottom:20px;box-shadow:0 0 0 10px rgba(255,183,3,.18)}
 .okh h1{font-family:Oswald,"Arial Narrow",Impact,sans-serif;font-weight:700;letter-spacing:.01em;text-transform:uppercase;font-size:clamp(2.2rem,8vw,3.8rem);line-height:1.04}
@@ -602,10 +603,11 @@ button.btn-ghost{background:transparent}
 <section class="okh" id="th-hero">
 <div class="wrap okh-grid">
 <div>
-<ol class="flow" aria-label="Стъпки"><li class="done">Избор на автомобил</li><li class="done">Вашите данни</li><li class="now">Потвърждение от нас</li></ol>
-<div class="okic"><svg width="34" height="34" aria-hidden="true"><use href="#i-check"/></svg></div>
-<h1>Благодарим за доверието!</h1>
+<ol class="flow" aria-label="Стъпки"><li class="done">Избор на автомобил</li><li class="done">Вашите данни</li><li class="now" id="th-step">Потвърждение от нас</li></ol>
+<div class="okic" id="th-ic"><svg width="34" height="34" aria-hidden="true"><use href="#i-check"/></svg></div>
+<h1 id="th-h">Благодарим за доверието!</h1>
 <p class="sub" id="th-sub"></p>
+<p class="sub" id="th-note" style="margin-top:12px" hidden></p>
 <div class="cta-row" id="th-cta"></div>
 <p class="th-q">Въпроси? Свържете се с нас: <a href="tel:+359877748693">+359877748693</a></p>
 </div>
@@ -912,6 +914,11 @@ const I18N={
 "Не е част от цената на наема. Депозитът се връща при връщане на автомобила съгласно условията.":["Not part of the rental price. The deposit is refunded when the car is returned, according to the terms.","Nicht Teil des Mietpreises. Die Kaution wird bei Rückgabe des Fahrzeugs gemäß den Bedingungen erstattet."],
 "Остави данни за резервация":["Leave booking details","Buchungsdaten eingeben"],
 "Резервирай":["Book","Buchen"],
+"Резервацията е потвърдена!":["Your booking is confirmed!","Ihre Buchung ist bestätigt!"],
+"Резервацията не е потвърдена":["Your booking is not confirmed","Ihre Buchung ist nicht bestätigt"],
+"Очакваме ви! Изпратихме ви имейл с потвърждението и данните за резервацията.":["See you soon! We have sent you an email with the confirmation and booking details.","Bis bald! Wir haben Ihnen eine E-Mail mit der Bestätigung und den Buchungsdaten gesendet."],
+"За съжаление не можем да потвърдим резервацията за избрания период. Изпратихме ви имейл с подробности. Обадете ни се, за да намерим друг вариант.":["Unfortunately we cannot confirm the booking for the selected period. We have sent you an email with details. Call us and we will find another option.","Leider können wir die Buchung für den gewählten Zeitraum nicht bestätigen. Wir haben Ihnen eine E-Mail mit Details gesendet. Rufen Sie uns an, wir finden eine andere Lösung."],
+"Вашата заявка е получена успешно и в момента се обработва от нашия екип. Тази страница ще се обнови автоматично, когато потвърдим резервацията, и ще получите имейл.":["Your request has been received and is being processed by our team. This page updates automatically once we confirm the booking, and you will receive an email.","Ihre Anfrage ist eingegangen und wird von unserem Team bearbeitet. Diese Seite aktualisiert sich automatisch, sobald wir die Buchung bestätigen, und Sie erhalten eine E-Mail."],
 "Смени автомобила":["Change car","Fahrzeug wechseln"],
 "Изпращаме резервацията…":["Sending your booking…","Buchung wird gesendet…"],
 "Резервацията не беше изпратена. Опитайте отново.":["The booking was not sent. Please try again.","Die Buchung wurde nicht gesendet. Bitte versuchen Sie es erneut."],
@@ -1099,6 +1106,13 @@ return{"Автомобил":c?c.name:"не е избран",
 async function sendReq(links){const R=S;links=links||{};
 try{const c=CARS.find(x=>x.id===R.car);const r=await fetch(BOOKING_ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({access_key:WEB3FORMS_KEY,subject:"Нова заявка за наем"+(c?": "+c.name:"")+" – "+R.name,from_name:"Rent a Car PTB – сайт",replyto:R.mail,message:buildText()+(Object.keys(links).length?"\n\nСНИМКИ НА ДОКУМЕНТИТЕ\n"+Object.entries(links).map(([l,u])=>l+": "+u).join("\n"):""),name:R.name,phone:R.phone,email:R.mail,...mailFields(R,c),...links})});
 const j=await r.json().catch(()=>({}));if(!r.ok||j.success===false)throw 0;return"sent"}catch(e){return"err"}}
+// Записва заявката на сървъра: фирмата получава имейл с бутони „Потвърди“ / „Откажи“, а клиентът вижда статуса тук.
+const BOOKINGS_ENDPOINT="/api/bookings";
+async function sendBooking(links){const R=S,c=CARS.find(x=>x.id===R.car),q=c&&hasD()?quote(c,R):null,place=(n,a)=>R["m"+n]==="addr"?a+" "+R["a"+n]:BASE;
+try{const r=await fetch(BOOKINGS_ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:R.name,email:R.mail,phone:R.phone,lang:LANG,car:c?c.name:"",
+pickup:bf(R.d1,R.t1)+", "+place(1,"доставка до"),dropoff:bf(R.d2,R.t2)+", "+place(2,"вземане от"),total:q&&!q.err?fmt(q.tot)+(q.pend.length?" (без "+q.pend.join(" и ")+")":""):"",
+message:buildText()+(Object.keys(links).length?"\n\nСНИМКИ НА ДОКУМЕНТИТЕ\n"+Object.entries(links).map(([l,u])=>l+": "+u).join("\n"):"")})});
+const j=await r.json().catch(()=>({}));if(!r.ok||!j.id)return false;S.bid=j.id;S.btok=j.token;S.bst=j.status;S.bnote="";return true}catch(e){return false}}
 const sendSms=()=>{location.href="sms:"+PHONE+"?&body="+encodeURIComponent(buildText())};
 // ===== Снимки на документите: смаляват се в браузъра и се качват при изпращане =====
 const DOCS_ENDPOINT="/api/documents";
@@ -1129,9 +1143,9 @@ if(!v("#b-dld"))return fail("Моля, попълнете датата на из
 if(!v("#b-dlp"))return fail("Моля, попълнете от кого е издадена шофьорската книжка.");
 if(!PH["p-dlf"]||!PH["p-dlb"])return fail("Моля, приложете снимки на шофьорската книжка от двете страни.");
 if(!$("#b-ok").checked)return fail("Моля, потвърдете, че сте запознат с Общите условия и информацията за защита на личните данни.");
-S=Object.assign(S,Object.fromEntries(Object.entries(fields).map(([k,s])=>[k,v(s)])),{idt:idt(),done:""});store.set(S);
+S=Object.assign(S,Object.fromEntries(Object.entries(fields).map(([k,s])=>[k,v(s)])),{idt:idt(),done:"",bid:"",btok:"",bst:"",bnote:""});store.set(S);
 if(BOOKING_ENDPOINT){const b=$("#bk button[type=submit]"),m=$("#b-msg");b.disabled=true;m.textContent="Изпращаме резервацията…";
-let r="err";try{const links=await uploadPhotos();r=await sendReq(links)}catch(x){}
+let r="err";try{const links=await uploadPhotos();r=await sendBooking(links)?"sent":await sendReq(links)}catch(x){}
 b.disabled=false;m.textContent="";if(r!=="sent")return fail("Резервацията не беше изпратена. Опитайте отново или се обадете на 0877748693.");S.done="sent"}else S.done="sms";
 store.set(S);location.hash="blagodarim";if(S.done==="sms")sendSms()});
 // ===== Втора страница: данни за резервацията, автомобили и цени =====
@@ -1184,17 +1198,26 @@ if(e.target.closest("[data-sms]")){sendSms();return}
 if(e.target.closest("[data-details]")){const m=$("#pick-msg"),er=planErr();
 if(er){m.textContent=er;m.style.color="#ffb4ab";$("#plan").scrollIntoView({behavior:"smooth"});return}
 m.textContent="";$("#details").scrollIntoView({behavior:"smooth",block:"start"})}});
-function renderThanks(){const R=S,c=CARS.find(x=>x.id===R.car);
-$("#th-sub").textContent="Вашата заявка е получена успешно и в момента се обработва от нашия екип. Моля, изчакайте — ще се свържем с Вас възможно най-скоро, в рамките на 1 работен ден.";
+function renderThanks(){const R=S,c=CARS.find(x=>x.id===R.car),st=R.bid?R.bst:"";
+$("#th-h").textContent=st==="confirmed"?"Резервацията е потвърдена!":st==="rejected"?"Резервацията не е потвърдена":"Благодарим за доверието!";
+$("#th-sub").textContent=st==="confirmed"?"Очакваме ви! Изпратихме ви имейл с потвърждението и данните за резервацията.":st==="rejected"?"За съжаление не можем да потвърдим резервацията за избрания период. Изпратихме ви имейл с подробности. Обадете ни се, за да намерим друг вариант.":st==="pending"?"Вашата заявка е получена успешно и в момента се обработва от нашия екип. Тази страница ще се обнови автоматично, когато потвърдим резервацията, и ще получите имейл.":"Вашата заявка е получена успешно и в момента се обработва от нашия екип. Моля, изчакайте — ще се свържем с Вас възможно най-скоро, в рамките на 1 работен ден.";
+$("#th-step").className=st==="confirmed"?"done":"now";$("#th-ic").classList.toggle("no",st==="rejected");
+$("#th-ic").innerHTML=st==="rejected"?'<svg width="34" height="34" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="3" stroke-linecap="round" fill="none"/></svg>':'<svg width="34" height="34" aria-hidden="true"><use href="#i-check"/></svg>';
+$("#th-note").hidden=!(st==="rejected"&&R.bnote);$("#th-note").textContent=R.bnote||"";
 $("#th-cta").innerHTML='<a class="btn btn-ghost" href="#home">Към началото</a>';
 $("#th-sum").innerHTML=`<h2>Вашата резервация</h2><div class="kv"><div><span>Име</span><b>${esc(R.name)}</b></div><div><span>Телефон</span><b>${esc(R.phone)}</b></div><div><span>Автомобил</span><b>${c?c.name:""}</b></div><div><span>Получаване</span><b>${bf(R.d1,R.t1)}</b></div><div><span>Връщане</span><b>${bf(R.d2,R.t2)}</b></div></div>`}
+// Проверява статуса, докато клиентът е на страницата „Благодарим“
+let pollT;async function pollStatus(){clearTimeout(pollT);if(cur!=="blagodarim"||!S.bid||S.bst!=="pending")return;
+if(!document.hidden)try{const r=await fetch(`${BOOKINGS_ENDPOINT}/${S.bid}?t=${S.btok}`,{cache:"no-store"});const j=await r.json();if(r.ok&&j.status&&j.status!==S.bst){S.bst=j.status;S.bnote=j.note||"";store.set(S);renderThanks()}}catch(e){}
+if(S.bst==="pending")pollT=setTimeout(pollStatus,15000)}
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)pollStatus()});
 $("#view-thanks").addEventListener("click",e=>{if(e.target.closest("[data-sms]"))sendSms()});
 // ===== Превключване между страниците (един файл) =====
 const T0=document.title;let cur="";
 function go(){const h=decodeURIComponent(location.hash.slice(1)),v=(h==="potvurzhdenie"||h==="avtomobili"||h==="book")?"avtomobili":(h==="blagodarim"&&S.done&&hasC()&&S.car&&hasD())?h:h==="plan"?(cur&&cur!=="home"?cur:"avtomobili"):"home",ch=v!==cur;cur=v;
 $("#view-home").hidden=v!=="home";$("#view-cars").hidden=v==="home"||v==="blagodarim";$("#view-thanks").hidden=v!=="blagodarim";
 if(v==="home")setTitle(T0);
-else if(v==="blagodarim"){renderThanks();setTitle("Благодарим | Рента ПТБ Строй")}
+else if(v==="blagodarim"){renderThanks();pollStatus();setTitle("Благодарим | Рента ПТБ Строй")}
 else{setupCars();setTitle("Автомобили и цени | Рента ПТБ Строй")}
 if(ch){const t=(v==="home"||h==="plan")&&h&&document.getElementById(h);t?t.scrollIntoView({behavior:"instant"}):window.scrollTo({top:0,behavior:"instant"})}
 nav.classList.remove("open");reveal()}
