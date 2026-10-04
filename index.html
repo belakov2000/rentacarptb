@@ -487,7 +487,7 @@ button.btn-ghost{background:transparent}
 </div>
 </div>
 </section>
-<section id="legal">
+<section id="legal" hidden>
 <div class="wrap">
 <div class="sec-head"><h2>Общи условия и защита на личните данни</h2><p data-i18n-note hidden>Правно обвързващият текст на Общите условия и информацията за личните данни е на български език.</p></div>
 <details class="dt" id="t-terms"><summary>Общи условия</summary><div class="doc">
@@ -1181,7 +1181,8 @@ $$("[data-logo]").forEach(i=>i.src=LOGO);$$("[data-mark]").forEach(i=>i.src=MARK
 const nav=$("#nav"),bg=$("#burger");
 bg.addEventListener("click",()=>{const o=nav.classList.toggle("open");bg.setAttribute("aria-expanded",o)});
 nav.addEventListener("click",e=>{if(e.target.tagName==="A"){nav.classList.remove("open");bg.setAttribute("aria-expanded",false)}});
-$$("[data-open]").forEach(a=>a.addEventListener("click",()=>{$("#"+a.dataset.open).open=true}));
+function showLegal(id){$("#legal").hidden=false;$$("#legal details").forEach(d=>d.open=d.id===id)}
+$$("[data-open]").forEach(a=>a.addEventListener("click",()=>showLegal(a.dataset.open)));
 // ===== Форма с данни (началната страница) =====
 const fields={name:"#b-name",phone:"#b-phone",mail:"#b-mail",idn:"#b-idn",egn:"#b-egn",idd:"#b-idd",idp:"#b-idp",city:"#b-city",addr:"#b-addr",dln:"#b-dln",dlname:"#b-dlname",dld:"#b-dld",dlp:"#b-dlp",note:"#b-note",icn:"#b-icn",ieik:"#b-ieik",ivat:"#b-ivat",imol:"#b-imol",iaddr:"#b-iaddr",pname:"#b-pname",pegn:"#b-pegn",paddr:"#b-paddr"};
 Object.entries(fields).forEach(([k,s])=>{if(S[k])$(s).value=S[k]});
@@ -1358,7 +1359,7 @@ document.addEventListener("visibilitychange",()=>{if(!document.hidden)pollStatus
 $("#view-thanks").addEventListener("click",e=>{if(e.target.closest("[data-sms]"))sendSms()});
 // ===== Превключване между страниците (един файл) =====
 const T0=document.title;let cur="";
-function go(){const h=decodeURIComponent(location.hash.slice(1)),v=(h==="potvurzhdenie"||h==="avtomobili"||h==="book")?"avtomobili":(h==="blagodarim"&&S.done&&hasC()&&S.car&&hasD())?h:h==="plan"?(cur&&cur!=="home"?cur:"avtomobili"):"home",ch=v!==cur;cur=v;
+function go(){const h=decodeURIComponent(location.hash.slice(1));if(h==="t-terms"||h==="t-privacy")showLegal(h);const v=(h==="potvurzhdenie"||h==="avtomobili"||h==="book")?"avtomobili":(h==="blagodarim"&&S.done&&hasC()&&S.car&&hasD())?h:h==="plan"?(cur&&cur!=="home"?cur:"avtomobili"):"home",ch=v!==cur;cur=v;
 $("#view-home").hidden=v!=="home";$("#view-cars").hidden=v==="home"||v==="blagodarim";$("#view-thanks").hidden=v!=="blagodarim";
 if(v==="home")setTitle(T0);
 else if(v==="blagodarim"){renderThanks();pollStatus();setTitle("Благодарим | Рента ПТБ Строй")}
