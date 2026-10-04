@@ -193,6 +193,23 @@ legend{font-weight:800;font-size:1.08rem;padding:0;margin-bottom:10px}
 .opt input{width:20px;height:20px;min-height:0;flex:none;margin-top:2px;accent-color:var(--navy)}
 .opt:has(input:checked){border-color:var(--navy);background:var(--soft)}
 [hidden]{display:none!important}
+.free{display:flex;gap:10px;align-items:center;margin:18px 0 0;padding:12px 16px;border-radius:14px;background:rgba(46,204,113,.14);border:1.5px solid rgba(46,204,113,.55);color:#d8ffe6;font-weight:600;font-size:.95rem;max-width:620px}.free b{color:#fff}.free svg{flex:none;color:#4ade80}
+.free.lt{background:#e9f8ef;border-color:#8fd9ad;color:#14532d;max-width:none}.free.lt b{color:#0b3d1f}.free.lt svg{color:#1a8f4c}
+.cal{background:#fff;border:1.5px solid var(--line);border-radius:22px;padding:20px;margin:0 0 26px}
+.cal-top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px}.cal-top h3{margin:0;font-size:1.1rem}
+.cal-nav{display:flex;gap:8px}.cal-nav button{width:40px;height:40px;border-radius:999px;border:1.5px solid var(--line);background:#fff;font:inherit;font-weight:800;cursor:pointer}.cal-nav button:disabled{opacity:.35;cursor:default}
+.cal-ms{display:grid;gap:22px}@media(min-width:760px){.cal-ms{grid-template-columns:1fr 1fr}}
+.cal-m h4{margin:0 0 8px;text-transform:capitalize;font-size:.98rem}
+.cal-g{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}.cal-g .wd{font-size:.72rem;font-weight:800;color:var(--muted);text-align:center;padding:4px 0;text-transform:uppercase}
+.cal-g button{aspect-ratio:1/1;min-height:0;border:0;border-radius:10px;background:var(--soft);font:inherit;font-weight:700;font-size:.9rem;cursor:pointer;color:var(--ink);padding:0}
+.cal-g button:hover:not(:disabled){outline:2px solid var(--navy)}
+.cal-g button.past{background:transparent;color:#b5bcc8;cursor:default}
+.cal-g button.bk{background:#e5534b;color:#fff;cursor:not-allowed;text-decoration:line-through}
+.cal-g button.sel{background:var(--navy);color:#fff}.cal-g button.in{background:#c9d4e6}
+.cal-g button.td{box-shadow:inset 0 0 0 2px var(--acc)}
+.cal-lg{display:flex;flex-wrap:wrap;gap:16px;margin:14px 0 0;font-size:.85rem;color:var(--muted);font-weight:600}.cal-lg i{display:inline-block;width:14px;height:14px;border-radius:4px;vertical-align:-2px;margin-right:6px}
+.cal-msg{margin:10px 0 0;font-weight:700;color:#8a1f17;min-height:1.2em}
+.cbusy{margin:10px 0 0;padding:10px 12px;border-radius:12px;background:#fff1f0;color:#8a1f17;font-size:.85rem;font-weight:700}
 .alert{background:#fff1f0;border:1.5px solid #e5534b;color:#8a1f17;border-radius:14px;padding:14px;font-weight:700}
 .sum{background:var(--navy);color:#fff;border-radius:26px;padding:26px}
 .sum h3{font-size:1.3rem;font-weight:800;margin-bottom:8px}
@@ -361,12 +378,13 @@ button.btn-ghost{background:transparent}
 <h1>Коли под наем <em>от 15 € на ден</em></h1>
 <p class="sub">Надеждни и обслужени автомобили. Чисти и заредени до горе. Неограничен пробег при наем над 2 дни и 100 € гаранционен депозит.</p>
 <p class="fine">15 € на ден е минималната цена при наем над 30 дни за избрани автомобили.</p>
+<p class="free"><svg width="22" height="22" aria-hidden="true"><use href="#i-check"/></svg><span><b>Резервацията е безплатна.</b> След резервацията избирате как да платите: по банков път срещу фактура от фирмата или в брой на място при вземане на автомобила с касов бон.</span></p>
 <div class="stats" data-stats></div>
 </div>
 <aside class="hcard">
 <div class="lg"><img data-logo alt="Лого на Рента ПТБ – коли под наем" width="240" height="150"></div>
 <h2>Резервирай за минути</h2>
-<p>Остави данните си, избери период и автомобил и виж цената за твоите дати.</p>
+<p>Остави данните си, избери период и автомобил и виж цената за твоите дати. Резервацията е безплатна.</p>
 <div class="cta-row" style="margin:18px 0 0"><a class="btn btn-acc" href="#avtomobili">Резервирай онлайн</a></div>
 </aside>
 </div>
@@ -631,6 +649,7 @@ button.btn-ghost{background:transparent}
 <section id="plan" hidden>
 <div class="wrap">
 <div class="sec-head"><h2>Данни за резервацията</h2><p>Изберете дата и час за получаване и връщане. Часът по подразбиране е 12:00.</p></div>
+<div class="cal" id="cal" hidden></div>
 <div class="plan plancard">
 <fieldset><legend>1. Получаване</legend>
 <div class="row"><div><label for="b-d1">Дата на получаване</label><input id="b-d1" type="date" required></div><div><label for="b-t1">Час на получаване</label><input id="b-t1" type="time" required></div></div>
@@ -673,7 +692,17 @@ button.btn-ghost{background:transparent}
 <div class="row"><div><label for="b-dld">Дата на издаване</label><input id="b-dld" type="date" required></div><div><label for="b-dlp">Издадена от / къде</label><input id="b-dlp" placeholder="напр. МВР Пловдив" required></div></div>
 <div class="row"><div><label for="p-dlf">Снимка – лицева страна</label><input id="p-dlf" class="phin" type="file" accept="image/*" required><img class="phprev" id="p-dlf-v" alt="" hidden></div><div><label for="p-dlb">Снимка – гръб</label><input id="p-dlb" class="phin" type="file" accept="image/*" required><img class="phprev" id="p-dlb-v" alt="" hidden></div></div>
 </fieldset>
-<fieldset class="fbox"><legend><span class="fn">4</span>Допълнително</legend>
+<fieldset class="fbox"><legend><span class="fn">4</span>Начин на плащане</legend>
+<p class="free lt" style="margin:0 0 14px"><svg width="22" height="22" aria-hidden="true"><use href="#i-check"/></svg><span><b>Резервацията е безплатна.</b> Изберете как предпочитате да платите наема.</span></p>
+<div class="seg" role="radiogroup" aria-label="Начин на плащане"><label class="opt"><input type="radio" name="pay" value="bank"><span>Фактура от фирмата и плащане по банков път</span></label><label class="opt"><input type="radio" name="pay" value="cash"><span>В брой на място при вземане на автомобила – с касов бон</span></label></div>
+<div id="inv" hidden>
+<div class="row"><div><label for="b-icn">Фирма / име за фактурата</label><input id="b-icn" autocomplete="organization"></div><div><label for="b-ieik">ЕИК / Булстат</label><input id="b-ieik" inputmode="numeric" autocomplete="off"></div></div>
+<div class="row"><div><label for="b-ivat">ДДС номер (ако има)</label><input id="b-ivat" autocomplete="off"></div><div><label for="b-imol">МОЛ</label><input id="b-imol" autocomplete="off"></div></div>
+<div><label for="b-iaddr">Адрес по регистрация</label><input id="b-iaddr" placeholder="Град, улица, номер"></div>
+<small class="hint">Ще ви изпратим фактура с банковите ни данни за плащане.</small>
+</div>
+</fieldset>
+<fieldset class="fbox"><legend><span class="fn">5</span>Допълнително</legend>
 <div><label for="b-note">Допълнителна информация</label><textarea id="b-note"></textarea></div>
 </fieldset>
 <label class="opt"><input type="checkbox" id="b-ok"><span>Запознат съм с <a href="#t-terms" data-open="t-terms">Общите условия</a> и <a href="#t-privacy" data-open="t-privacy">информацията за защита на личните данни</a> и съм съгласен данните ми да се обработват за целите на заявката.</span></label>
@@ -957,7 +986,33 @@ const I18N={
 "Моля, попълнете датата на издаване на шофьорската книжка.":["Please enter the date of issue of your driving licence.","Bitte geben Sie das Ausstellungsdatum Ihres Führerscheins ein."],
 "Моля, попълнете от кого е издадена шофьорската книжка.":["Please enter who issued your driving licence.","Bitte geben Sie an, wer Ihren Führerschein ausgestellt hat."],
 "Моля, потвърдете, че сте запознат с Общите условия и информацията за защита на личните данни.":["Please confirm that you have read the General Terms and the privacy information.","Bitte bestätigen Sie, dass Sie die AGB und die Datenschutzhinweise gelesen haben."],
-"Заявката не беше изпратена. Опитайте отново или се обадете на 0877748693.":["The request was not sent. Please try again or call 0877748693.","Die Anfrage wurde nicht gesendet. Bitte versuchen Sie es erneut oder rufen Sie 0877748693 an."]
+"Заявката не беше изпратена. Опитайте отново или се обадете на 0877748693.":["The request was not sent. Please try again or call 0877748693.","Die Anfrage wurde nicht gesendet. Bitte versuchen Sie es erneut oder rufen Sie 0877748693 an."],
+"Резервацията е безплатна.":["Booking is free of charge.", "Die Reservierung ist kostenlos."],
+"След резервацията избирате как да платите: по банков път срещу фактура от фирмата или в брой на място при вземане на автомобила с касов бон.":["After booking you choose how to pay: by bank transfer against an invoice from our company, or in cash on pick-up with a fiscal receipt.", "Nach der Reservierung wählen Sie die Zahlungsart: Banküberweisung gegen Rechnung unserer Firma oder bar bei Abholung mit Kassenbon."],
+"Остави данните си, избери период и автомобил и виж цената за твоите дати. Резервацията е безплатна.":["Leave your details, choose dates and a car and see the price for your period. Booking is free of charge.", "Geben Sie Ihre Daten ein, wählen Sie Zeitraum und Fahrzeug und sehen Sie den Preis für Ihre Daten. Die Reservierung ist kostenlos."],
+"Начин на плащане":["Payment method", "Zahlungsart"],
+"Изберете как предпочитате да платите наема.":["Choose how you prefer to pay for the rental.", "Wählen Sie, wie Sie die Miete bezahlen möchten."],
+"Фактура от фирмата и плащане по банков път":["Invoice from our company and bank transfer", "Rechnung unserer Firma und Banküberweisung"],
+"В брой на място при вземане на автомобила – с касов бон":["Cash on pick-up – with a fiscal receipt", "Bar bei Abholung – mit Kassenbon"],
+"Фирма / име за фактурата":["Company / name for the invoice", "Firma / Name für die Rechnung"],
+"ЕИК / Булстат":["Company ID (EIK / Bulstat)", "Firmennummer (EIK / Bulstat)"],
+"ДДС номер (ако има)":["VAT number (if any)", "USt-IdNr. (falls vorhanden)"],
+"МОЛ":["Responsible person", "Verantwortliche Person"],
+"Адрес по регистрация":["Registered address", "Firmenanschrift"],
+"Ще ви изпратим фактура с банковите ни данни за плащане.":["We will send you an invoice with our bank details for payment.", "Wir senden Ihnen eine Rechnung mit unseren Bankdaten zur Zahlung."],
+"Фактура и плащане по банков път":["Invoice and bank transfer", "Rechnung und Banküberweisung"],
+"В брой на място с касов бон":["Cash on site with fiscal receipt", "Bar vor Ort mit Kassenbon"],
+"Плащане":["Payment", "Zahlung"],
+"Заето":["Booked", "Belegt"],
+"Свободно":["Available", "Frei"],
+"Вашите дати":["Your dates", "Ihre Daten"],
+"Изберете дата на връщане.":["Now choose the return date.", "Wählen Sie jetzt das Rückgabedatum."],
+"В избрания период има заети дни. Изберете други дати.":["The selected period includes booked days. Please choose other dates.", "Im gewählten Zeitraum sind Tage belegt. Bitte wählen Sie andere Daten."],
+"Предишен месец":["Previous month", "Vorheriger Monat"],
+"Следващ месец":["Next month", "Nächster Monat"],
+"Моля, изберете начин на плащане.":["Please choose a payment method.", "Bitte wählen Sie eine Zahlungsart."],
+"Моля, попълнете фирма / име, ЕИК и адрес за фактурата.":["Please enter the company / name, company ID and address for the invoice.", "Bitte geben Sie Firma / Name, Firmennummer und Anschrift für die Rechnung ein."],
+"Автомобилът вече е резервиран за част от избрания период. Изберете други дати или друг автомобил.":["The car is already booked for part of the selected period. Please choose other dates or another car.", "Das Fahrzeug ist für einen Teil des gewählten Zeitraums bereits gebucht. Bitte wählen Sie andere Daten oder ein anderes Fahrzeug."]
 };
 // Части от динамични текстове (дни, цени, км и т.н.), които нямат точно съвпадение в речника
 const I18N_RULES=[
@@ -966,6 +1021,9 @@ const I18N_RULES=[
 [/без доставката/g,"excluding delivery","ohne Lieferung"],
 [/без връщането от адрес/g,"excluding collection","ohne Abholung"],
 [/^Избрахте /,"You selected ","Ihre Wahl: "],
+[/^Свободни дати – /,"Available dates – ","Freie Termine – "],
+[/^Заето: /,"Booked: ","Belegt: "],
+[/ – заето$/," – booked"," – belegt"],
 [/ под наем в Пловдив/g," for rent in Plovdiv"," zur Miete in Plowdiw"],
 [/^Черен /,"Black ","Schwarz "],[/^Бял /,"White ","Weiß "],[/^Син /,"Blue ","Blau "],
 [/ \/ ден за автомобила/g," / day for the car"," / Tag für das Fahrzeug"],
@@ -1031,6 +1089,7 @@ const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;"
 function span(a,t1,b,t2){if(!a||!b)return 0;t1=t1||"00:00";t2=t2||t1;const ms=new Date(b+"T"+t2)-new Date(a+"T"+t1);return ms<0?-1:Math.max(1,Math.ceil(ms/864e5-1e-9))}
 const bf=(d,t)=>d.split("-").reverse().join(".")+(t?" "+t:"");
 const busy=(c,a,b)=>BOOKED[c.id].some(([s,e])=>a<=e&&b>=s);
+const busyList=c=>{const l=BOOKED[c.id].filter(([,e])=>e>=new Date().toISOString().slice(0,10)).sort((a,b)=>a[0]<b[0]?-1:1);return l.length?`<div class="cbusy">Заето: ${l.map(([a,b])=>a===b?bf(a):bf(a)+" – "+bf(b)).join(", ")}</div>`:""};
 const isFree=c=>{const t=new Date().toISOString().slice(0,10);return!BOOKED[c.id].some(([s,e])=>s<=t&&t<=e)};
 const store={get(){try{return JSON.parse(sessionStorage.getItem("req")||"null")}catch(e){return null}},set(v){try{sessionStorage.setItem("req",JSON.stringify(v))}catch(e){}}};
 // ===== Състояние: данни от началната форма + избор на втората страница =====
@@ -1059,7 +1118,7 @@ const badge=na?'<span class="ok no">Зает за периода</span>':isFree(
 const btn=na?'<button class="btn btn-acc" type="button" disabled>Не е наличен</button>':sel?'<button class="btn btn-dark" type="button" disabled>Избран ✓</button>':`<button class="btn btn-acc" type="button" data-pick="${c.id}">Избери автомобила</button>`;
 return`<article class="vcard rv${sel?" sel":""}${na?" na":""}"><div class="vimg">${badge}<img class="bgi" src="${IMG[c.id]}" alt="" aria-hidden="true"><img class="fg" src="${IMG[c.id]}" alt="${alt}" loading="lazy"></div><div class="vbody"><h3>${c.name}</h3>
 <div class="vprice">От <b>${fmt(d)}</b> / ден<small>при наем над 30 дни</small></div>
-${pb}<div class="tiers"><div><span>1–15 дни</span><b>${fmt(a)} / ден</b></div><div><span>16–30 дни</span><b>${fmt(b)} / ден</b></div><div><span>31+ дни</span><b>${fmt(d)} / ден</b></div></div>
+${pb}${busyList(c)}<div class="tiers"><div><span>1–15 дни</span><b>${fmt(a)} / ден</b></div><div><span>16–30 дни</span><b>${fmt(b)} / ден</b></div><div><span>31+ дни</span><b>${fmt(d)} / ден</b></div></div>
 <div class="spec2"><div><span>Година</span><b>${c.year}</b></div><div><span>Двигател</span><b>${c.engine}</b></div><div><span>Гориво</span><b>${c.fuel}</b></div><div><span>Мощност</span><b>${c.hp} к.с.</b></div><div><span>Купе</span><b>${c.body}</b></div><div><span>Скоростна кутия</span><b>${c.gear}</b></div>${c.drive?`<div><span>Задвижване</span><b>${c.drive}</b></div>`:""}<div><span>Климатик</span><b>Да</b></div></div>
 <ul class="ex"><li>Зарядно за телефон</li><li>Поставка за телефон</li><li>Климатик</li><li>Ръчна скоростна кутия</li><li class="w">Детско столче — опция за 3 € / ден</li></ul>
 <div class="dep"><strong>Гаранционен депозит: 100 €</strong>Депозитът служи като гаранция за връщане на автомобила в състоянието, в което е получен — с пълен резервоар, чист и без нови щети. Депозитът се връща в деня на връщане на автомобила, при спазване на условията.</div>
@@ -1076,16 +1135,24 @@ bg.addEventListener("click",()=>{const o=nav.classList.toggle("open");bg.setAttr
 nav.addEventListener("click",e=>{if(e.target.tagName==="A"){nav.classList.remove("open");bg.setAttribute("aria-expanded",false)}});
 $$("[data-open]").forEach(a=>a.addEventListener("click",()=>{$("#"+a.dataset.open).open=true}));
 // ===== Форма с данни (началната страница) =====
-const fields={name:"#b-name",phone:"#b-phone",mail:"#b-mail",idn:"#b-idn",egn:"#b-egn",idd:"#b-idd",idp:"#b-idp",city:"#b-city",addr:"#b-addr",dln:"#b-dln",dlname:"#b-dlname",dld:"#b-dld",dlp:"#b-dlp",note:"#b-note"};
+const fields={name:"#b-name",phone:"#b-phone",mail:"#b-mail",idn:"#b-idn",egn:"#b-egn",idd:"#b-idd",idp:"#b-idp",city:"#b-city",addr:"#b-addr",dln:"#b-dln",dlname:"#b-dlname",dld:"#b-dld",dlp:"#b-dlp",note:"#b-note",icn:"#b-icn",ieik:"#b-ieik",ivat:"#b-ivat",imol:"#b-imol",iaddr:"#b-iaddr"};
 Object.entries(fields).forEach(([k,s])=>{if(S[k])$(s).value=S[k]});
 if(S.idt==="pass")document.querySelector("input[name=idt][value=pass]").checked=true;
 const idt=()=>document.querySelector("input[name=idt]:checked").value;
+// Начин на плащане: bank – фактура и банков път, cash – в брой на място с касов бон
+const PAY={bank:"Фактура и плащане по банков път",cash:"В брой на място с касов бон"};
+if(S.pay)document.querySelector(`input[name=pay][value=${S.pay==="bank"?"bank":"cash"}]`).checked=true;
+const pay=()=>{const e=document.querySelector("input[name=pay]:checked");return e?e.value:""};
+const syncPay=()=>{$("#inv").hidden=pay()!=="bank"};syncPay();
+$$("input[name=pay]").forEach(e=>e.addEventListener("change",syncPay));
+const invText=R=>R.pay!=="bank"?"":[`Фирма / име: ${R.icn||"-"}`,`ЕИК / Булстат: ${R.ieik||"-"}`,R.ivat?`ДДС номер: ${R.ivat}`:"",R.imol?`МОЛ: ${R.imol}`:"",`Адрес: ${R.iaddr||"-"}`].filter(Boolean).join("\n");
 // Имената в шофьорската книжка се попълват от личната карта, докато клиентът не ги промени ръчно
 let dlPrev=$("#b-name").value.trim();
 $("#b-name").addEventListener("input",()=>{const d=$("#b-dlname"),n=$("#b-name").value.trim();if(!d.value.trim()||d.value.trim()===dlPrev)d.value=n;dlPrev=n});
 function fail(t){const e=$("#b-err");e.textContent=t;e.hidden=false;e.scrollIntoView({behavior:"smooth",block:"center"})}
 function buildText(){const R=S,c=CARS.find(x=>x.id===R.car),q=c&&hasD()?quote(c,R):null;
 return[`Заявка за наем${c?": "+c.name:" (автомобилът още не е избран)"}`,R.d1?`Получаване: ${bf(R.d1,R.t1)}, ${R.m1==="addr"?"доставка до "+R.a1:BASE}`:"",R.d2?`Връщане: ${bf(R.d2,R.t2)}, ${R.m2==="addr"?"вземане от "+R.a2:BASE}`:"",R.d1?`Детско столче: ${R.seat?"да":"не"}`:"",q&&!q.err?`Общо за услугите: ${fmt(q.tot)}${q.pend.length?" (без "+q.pend.join(" и ")+")":""}. Депозит: ${fmt(DEPOSIT)}`:"",q&&!q.err?`Брой дни: ${q.d}, цена на ден: ${fmt(q.r)}, наем на автомобила: ${fmt(q.base)}`:"",
+R.pay?`\nПЛАЩАНЕ: ${PAY[R.pay]}`:"",R.pay==="bank"?"ДАННИ ЗА ФАКТУРА\n"+invText(R):"",
 "\nКЛИЕНТ",`Имена: ${R.name}`,`Телефон: ${R.phone}`,`Имейл: ${R.mail}`,
 "\nДОКУМЕНТ ЗА САМОЛИЧНОСТ",`Вид: ${R.idt==="pass"?"паспорт":"лична карта"}`,`Номер: ${R.idn||"-"}`,`ЕГН: ${R.egn||"-"}`,`Дата на издаване: ${R.idd?bf(R.idd):"-"}`,`Издаден от: ${R.idp||"-"}`,`Град: ${R.city||"-"}`,`Адрес: ${R.addr||"-"}`,
 "\nШОФЬОРСКА КНИЖКА",`Номер: ${R.dln||"-"}`,`Имена: ${R.dlname||"-"}`,`Дата на издаване: ${R.dld?bf(R.dld):"-"}`,`Издадена от: ${R.dlp||"-"}`,
@@ -1101,6 +1168,7 @@ return{"Автомобил":c?c.name:"не е избран",
 "Вид документ":R.idt==="pass"?"паспорт":"лична карта","Номер на документа":R.idn||"-","ЕГН":R.egn||"-",
 "Документ – дата на издаване":R.idd?bf(R.idd):"-","Документ – издаден от":R.idp||"-","Град":R.city||"-","Адрес":R.addr||"-",
 "Шофьорска книжка – номер":R.dln||"-","Шофьорска книжка – имена":R.dlname||"-","Шофьорска книжка – дата на издаване":R.dld?bf(R.dld):"-","Шофьорска книжка – издадена от":R.dlp||"-",
+"Начин на плащане":PAY[R.pay]||"-","Данни за фактура":invText(R)||"-",
 "Допълнителна информация":R.note||"-","Език на сайта":LANG.toUpperCase()}}
 // Изпраща заявката към сървър (ако е зададен BOOKING_ENDPOINT). Връща "sent" или "err".
 async function sendReq(links){const R=S;links=links||{};
@@ -1109,10 +1177,10 @@ const j=await r.json().catch(()=>({}));if(!r.ok||j.success===false)throw 0;retur
 // Записва заявката на сървъра: фирмата получава имейл с бутони „Потвърди“ / „Откажи“, а клиентът вижда статуса тук.
 const BOOKINGS_ENDPOINT="/api/bookings";
 async function sendBooking(links){const R=S,c=CARS.find(x=>x.id===R.car),q=c&&hasD()?quote(c,R):null,place=(n,a)=>R["m"+n]==="addr"?a+" "+R["a"+n]:BASE;
-try{const r=await fetch(BOOKINGS_ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:R.name,email:R.mail,phone:R.phone,lang:LANG,car:c?c.name:"",
+try{const r=await fetch(BOOKINGS_ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:R.name,email:R.mail,phone:R.phone,lang:LANG,car:c?c.name:"",carId:c?c.id:"",startDate:R.d1,endDate:R.d2,payment:R.pay,invoice:invText(R),
 pickup:bf(R.d1,R.t1)+", "+place(1,"доставка до"),dropoff:bf(R.d2,R.t2)+", "+place(2,"вземане от"),total:q&&!q.err?fmt(q.tot)+(q.pend.length?" (без "+q.pend.join(" и ")+")":""):"",
 message:buildText()+(Object.keys(links).length?"\n\nСНИМКИ НА ДОКУМЕНТИТЕ\n"+Object.entries(links).map(([l,u])=>l+": "+u).join("\n"):"")})});
-const j=await r.json().catch(()=>({}));if(!r.ok||!j.id)return false;S.bid=j.id;S.btok=j.token;S.bst=j.status;S.bnote="";return true}catch(e){return false}}
+const j=await r.json().catch(()=>({}));if(r.status===409)return"busy";if(!r.ok||!j.id)return false;S.bid=j.id;S.btok=j.token;S.bst=j.status;S.bnote="";return true}catch(e){return false}}
 const sendSms=()=>{location.href="sms:"+PHONE+"?&body="+encodeURIComponent(buildText())};
 // ===== Снимки на документите: смаляват се в браузъра и се качват при изпращане =====
 const DOCS_ENDPOINT="/api/documents";
@@ -1142,11 +1210,13 @@ if(!v("#b-dlname"))return fail("Моля, попълнете имената от
 if(!v("#b-dld"))return fail("Моля, попълнете датата на издаване на шофьорската книжка.");
 if(!v("#b-dlp"))return fail("Моля, попълнете от кого е издадена шофьорската книжка.");
 if(!PH["p-dlf"]||!PH["p-dlb"])return fail("Моля, приложете снимки на шофьорската книжка от двете страни.");
+if(!pay())return fail("Моля, изберете начин на плащане.");
+if(pay()==="bank"&&(!v("#b-icn")||!v("#b-ieik")||!v("#b-iaddr")))return fail("Моля, попълнете фирма / име, ЕИК и адрес за фактурата.");
 if(!$("#b-ok").checked)return fail("Моля, потвърдете, че сте запознат с Общите условия и информацията за защита на личните данни.");
-S=Object.assign(S,Object.fromEntries(Object.entries(fields).map(([k,s])=>[k,v(s)])),{idt:idt(),done:"",bid:"",btok:"",bst:"",bnote:""});store.set(S);
+S=Object.assign(S,Object.fromEntries(Object.entries(fields).map(([k,s])=>[k,v(s)])),{idt:idt(),pay:pay(),done:"",bid:"",btok:"",bst:"",bnote:""});store.set(S);
 if(BOOKING_ENDPOINT){const b=$("#bk button[type=submit]"),m=$("#b-msg");b.disabled=true;m.textContent="Изпращаме резервацията…";
-let r="err";try{const links=await uploadPhotos();r=await sendBooking(links)?"sent":await sendReq(links)}catch(x){}
-b.disabled=false;m.textContent="";if(r!=="sent")return fail("Резервацията не беше изпратена. Опитайте отново или се обадете на 0877748693.");S.done="sent"}else S.done="sms";
+let r="err";try{const links=await uploadPhotos(),sb=await sendBooking(links);r=sb==="busy"?"busy":sb?"sent":await sendReq(links)}catch(x){}
+b.disabled=false;m.textContent="";if(r==="busy"){loadAvail();return fail("Автомобилът вече е резервиран за част от избрания период. Изберете други дати или друг автомобил.")}if(r!=="sent")return fail("Резервацията не беше изпратена. Опитайте отново или се обадете на 0877748693.");S.done="sent"}else S.done="sms";
 store.set(S);location.hash="blagodarim";if(S.done==="sms")sendSms()});
 // ===== Втора страница: данни за резервацията, автомобили и цени =====
 const today=new Date().toISOString().slice(0,10);$("#b-d1").min=$("#b-d2").min=today;
@@ -1166,6 +1236,7 @@ function planChanged(n){readPlan();sync();
 if(n){KMS[n]=null;KMS.st[n]="";clearTimeout(tm[n]);tm[n]=setTimeout(()=>loadKm(n),700)}
 renderCars();renderPick()}
 $("#b-d1").addEventListener("change",()=>{if(!$("#b-d2").value||$("#b-d2").value<$("#b-d1").value)$("#b-d2").value=$("#b-d1").value;$("#b-d2").min=$("#b-d1").value||today});
+["#b-d1","#b-d2"].forEach(s=>$(s).addEventListener("change",()=>{calStep=0}));
 ["#b-d1","#b-t1","#b-d2","#b-t2","#b-seat"].forEach(s=>$(s).addEventListener("change",()=>planChanged()));
 $$("input[name=m1]").forEach(e=>e.addEventListener("change",()=>planChanged(1)));$$("input[name=m2]").forEach(e=>e.addEventListener("change",()=>planChanged(2)));
 $("#b-a1").addEventListener("input",()=>{S.a1=addr(1);planChanged(1)});$("#b-a2").addEventListener("input",()=>{S.a2=addr(2);planChanged(2)});
@@ -1173,7 +1244,7 @@ function planErr(){if(!S.d1||!S.t1)return"Моля, изберете дата и
 function renderCars(){const p=+$("#f-price").value||1e9,t=$("#f-type").value,f=$("#f-fuel").value,g=$("#f-gear").value;
 const l=CARS.filter(c=>c.tiers[0]<=p&&(!t||c.body===t)&&(!f||c.fuel===f)&&(!g||c.gear===g));
 $("#car-grid").innerHTML=l.length?l.map(carCard).join(""):'<p class="empty">Няма автомобили по избраните филтри. Променете филтрите или се обадете на 0877748693.</p>';reveal()}
-function renderPick(){const el=$("#pick"),c=CARS.find(x=>x.id===S.car);
+function renderPick(){const el=$("#pick"),c=CARS.find(x=>x.id===S.car);renderCal();
 if(!c){el.hidden=true;$("#details").hidden=true;return}
 const q=hasD()?quote(c,S):null;let body,ok=false;
 if(!q||q.err==="dates")body='<p class="pend">Изберете дати на получаване и връщане по-горе, за да видите цената.</p>';
@@ -1183,6 +1254,30 @@ else{ok=true;body=q.rows.map(([a,b,s])=>`<div class="srow"><span>${a}${s?`<small
 $("#details").hidden=!ok;
 el.hidden=false;
 el.innerHTML=`<img src="${IMG[c.id]}" alt="${c.name}"><div><h3>Избрахте ${c.name}</h3>${body}<div class="actions">${ok?`<button class="btn btn-acc" type="button" data-details>Продължи с данните</button>`:""}<button class="btn btn-ghost" type="button" data-unpick>Смени автомобила</button></div><p class="fmsg" id="pick-msg" role="status" style="color:#c5d0e0"></p></div>`}
+// ===== Календар със заетите дни за избрания автомобил =====
+// Червените дни са заети от потвърдени резервации. С клик се избира дата на получаване, а след това – на връщане.
+let calOff=0,calStep=0;
+const ymd=(y,m,d)=>`${y}-${String(m+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+const dayBusy=(c,ds)=>BOOKED[c.id].some(([s,e])=>s<=ds&&ds<=e);
+function renderCal(){const el=$("#cal"),c=CARS.find(x=>x.id===S.car);if(!c){el.hidden=true;return}el.hidden=false;
+const loc=LANG==="bg"?"bg-BG":LANG==="de"?"de-DE":"en-GB",now=new Date(),wd=[...Array(7)].map((_,i)=>new Date(2024,0,1+i).toLocaleDateString(loc,{weekday:"short"}));
+const month=k=>{const d=new Date(now.getFullYear(),now.getMonth()+k,1),y=d.getFullYear(),m=d.getMonth(),n=new Date(y,m+1,0).getDate(),pad=(d.getDay()+6)%7;let h="";
+for(let i=0;i<pad;i++)h+="<span></span>";
+for(let i=1;i<=n;i++){const ds=ymd(y,m,i),past=ds<today,bk=!past&&dayBusy(c,ds),sel=ds===S.d1||ds===S.d2,inr=S.d1&&S.d2&&ds>S.d1&&ds<S.d2;
+h+=`<button type="button" data-day="${ds}" class="${past?"past":bk?"bk":sel?"sel":inr?"in":""}${ds===today?" td":""}"${past||bk?" disabled":""} aria-label="${bf(ds)}${bk?" – заето":""}">${i}</button>`}
+return`<div class="cal-m"><h4>${d.toLocaleDateString(loc,{month:"long",year:"numeric"})}</h4><div class="cal-g">${wd.map(w=>`<span class="wd">${w}</span>`).join("")}${h}</div></div>`};
+el.innerHTML=`<div class="cal-top"><h3>Свободни дати – ${c.name}</h3><div class="cal-nav"><button type="button" data-cal="-1" aria-label="Предишен месец"${calOff?"":" disabled"}>‹</button><button type="button" data-cal="1" aria-label="Следващ месец"${calOff<10?"":" disabled"}>›</button></div></div>
+<div class="cal-ms">${month(calOff)}${month(calOff+1)}</div>
+<div class="cal-lg"><span><i style="background:#e5534b"></i>Заето</span><span><i style="background:var(--soft);border:1px solid var(--line)"></i>Свободно</span><span><i style="background:var(--navy)"></i>Вашите дати</span></div>
+<p class="cal-msg" id="cal-msg" role="status">${calStep?"Изберете дата на връщане.":""}</p>`}
+$("#cal").addEventListener("click",e=>{const n=e.target.closest("[data-cal]");if(n){calOff=Math.max(0,Math.min(10,calOff+ +n.dataset.cal));renderCal();return}
+const b=e.target.closest("[data-day]");if(!b||b.disabled)return;const ds=b.dataset.day,c=CARS.find(x=>x.id===S.car);
+if(calStep&&S.d1&&ds>=S.d1){if(busy(c,S.d1,ds)){calStep=0;renderCal();$("#cal-msg").textContent="В избрания период има заети дни. Изберете други дати.";return}$("#b-d2").value=ds;calStep=0}
+else{$("#b-d1").value=$("#b-d2").value=ds;$("#b-d2").min=ds;calStep=1}
+planChanged()});
+document.addEventListener("click",e=>{if(e.target.closest("[data-lang]")&&cur==="avtomobili")renderCal()});
+// Заетите периоди идват от сървъра (потвърдените резервации)
+function loadAvail(){return fetch("/api/availability",{cache:"no-store"}).then(r=>r.ok?r.json():Promise.reject()).then(j=>{Object.keys(BOOKED).forEach(k=>{BOOKED[k]=Array.isArray(j[k])?j[k]:[]});if(cur==="avtomobili"){renderCars();renderPick()}}).catch(()=>{})}
 function setupCars(){
 $("#cars-h").textContent="В момента свободни автомобили";
 $("#cars-p").textContent="Изберете автомобил. След това въвеждате дата и час за получаване и връщане и виждате цената за вашия период.";
@@ -1205,7 +1300,7 @@ $("#th-step").className=st==="confirmed"?"done":"now";$("#th-ic").classList.togg
 $("#th-ic").innerHTML=st==="rejected"?'<svg width="34" height="34" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="3" stroke-linecap="round" fill="none"/></svg>':'<svg width="34" height="34" aria-hidden="true"><use href="#i-check"/></svg>';
 $("#th-note").hidden=!(st==="rejected"&&R.bnote);$("#th-note").textContent=R.bnote||"";
 $("#th-cta").innerHTML='<a class="btn btn-ghost" href="#home">Към началото</a>';
-$("#th-sum").innerHTML=`<h2>Вашата резервация</h2><div class="kv"><div><span>Име</span><b>${esc(R.name)}</b></div><div><span>Телефон</span><b>${esc(R.phone)}</b></div><div><span>Автомобил</span><b>${c?c.name:""}</b></div><div><span>Получаване</span><b>${bf(R.d1,R.t1)}</b></div><div><span>Връщане</span><b>${bf(R.d2,R.t2)}</b></div></div>`}
+$("#th-sum").innerHTML=`<h2>Вашата резервация</h2><div class="kv"><div><span>Име</span><b>${esc(R.name)}</b></div><div><span>Телефон</span><b>${esc(R.phone)}</b></div><div><span>Автомобил</span><b>${c?c.name:""}</b></div><div><span>Получаване</span><b>${bf(R.d1,R.t1)}</b></div><div><span>Връщане</span><b>${bf(R.d2,R.t2)}</b></div>${R.pay?`<div><span>Плащане</span><b>${PAY[R.pay]}</b></div>`:""}</div>`}
 // Проверява статуса, докато клиентът е на страницата „Благодарим“
 let pollT;async function pollStatus(){clearTimeout(pollT);if(cur!=="blagodarim"||!S.bid||S.bst!=="pending")return;
 if(!document.hidden)try{const r=await fetch(`${BOOKINGS_ENDPOINT}/${S.bid}?t=${S.btok}`,{cache:"no-store"});const j=await r.json();if(r.ok&&j.status&&j.status!==S.bst){S.bst=j.status;S.bnote=j.note||"";store.set(S);renderThanks()}}catch(e){}
@@ -1226,7 +1321,7 @@ let io;function reveal(){const els=$$(".rv:not(.in)");
 if(!("IntersectionObserver" in window)){els.forEach(x=>x.classList.add("in"));return}
 io=io||new IntersectionObserver(es=>es.forEach(x=>{if(x.isIntersecting){x.target.classList.add("in");io.unobserve(x.target)}}),{threshold:.1});els.forEach(x=>io.observe(x))}
 addEventListener("hashchange",go);
-go();
+go();loadAvail();
 setLang(LANG);
 
 </script>
