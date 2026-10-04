@@ -1112,9 +1112,9 @@ const T25=[25,23,20],T20=[20,18,15];
 const CARS=[
 {id:"punto",name:"Fiat Grande Punto",color:"Бял",year:2008,engine:"1.6 бензин",fuel:"Бензин",hp:103,body:"Хечбек, 5 врати",gear:"Ръчна",tiers:T20},
 {id:"ka",name:"Ford Ka",color:"Син",year:2010,engine:"1.2 бензин",fuel:"Бензин",hp:69,body:"Хечбек, 2 врати",gear:"Ръчна",tiers:T20},
-{id:"ibiza",name:"SEAT Ibiza",color:"Черен",year:2010,engine:"1.6 дизел",fuel:"Дизел",hp:105,body:"Комби",gear:"Ръчна",tiers:T25}];,
+{id:"ibiza",name:"SEAT Ibiza",color:"Черен",year:2010,engine:"1.6 дизел",fuel:"Дизел",hp:105,body:"Комби",gear:"Ръчна",tiers:T25},
 {id:"golf",name:"Volkswagen Golf 5",color:"",year:2009,engine:"1.9 дизел",fuel:"Дизел",hp:105,body:"Комби",gear:"Ръчна",tiers:T25},
-{id:"passat",name:"Volkswagen Passat",color:"Черен",year:2008,engine:"2.0 дизел",fuel:"Дизел",hp:140,drive:"4x4",body:"Комби",gear:"Ръчна",tiers:T25}
+{id:"passat",name:"Volkswagen Passat",color:"Черен",year:2008,engine:"2.0 дизел",fuel:"Дизел",hp:140,drive:"4x4",body:"Комби",gear:"Ръчна",tiers:T25}];
 const WHY=[
 ["i-tag","От 15 € на ден","Минималната цена е при наем над 30 дни за избрани автомобили.",1],
 ["i-wrench","Надеждни автомобили","Всички автомобили са обслужени и готови за път."],
@@ -1215,15 +1215,15 @@ return{"Автомобил":c?c.name:"не е избран",
 "Допълнителна информация":R.note||"-","Език на сайта":LANG.toUpperCase()}}
 // Изпраща заявката към сървър (ако е зададен BOOKING_ENDPOINT). Връща "sent" или "err".
 async function sendReq(links){const R=S;links=links||{};
-try{const c=CARS.find(x=>x.id===R.car);const r=await fetch(BOOKING_ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({access_key:WEB3FORMS_KEY,subject:"Нова заявка за наем"+(c?": "+c.name:"")+" – "+R.name,from_name:"Rent a Car PTB – сайт",replyto:R.mail,message:buildText()+(Object.keys(links).length?"\n\nСНИМКИ НА ДОКУМЕНТИТЕ\n"+Object.entries(links).map(([l,u])=>l+": "+u).join("\n"):""),name:R.name,phone:R.phone,email:R.mail,...mailFields(R,c),...links})});
+try{const c=CARS.find(x=>x.id===R.car);const r=await fetch(BOOKING_ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({access_key:WEB3FORMS_KEY,subject:"Нова заявка за наем"+(c?": "+c.name:"")+" – "+R.name,from_name:"Rent a Car PTB – сайт",replyto:R.mail,message:"ВНИМАНИЕ: Имейлът с бутоните „Потвърди“ / „Откажи“ не беше изпратен (проблем с Brevo). Свържете се с клиента по телефона или имейла."+(R.berr?"\nПричина: "+R.berr:"")+"\n\n"+buildText()+(Object.keys(links).length?"\n\nСНИМКИ НА ДОКУМЕНТИТЕ\n"+Object.entries(links).map(([l,u])=>l+": "+u).join("\n"):""),name:R.name,phone:R.phone,email:R.mail,...mailFields(R,c),...links})});
 const j=await r.json().catch(()=>({}));if(!r.ok||j.success===false)throw 0;return"sent"}catch(e){return"err"}}
 // Записва заявката на сървъра: фирмата получава имейл с бутони „Потвърди“ / „Откажи“, а клиентът вижда статуса тук.
 const BOOKINGS_ENDPOINT="/api/bookings";
 async function sendBooking(links){const R=S,c=CARS.find(x=>x.id===R.car),q=c&&hasD()?quote(c,R):null,place=(n,a)=>R["m"+n]==="addr"?a+" "+R["a"+n]:BASE;
-try{const r=await fetch(BOOKINGS_ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:R.name,email:R.mail,phone:R.phone,lang:LANG,car:c?c.name:"",carId:c?c.id:"",startDate:R.d1,endDate:R.d2,payment:R.pay,invoice:invText(R),
+S.berr="";try{const r=await fetch(BOOKINGS_ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:R.name,email:R.mail,phone:R.phone,lang:LANG,car:c?c.name:"",carId:c?c.id:"",startDate:R.d1,endDate:R.d2,payment:R.pay,invoice:invText(R),
 pickup:bf(R.d1,R.t1)+", "+place(1,"доставка до"),dropoff:bf(R.d2,R.t2)+", "+place(2,"вземане от"),total:q&&!q.err?fmt(q.tot)+(q.pend.length?" (без "+q.pend.join(" и ")+")":""):"",
 message:buildText()+(Object.keys(links).length?"\n\nСНИМКИ НА ДОКУМЕНТИТЕ\n"+Object.entries(links).map(([l,u])=>l+": "+u).join("\n"):"")})});
-const j=await r.json().catch(()=>({}));if(r.status===409)return"busy";if(!r.ok||!j.id)return false;S.bid=j.id;S.btok=j.token;S.bst=j.status;S.bnote="";return true}catch(e){return false}}
+const j=await r.json().catch(()=>({}));if(r.status===409)return"busy";if(!r.ok||!j.id){S.berr=j.detail||j.error||("HTTP "+r.status);return false}S.bid=j.id;S.btok=j.token;S.bst=j.status;S.bnote="";return true}catch(e){S.berr="Няма връзка със сървъра";return false}}
 const sendSms=()=>{location.href="sms:"+PHONE+"?&body="+encodeURIComponent(buildText())};
 // ===== Снимки на документите: смаляват се в браузъра и се качват при изпращане =====
 const DOCS_ENDPOINT="/api/documents";

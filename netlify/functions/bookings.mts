@@ -239,7 +239,9 @@ export default async (req: Request, context: Context) => {
     } catch (e) {
       console.error(e);
       await db.delete(bookings).where(eq(bookings.id, row.id));
-      return Response.json({ error: "Email could not be sent" }, { status: 502 });
+      // Причината от Brevo (без ключа) – показва се в резервния имейл до фирмата, за да се види какво да се поправи
+      const detail = String((e as Error)?.message || e).replace(/xkeysib-[\w-]+/g, "***").slice(0, 400);
+      return Response.json({ error: "Email could not be sent", detail }, { status: 502 });
     }
     return Response.json({ id: row.id, token: row.viewToken, status: "pending" }, { status: 201 });
   }
