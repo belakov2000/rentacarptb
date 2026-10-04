@@ -11,7 +11,7 @@ import { bookings } from "../../db/schema.js";
 const OWNER_EMAIL = process.env.BOOKING_OWNER_EMAIL || "rentaptb_stroi@abv.bg";
 const SENDER_EMAIL = process.env.BREVO_SENDER_EMAIL || OWNER_EMAIL;
 const SENDER_NAME = "Rent a Car PTB";
-const PHONE = "0877748693";
+const PHONE = "+359877748693";
 const ID_RE = /^[a-f0-9]{32}$/;
 const TOKEN_RE = /^[a-f0-9]{64}$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
