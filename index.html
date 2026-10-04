@@ -311,6 +311,10 @@ button.btn-ghost{background:transparent}
 #bk .seg{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 #bk .seg .opt{padding:12px 14px;margin:0}
 #bk .hint{display:block;margin-top:4px;font-size:.78rem;color:var(--muted)}
+#bk .phin{padding:10px;background:var(--soft)}
+#bk .phprev{display:block;margin-top:8px;width:100%;max-height:160px;object-fit:contain;border-radius:12px;background:var(--soft)}
+#bk .phprev[hidden]{display:none}
+#details{padding:0 0 72px}
 </style>
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"AutoRental","name":"Рента ПТБ Строй ЕООД","legalName":"РЕНТА ПТБ СТРОЙ ЕООД","telephone":"+359877748693","address":{"@type":"PostalAddress","streetAddress":"бул. Дунав 10","addressLocality":"Пловдив","postalCode":"4027","addressCountry":"BG"}}</script>
 </head>
@@ -333,7 +337,7 @@ button.btn-ghost{background:transparent}
 <ul>
 <li><a href="#home">Начало</a></li>
 <li><a href="#avtomobili">Автомобили</a></li>
-<li><a href="#book">Резервация</a></li>
+<li><a href="#avtomobili">Резервация</a></li>
 <li><a href="#about">За нас</a></li>
 <li><a href="#terms">Условия</a></li>
 <li><a href="#contact">Контакти</a></li>
@@ -362,7 +366,7 @@ button.btn-ghost{background:transparent}
 <div class="lg"><img data-logo alt="Лого на Рента ПТБ – коли под наем" width="240" height="150"></div>
 <h2>Резервирай за минути</h2>
 <p>Остави данните си, избери период и автомобил и виж цената за твоите дати.</p>
-<div class="cta-row" style="margin:18px 0 0"><a class="btn btn-acc" href="#book">Резервирай онлайн</a></div>
+<div class="cta-row" style="margin:18px 0 0"><a class="btn btn-acc" href="#avtomobili">Резервирай онлайн</a></div>
 </aside>
 </div>
 </section>
@@ -383,37 +387,6 @@ button.btn-ghost{background:transparent}
 <div class="wrap">
 <div class="sec-head rv"><h2>Всичко необходимо за спокойно пътуване</h2></div>
 <div class="why-grid" id="why-grid"></div>
-</div>
-</section>
-
-<section id="book">
-<div class="wrap">
-<div class="sec-head rv"><h2>Заяви резервация</h2><p>Оставете данните си. На следващата страница избирате период, място и автомобил и виждате цената за вашите дати.</p></div>
-<div class="bk-grid one">
-<form id="bk" novalidate>
-<fieldset class="fbox"><legend><span class="fn">1</span>Вашите данни</legend>
-<div><label for="b-name">Имена (както са в личната карта)</label><input id="b-name" autocomplete="name" placeholder="Име, презиме, фамилия" required></div>
-<div class="row"><div><label for="b-phone">Телефон</label><input id="b-phone" type="tel" autocomplete="tel" required></div><div><label for="b-mail">Имейл</label><input id="b-mail" type="email" autocomplete="email" required></div></div>
-</fieldset>
-<fieldset class="fbox"><legend><span class="fn">2</span>Лична карта / паспорт</legend>
-<div class="seg" role="radiogroup" aria-label="Вид документ"><label class="opt"><input type="radio" name="idt" value="id" checked><span>Лична карта</span></label><label class="opt"><input type="radio" name="idt" value="pass"><span>Паспорт</span></label></div>
-<div class="row"><div><label for="b-idn">Номер на документа</label><input id="b-idn" autocomplete="off" required></div><div><label for="b-egn">ЕГН</label><input id="b-egn" inputmode="numeric" autocomplete="off" maxlength="20" required></div></div>
-<div class="row"><div><label for="b-idd">Дата на издаване</label><input id="b-idd" type="date" required></div><div><label for="b-idp">Издаден от / къде</label><input id="b-idp" placeholder="напр. МВР Пловдив" required></div></div>
-<div class="row"><div><label for="b-city">Град</label><input id="b-city" autocomplete="address-level2" required></div><div><label for="b-addr">Адрес</label><input id="b-addr" autocomplete="street-address" placeholder="Улица, номер, вход, апартамент" required></div></div>
-</fieldset>
-<fieldset class="fbox"><legend><span class="fn">3</span>Шофьорска книжка</legend>
-<div class="row"><div><label for="b-dln">Номер на книжката</label><input id="b-dln" autocomplete="off" required></div><div><label for="b-dlname">Имена</label><input id="b-dlname" autocomplete="off" required><small class="hint">Попълват се автоматично от личната карта.</small></div></div>
-<div class="row"><div><label for="b-dld">Дата на издаване</label><input id="b-dld" type="date" required></div><div><label for="b-dlp">Издадена от / къде</label><input id="b-dlp" placeholder="напр. МВР Пловдив" required></div></div>
-</fieldset>
-<fieldset class="fbox"><legend><span class="fn">4</span>Допълнително</legend>
-<div><label for="b-note">Допълнителна информация</label><textarea id="b-note"></textarea></div>
-</fieldset>
-<label class="opt"><input type="checkbox" id="b-ok"><span>Запознат съм с <a href="#t-terms" data-open="t-terms">Общите условия</a> и <a href="#t-privacy" data-open="t-privacy">информацията за защита на личните данни</a> и съм съгласен данните ми да се обработват за целите на заявката.</span></label>
-<div id="b-err" class="alert" role="alert" hidden></div>
-<button class="btn btn-dark" type="submit">Изпрати заявката</button>
-<p class="fmsg" id="b-msg" role="status"></p>
-</form>
-</div>
 </div>
 </section>
 
@@ -475,13 +448,13 @@ button.btn-ghost{background:transparent}
 <p style="margin-top:6px">Адрес: гр. Пловдив, бул. Дунав 10</p>
 <p style="margin-top:6px;font-size:.88rem">„РЕНТА ПТБ СТРОЙ“ ЕООД, ЕИК 208817102</p>
 <div class="hours"><strong>Работно време</strong><div><span>Понеделник – петък</span><b>08:00 – 20:00</b></div><div><span>Събота и неделя</span><b>09:00 – 19:00</b></div></div>
-<div class="cta-row" style="margin-top:20px"><a class="btn btn-acc" href="#book">Резервирай онлайн</a></div>
+<div class="cta-row" style="margin-top:20px"><a class="btn btn-acc" href="#avtomobili">Резервирай онлайн</a></div>
 </div>
 </div>
 </section>
 <section id="legal">
 <div class="wrap">
-<div class="sec-head"><h2>Общи условия и защита на личните данни</h2></div>
+<div class="sec-head"><h2>Общи условия и защита на личните данни</h2><p data-i18n-note hidden>Правно обвързващият текст на Общите условия и информацията за личните данни е на български език.</p></div>
 <details class="dt" id="t-terms"><summary>Общи условия</summary><div class="doc">
 <h4>IV. ДЕПОЗИТ И ЗАСТРАХОВКА</h4>
 <h5>Чл. 4. Депозит</h5>
@@ -629,7 +602,7 @@ button.btn-ghost{background:transparent}
 <section class="okh" id="th-hero">
 <div class="wrap okh-grid">
 <div>
-<ol class="flow" aria-label="Стъпки"><li class="done">Вашите данни</li><li class="done">Избор на автомобил</li><li class="now">Потвърждение от нас</li></ol>
+<ol class="flow" aria-label="Стъпки"><li class="done">Избор на автомобил</li><li class="done">Вашите данни</li><li class="now">Потвърждение от нас</li></ol>
 <div class="okic"><svg width="34" height="34" aria-hidden="true"><use href="#i-check"/></svg></div>
 <h1>Благодарим за доверието!</h1>
 <p class="sub" id="th-sub"></p>
@@ -641,18 +614,6 @@ button.btn-ghost{background:transparent}
 </section>
 </div>
 <div id="view-cars" hidden>
-<section class="okh" id="ok-hero" hidden>
-<div class="wrap okh-grid">
-<div>
-<ol class="flow" aria-label="Стъпки"><li class="done">Вашите данни</li><li class="now">Избор на автомобил</li><li>Потвърждение от нас</li></ol>
-<div class="okic"><svg width="34" height="34" aria-hidden="true"><use href="#i-check"/></svg></div>
-<h1 id="ok-title"></h1>
-<p class="sub" id="ok-sub"></p>
-<div class="cta-row" id="ok-cta"></div>
-</div>
-<aside class="hcard" id="ok-sum" aria-label="Вашата заявка"></aside>
-</div>
-</section>
 <section id="cars-sec">
 <div class="wrap">
 <div class="sec-head"><h2 id="cars-h"></h2><p id="cars-p"></p></div>
@@ -688,6 +649,39 @@ button.btn-ghost{background:transparent}
 <div id="pick" class="sum pick" aria-live="polite" hidden></div>
 </div>
 </section>
+<section id="details" hidden>
+<div class="wrap">
+<div class="sec-head"><h2>Вашите данни</h2><p>Цената за избрания период е по-горе. Попълнете данните си и приложете снимки на документите, за да изпратите резервацията.</p></div>
+<div class="bk-grid one">
+<form id="bk" novalidate>
+<fieldset class="fbox"><legend><span class="fn">1</span>Лични данни</legend>
+<div><label for="b-name">Имена (както са в личната карта)</label><input id="b-name" autocomplete="name" placeholder="Име, презиме, фамилия" required></div>
+<div class="row"><div><label for="b-phone">Телефон</label><input id="b-phone" type="tel" autocomplete="tel" required></div><div><label for="b-mail">Имейл</label><input id="b-mail" type="email" autocomplete="email" required></div></div>
+</fieldset>
+<fieldset class="fbox"><legend><span class="fn">2</span>Лична карта / паспорт</legend>
+<div class="seg" role="radiogroup" aria-label="Вид документ"><label class="opt"><input type="radio" name="idt" value="id" checked><span>Лична карта</span></label><label class="opt"><input type="radio" name="idt" value="pass"><span>Паспорт</span></label></div>
+<div class="row"><div><label for="b-idn">Номер на документа</label><input id="b-idn" autocomplete="off" required></div><div><label for="b-egn">ЕГН</label><input id="b-egn" inputmode="numeric" autocomplete="off" maxlength="20" required></div></div>
+<div class="row"><div><label for="b-idd">Дата на издаване</label><input id="b-idd" type="date" required></div><div><label for="b-idp">Издаден от / къде</label><input id="b-idp" placeholder="напр. МВР Пловдив" required></div></div>
+<div class="row"><div><label for="b-city">Град</label><input id="b-city" autocomplete="address-level2" required></div><div><label for="b-addr">Адрес</label><input id="b-addr" autocomplete="street-address" placeholder="Улица, номер, вход, апартамент" required></div></div>
+<div class="row"><div><label for="p-idf">Снимка – лицева страна</label><input id="p-idf" class="phin" type="file" accept="image/*" required><img class="phprev" id="p-idf-v" alt="" hidden></div><div><label for="p-idb">Снимка – гръб</label><input id="p-idb" class="phin" type="file" accept="image/*" required><img class="phprev" id="p-idb-v" alt="" hidden></div></div>
+<small class="hint">Снимайте документа ясно, без отблясъци, така че всички данни да се четат.</small>
+</fieldset>
+<fieldset class="fbox"><legend><span class="fn">3</span>Шофьорска книжка</legend>
+<div class="row"><div><label for="b-dln">Номер на книжката</label><input id="b-dln" autocomplete="off" required></div><div><label for="b-dlname">Имена</label><input id="b-dlname" autocomplete="off" required><small class="hint">Попълват се автоматично от личната карта.</small></div></div>
+<div class="row"><div><label for="b-dld">Дата на издаване</label><input id="b-dld" type="date" required></div><div><label for="b-dlp">Издадена от / къде</label><input id="b-dlp" placeholder="напр. МВР Пловдив" required></div></div>
+<div class="row"><div><label for="p-dlf">Снимка – лицева страна</label><input id="p-dlf" class="phin" type="file" accept="image/*" required><img class="phprev" id="p-dlf-v" alt="" hidden></div><div><label for="p-dlb">Снимка – гръб</label><input id="p-dlb" class="phin" type="file" accept="image/*" required><img class="phprev" id="p-dlb-v" alt="" hidden></div></div>
+</fieldset>
+<fieldset class="fbox"><legend><span class="fn">4</span>Допълнително</legend>
+<div><label for="b-note">Допълнителна информация</label><textarea id="b-note"></textarea></div>
+</fieldset>
+<label class="opt"><input type="checkbox" id="b-ok"><span>Запознат съм с <a href="#t-terms" data-open="t-terms">Общите условия</a> и <a href="#t-privacy" data-open="t-privacy">информацията за защита на личните данни</a> и съм съгласен данните ми да се обработват за целите на заявката.</span></label>
+<div id="b-err" class="alert" role="alert" hidden></div>
+<button class="btn btn-dark" type="submit">Изпрати резервацията</button>
+<p class="fmsg" id="b-msg" role="status"></p>
+</form>
+</div>
+</div>
+</section>
 </div>
 </main>
 
@@ -703,6 +697,296 @@ button.btn-ghost{background:transparent}
 </footer>
 
 
+<script>
+// ===== Езици (BG / EN / DE) =====
+// Ключът е българският текст на страницата: [английски, немски]. Непреведените текстове остават на български.
+const I18N={
+"Коли под наем от 15 € на ден | Рента ПТБ Строй ЕООД":["Car rental from 15 € per day | Renta PTB Stroy Ltd.","Autovermietung ab 15 € pro Tag | Renta PTB Stroy EOOD"],
+"Благодарим | Рента ПТБ Строй":["Thank you | Renta PTB Stroy","Vielen Dank | Renta PTB Stroy"],
+"Заявка за наем | Рента ПТБ Строй":["Rental request | Renta PTB Stroy","Mietanfrage | Renta PTB Stroy"],
+"Автомобили и цени | Рента ПТБ Строй":["Cars and prices | Renta PTB Stroy","Fahrzeuge und Preise | Renta PTB Stroy"],
+"Коли под наем":["Car rental","Autovermietung"],
+"Начало":["Home","Start"],
+"Автомобили":["Cars","Fahrzeuge"],
+"Резервация":["Booking","Buchung"],
+"За нас":["About us","Über uns"],
+"Условия":["Terms","Bedingungen"],
+"Контакти":["Contact","Kontakt"],
+"Обади се сега":["Call now","Jetzt anrufen"],
+"Пловдив · Рента ПТБ Строй":["Plovdiv · Renta PTB Stroy","Plowdiw · Renta PTB Stroy"],
+"от 15 € на ден":["from 15 € per day","ab 15 € pro Tag"],
+"Надеждни и обслужени автомобили. Чисти и заредени до горе. Неограничен пробег при наем над 2 дни и 100 € гаранционен депозит.":["Reliable, well-serviced cars. Clean and with a full tank. Unlimited mileage for rentals over 2 days and a 100 € security deposit.","Zuverlässige, gewartete Fahrzeuge. Sauber und vollgetankt. Unbegrenzte Kilometer bei Mieten über 2 Tage und 100 € Kaution."],
+"15 € на ден е минималната цена при наем над 30 дни за избрани автомобили.":["15 € per day is the minimum price for rentals over 30 days on selected cars.","15 € pro Tag ist der Mindestpreis bei Mieten über 30 Tage für ausgewählte Fahrzeuge."],
+"Резервирай за минути":["Book in minutes","In wenigen Minuten buchen"],
+"Остави данните си, избери период и автомобил и виж цената за твоите дати.":["Leave your details, choose dates and a car and see the price for your period.","Geben Sie Ihre Daten ein, wählen Sie Zeitraum und Fahrzeug und sehen Sie den Preis für Ihre Daten."],
+"Резервирай онлайн":["Book online","Online buchen"],
+"3-те най-големи страха при наемане на кола":["The 3 biggest fears when renting a car","Die 3 größten Sorgen bei der Automiete"],
+"Скрити такси?":["Hidden fees?","Versteckte Gebühren?"],
+"При нас цената е ясна и без неприятни изненади.":["With us the price is clear, with no unpleasant surprises.","Bei uns ist der Preis klar – ohne unangenehme Überraschungen."],
+"Щети, които не сте направили?":["Damage you didn't cause?","Schäden, die Sie nicht verursacht haben?"],
+"Описваме състоянието на автомобила предварително, за да няма спорове.":["We record the car's condition in advance, so there are no disputes.","Wir dokumentieren den Zustand des Fahrzeugs im Voraus, damit es keinen Streit gibt."],
+"Лош или неподдържан автомобил?":["A bad or poorly maintained car?","Ein schlechtes oder ungepflegtes Auto?"],
+"Получавате чист, проверен и поддържан автомобил, готов за път.":["You get a clean, inspected and maintained car, ready for the road.","Sie erhalten ein sauberes, geprüftes und gepflegtes Fahrzeug, bereit für die Fahrt."],
+"При нас наемате спокойно — без излишни притеснения.":["Rent with peace of mind — no unnecessary worries.","Bei uns mieten Sie entspannt – ohne unnötige Sorgen."],
+"Всичко необходимо за спокойно пътуване":["Everything you need for a relaxed trip","Alles für eine entspannte Reise"],
+"От 15 € на ден":["From 15 € per day","Ab 15 € pro Tag"],
+"Минималната цена е при наем над 30 дни за избрани автомобили.":["The minimum price applies to rentals over 30 days on selected cars.","Der Mindestpreis gilt bei Mieten über 30 Tage für ausgewählte Fahrzeuge."],
+"Надеждни автомобили":["Reliable cars","Zuverlässige Fahrzeuge"],
+"Всички автомобили са обслужени и готови за път.":["All cars are serviced and ready for the road.","Alle Fahrzeuge sind gewartet und fahrbereit."],
+"Винаги чист автомобил":["Always a clean car","Immer ein sauberes Auto"],
+"Получавате автомобила чист и подготвен за вашето пътуване.":["You receive the car clean and prepared for your trip.","Sie erhalten das Fahrzeug sauber und für Ihre Reise vorbereitet."],
+"Зареден до горе":["Full tank","Vollgetankt"],
+"Автомобилът се предава зареден до горе.":["The car is handed over with a full tank.","Das Fahrzeug wird vollgetankt übergeben."],
+"Неограничен пробег над 2 дни":["Unlimited mileage over 2 days","Unbegrenzte Kilometer ab 2 Tagen"],
+"При наем над 2 дни пътувате без ограничение на километрите.":["For rentals over 2 days you drive without a mileage limit.","Bei Mieten über 2 Tage fahren Sie ohne Kilometerbegrenzung."],
+"Гаранционен депозит 100 €":["Security deposit 100 €","Kaution 100 €"],
+"Връща се в деня на връщане на автомобила, при спазване на условията.":["Refunded on the day the car is returned, subject to the terms.","Wird am Tag der Rückgabe erstattet, sofern die Bedingungen eingehalten werden."],
+"Години опит":["Years of experience","Jahre Erfahrung"],
+"Доволни клиенти":["Happy customers","Zufriedene Kunden"],
+"Автомобила":["Cars","Fahrzeuge"],
+"Заяви резервация":["Request a booking","Buchung anfragen"],
+"Оставете данните си. На следващата страница избирате период, място и автомобил и виждате цената за вашите дати.":["Leave your details. On the next page you choose the period, place and car and see the price for your dates.","Geben Sie Ihre Daten ein. Auf der nächsten Seite wählen Sie Zeitraum, Ort und Fahrzeug und sehen den Preis für Ihre Daten."],
+"Лични данни":["Personal details","Persönliche Daten"],
+"Снимка – лицева страна":["Photo – front side","Foto – Vorderseite"],
+"Снимка – гръб":["Photo – back side","Foto – Rückseite"],
+"Снимайте документа ясно, без отблясъци, така че всички данни да се четат.":["Take a clear photo without glare so all details are readable.","Fotografieren Sie das Dokument deutlich und ohne Spiegelungen, damit alle Angaben lesbar sind."],
+"Изпрати резервацията":["Send booking","Buchung senden"],
+"Цената за избрания период е по-горе. Попълнете данните си и приложете снимки на документите, за да изпратите резервацията.":["The price for the selected period is shown above. Fill in your details and attach photos of your documents to send the booking.","Der Preis für den gewählten Zeitraum steht oben. Geben Sie Ihre Daten ein und fügen Sie Fotos Ihrer Dokumente bei, um die Buchung zu senden."],
+"Продължи с данните":["Continue to your details","Weiter zu Ihren Daten"],
+"Моля, изберете автомобил.":["Please choose a car.","Bitte wählen Sie ein Fahrzeug."],
+"Моля, приложете снимки на документа за самоличност от двете страни.":["Please attach photos of both sides of your ID document.","Bitte fügen Sie Fotos beider Seiten Ihres Ausweisdokuments bei."],
+"Моля, приложете снимки на шофьорската книжка от двете страни.":["Please attach photos of both sides of your driving licence.","Bitte fügen Sie Fotos beider Seiten Ihres Führerscheins bei."],
+"Снимката не може да бъде прочетена. Моля, изберете снимка във формат JPG или PNG.":["The photo could not be read. Please choose a JPG or PNG image.","Das Foto konnte nicht gelesen werden. Bitte wählen Sie ein JPG- oder PNG-Bild."],
+"Резервацията не беше изпратена. Опитайте отново или се обадете на 0877748693.":["The booking was not sent. Please try again or call 0877748693.","Die Buchung wurde nicht gesendet. Bitte versuchen Sie es erneut oder rufen Sie 0877748693 an."],
+"Вашите данни":["Your details","Ihre Daten"],
+"Имена (както са в личната карта)":["Full name (as on your ID)","Vollständiger Name (wie im Ausweis)"],
+"Телефон":["Phone","Telefon"],
+"Имейл":["Email","E-Mail"],
+"Лична карта / паспорт":["ID card / passport","Personalausweis / Reisepass"],
+"Лична карта":["ID card","Personalausweis"],
+"Паспорт":["Passport","Reisepass"],
+"Номер на документа":["Document number","Dokumentnummer"],
+"ЕГН":["Personal number (EGN)","Persönliche Nummer (EGN)"],
+"ЕГН / личен номер":["Personal number (EGN)","Persönliche Nummer (EGN)"],
+"Дата на издаване":["Date of issue","Ausstellungsdatum"],
+"Издаден от / къде":["Issued by / where","Ausgestellt von / wo"],
+"Град":["City","Stadt"],
+"Адрес":["Address","Adresse"],
+"Шофьорска книжка":["Driving licence","Führerschein"],
+"Номер на книжката":["Licence number","Führerscheinnummer"],
+"Имена":["Name","Name"],
+"Попълват се автоматично от личната карта.":["Filled in automatically from the ID details.","Wird automatisch aus den Ausweisdaten übernommen."],
+"Издадена от / къде":["Issued by / where","Ausgestellt von / wo"],
+"Допълнително":["Additional","Zusätzlich"],
+"Допълнителна информация":["Additional information","Zusätzliche Informationen"],
+"Запознат съм с":["I have read the","Ich habe die"],
+"Общите условия":["General Terms","Allgemeinen Geschäftsbedingungen"],
+"и":["and the","und die"],
+"информацията за защита на личните данни":["privacy information","Datenschutzhinweise"],
+"и съм съгласен данните ми да се обработват за целите на заявката.":["and agree that my data is processed for the purposes of this request.","gelesen und bin mit der Verarbeitung meiner Daten für diese Anfrage einverstanden."],
+"Изпрати заявката":["Send request","Anfrage senden"],
+"Как работи":["How it works","So funktioniert es"],
+"Избери автомобил":["Choose a car","Fahrzeug wählen"],
+"Свържи се с нас":["Contact us","Kontaktieren Sie uns"],
+"Получаваш чист и зареден автомобил":["Get a clean car with a full tank","Sauberes, vollgetanktes Auto erhalten"],
+"Пътуваш спокойно":["Travel with peace of mind","Entspannt reisen"],
+"Какво казват нашите клиенти":["What our customers say","Was unsere Kunden sagen"],
+"Наех Пежо комби за няколко дни и останах много доволен. Колата е просторна, удобна и в отлично състояние – чиста, поддържана и без никакви забележки. Много икономична, с наистина малък разход. Държи се стабилно на пътя и е комфортна и за по-дълги разстояния. Организацията беше точна, без мотане и без скрити условия. Бих ползвал отново без колебание и спокойно мога да препоръчам.":["I rented a Peugeot estate for a few days and was very satisfied. The car is spacious, comfortable and in excellent condition – clean, well maintained and without any faults. Very economical, with really low fuel consumption. It is stable on the road and comfortable for longer distances too. The organisation was precise, with no delays and no hidden conditions. I would rent again without hesitation and can happily recommend them.","Ich habe einen Peugeot Kombi für einige Tage gemietet und war sehr zufrieden. Das Auto ist geräumig, bequem und in ausgezeichnetem Zustand – sauber, gepflegt und ohne Mängel. Sehr sparsam, mit wirklich geringem Verbrauch. Es liegt stabil auf der Straße und ist auch auf längeren Strecken komfortabel. Die Organisation war pünktlich, ohne Verzögerungen und ohne versteckte Bedingungen. Ich würde jederzeit wieder mieten und kann es nur empfehlen."],
+"Наех автомобил от тях за 15 дни и останах много доволен. Колата беше в отлично техническо състояние, чиста и поддържана. Получаването и връщането станаха бързо и без излишно чакане. Цените са коректни, няма скрити такси, а отношението е професионално и любезно. През целия период нямах никакви проблеми с автомобила. Със сигурност бих ползвал услугите им отново и ги препоръчвам с две ръце!":["I rented a car from them for 15 days and was very satisfied. The car was in excellent technical condition, clean and well maintained. Pick-up and return were quick, with no unnecessary waiting. The prices are fair, there are no hidden fees, and the service is professional and friendly. I had no problems with the car during the whole period. I will definitely use their services again and recommend them wholeheartedly!","Ich habe dort ein Auto für 15 Tage gemietet und war sehr zufrieden. Das Fahrzeug war technisch einwandfrei, sauber und gepflegt. Abholung und Rückgabe gingen schnell und ohne unnötiges Warten. Die Preise sind fair, es gibt keine versteckten Gebühren, und der Service ist professionell und freundlich. Während der gesamten Zeit hatte ich keinerlei Probleme mit dem Auto. Ich werde den Service auf jeden Fall wieder nutzen und empfehle ihn von Herzen!"],
+"Петьо Пенев":["Petyo Penev","Petyo Penev"],
+"Жанета Тороманова":["Zhaneta Toromanova","Zhaneta Toromanova"],
+"Клиент":["Customer","Kunde"],
+"Цена от 15 € / ден при наем над 30 дни за избрани автомобили":["Price from 15 € / day for rentals over 30 days on selected cars","Preis ab 15 € / Tag bei Mieten über 30 Tage für ausgewählte Fahrzeuge"],
+"Гаранционен депозит: 100 €. Връща се в деня на връщане на автомобила, при спазване на условията":["Security deposit: 100 €. Refunded on the day the car is returned, subject to the terms","Kaution: 100 €. Wird am Tag der Rückgabe erstattet, sofern die Bedingungen eingehalten werden"],
+"Неограничен пробег при наем над 2 дни":["Unlimited mileage for rentals over 2 days","Unbegrenzte Kilometer bei Mieten über 2 Tage"],
+"При наем до 2 дни пробегът е до 250 км на ден. Над лимита се дължат 0,10 € за км":["For rentals up to 2 days mileage is limited to 250 km per day. Above the limit 0.10 € per km is charged","Bei Mieten bis 2 Tage sind 250 km pro Tag inklusive. Darüber hinaus werden 0,10 € pro km berechnet"],
+"Автомобилът се предоставя чист и зареден до горе":["The car is provided clean and with a full tank","Das Fahrzeug wird sauber und vollgetankt übergeben"],
+"Автомобилите са обслужени и готови за път":["The cars are serviced and ready for the road","Die Fahrzeuge sind gewartet und fahrbereit"],
+"Крайната цена и условията могат да зависят от избрания автомобил и периода на наемане. Свържете се с нас за актуална оферта.":["The final price and terms may depend on the chosen car and rental period. Contact us for a current offer.","Endpreis und Bedingungen können vom gewählten Fahrzeug und Mietzeitraum abhängen. Kontaktieren Sie uns für ein aktuelles Angebot."],
+"„Рента ПТБ Строй“ ЕООД предлага автомобили под наем за хора, които търсят надежден автомобил, ясни условия и конкурентна цена.":["Renta PTB Stroy Ltd. offers rental cars for people looking for a reliable car, clear terms and a competitive price.","Renta PTB Stroy EOOD bietet Mietwagen für alle, die ein zuverlässiges Fahrzeug, klare Bedingungen und einen fairen Preis suchen."],
+"Нашата цел е да предоставяме чисти, обслужени и подготвени автомобили, с които клиентите да могат спокойно да пътуват.":["Our goal is to provide clean, serviced and well-prepared cars so our customers can travel with peace of mind.","Unser Ziel ist es, saubere, gewartete und vorbereitete Fahrzeuge anzubieten, mit denen unsere Kunden entspannt reisen können."],
+"Фокусът ни е върху коректното обслужване и удобството на клиента.":["We focus on fair service and customer convenience.","Wir legen Wert auf fairen Service und den Komfort unserer Kunden."],
+"Готови ли сте за път?":["Ready to hit the road?","Bereit für die Fahrt?"],
+"Свържете се с нас и изберете своя автомобил.":["Contact us and choose your car.","Kontaktieren Sie uns und wählen Sie Ihr Fahrzeug."],
+"Адрес: гр. Пловдив, бул. Дунав 10":["Address: 10 Dunav Blvd., Plovdiv","Adresse: Bul. Dunav 10, Plowdiw"],
+"Работно време":["Opening hours","Öffnungszeiten"],
+"Понеделник – петък":["Monday – Friday","Montag – Freitag"],
+"Събота и неделя":["Saturday and Sunday","Samstag und Sonntag"],
+"Общи условия и защита на личните данни":["General Terms and Privacy","AGB und Datenschutz"],
+"Общи условия":["General Terms","AGB"],
+"Защита на личните данни":["Privacy","Datenschutz"],
+"Избор на автомобил":["Choose a car","Fahrzeugwahl"],
+"Потвърждение от нас":["Our confirmation","Unsere Bestätigung"],
+"Благодарим за доверието!":["Thank you for your trust!","Vielen Dank für Ihr Vertrauen!"],
+"Въпроси? Свържете се с нас:":["Questions? Contact us:","Fragen? Kontaktieren Sie uns:"],
+"Цена":["Price","Preis"],
+"Всички цени":["All prices","Alle Preise"],
+"От 15 до 20 € / ден":["15 to 20 € / day","15 bis 20 € / Tag"],
+"До 25 € / ден":["Up to 25 € / day","Bis 25 € / Tag"],
+"Купе":["Body type","Karosserie"],
+"Всички":["All","Alle"],
+"Гориво":["Fuel","Kraftstoff"],
+"Скоростна кутия":["Gearbox","Getriebe"],
+"Данни за резервацията":["Booking details","Buchungsdetails"],
+"Изберете дата и час за получаване и връщане. Часът по подразбиране е 12:00.":["Choose the date and time for pick-up and return. The default time is 12:00.","Wählen Sie Datum und Uhrzeit für Abholung und Rückgabe. Standardzeit ist 12:00."],
+"1. Получаване":["1. Pick-up","1. Abholung"],
+"Дата на получаване":["Pick-up date","Abholdatum"],
+"Час на получаване":["Pick-up time","Abholzeit"],
+"Вземане от нашия адрес — гр. Пловдив, бул. Дунав 10":["Pick up at our address — 10 Dunav Blvd., Plovdiv","Abholung an unserer Adresse — Bul. Dunav 10, Plowdiw"],
+"Доставка до адрес":["Delivery to an address","Lieferung an eine Adresse"],
+"Адрес за доставка":["Delivery address","Lieferadresse"],
+"2. Връщане":["2. Return","2. Rückgabe"],
+"Дата на връщане":["Return date","Rückgabedatum"],
+"Час на връщане":["Return time","Rückgabezeit"],
+"Връщане на нашия адрес — гр. Пловдив, бул. Дунав 10":["Return at our address — 10 Dunav Blvd., Plovdiv","Rückgabe an unserer Adresse — Bul. Dunav 10, Plowdiw"],
+"Връщане от адрес":["Collection from an address","Abholung von einer Adresse"],
+"Адрес за вземане на автомобила":["Address to collect the car from","Adresse für die Abholung des Fahrzeugs"],
+"3. Допълнително":["3. Extras","3. Extras"],
+"Добави детско столче — 3 € / ден":["Add a child seat — 3 € / day","Kindersitz hinzufügen — 3 € / Tag"],
+"Коли под наем на конкурентни цени.":["Car rental at competitive prices.","Autovermietung zu fairen Preisen."],
+"Телефон:":["Phone:","Telefon:"],
+"Имейл:":["Email:","E-Mail:"],
+"Навигация":["Navigation","Navigation"],
+"Фирмени данни":["Company details","Firmendaten"],
+"ЕИК: 208817102":["Company ID (EIK): 208817102","Firmennummer (EIK): 208817102"],
+"Седалище и адрес на управление: гр. Пловдив, п.к. 4027, р-н Северен, бул. Дунав № 10":["Registered office: 10 Dunav Blvd., Severen district, 4027 Plovdiv","Sitz: Bul. Dunav 10, Bezirk Severen, 4027 Plowdiw"],
+"На чужд език: RENTA PTB STROY LTD.":["In English: RENTA PTB STROY LTD.","Englisch: RENTA PTB STROY LTD."],
+"© 2026 Рента ПТБ Строй ЕООД. Всички права запазени.":["© 2026 Renta PTB Stroy Ltd. All rights reserved.","© 2026 Renta PTB Stroy EOOD. Alle Rechte vorbehalten."],
+"„Рента ПТБ Строй“ ЕООД":["Renta PTB Stroy Ltd.","Renta PTB Stroy EOOD"],
+"„РЕНТА ПТБ СТРОЙ“ ЕООД":["RENTA PTB STROY LTD.","RENTA PTB STROY EOOD"],
+"„РЕНТА ПТБ СТРОЙ“ ЕООД, ЕИК 208817102":["RENTA PTB STROY LTD., Company ID 208817102","RENTA PTB STROY EOOD, Firmennummer 208817102"],
+"Лого на Рента ПТБ":["Renta PTB logo","Renta PTB Logo"],
+"Лого на Рента ПТБ – коли под наем":["Renta PTB logo – car rental","Renta PTB Logo – Autovermietung"],
+"Основно меню":["Main menu","Hauptmenü"],
+"Отвори менюто":["Open menu","Menü öffnen"],
+"Име, презиме, фамилия":["First, middle and last name","Vor-, Zweit- und Nachname"],
+"Вид документ":["Document type","Dokumentart"],
+"напр. МВР Пловдив":["e.g. Ministry of Interior, Plovdiv","z. B. Innenministerium, Plowdiw"],
+"Улица, номер, вход, апартамент":["Street, number, entrance, apartment","Straße, Hausnummer, Eingang, Wohnung"],
+"Стъпки":["Steps","Schritte"],
+"Вашата резервация":["Your booking","Ihre Buchung"],
+"Вашата заявка":["Your request","Ihre Anfrage"],
+"Филтри за автомобили":["Car filters","Fahrzeugfilter"],
+"Град, улица, номер":["City, street, number","Stadt, Straße, Hausnummer"],
+"Правно обвързващият текст на Общите условия и информацията за личните данни е на български език.":["The legally binding text of the General Terms and the privacy information is in Bulgarian.","Der rechtsverbindliche Text der AGB und der Datenschutzhinweise ist auf Bulgarisch."],
+// Автомобили
+"Черен":["Black","Schwarz"],"Бял":["White","Weiß"],"Син":["Blue","Blau"],
+"2.0 дизел":["2.0 diesel","2.0 Diesel"],"1.9 дизел":["1.9 diesel","1.9 Diesel"],"1.6 дизел":["1.6 diesel","1.6 Diesel"],"1.6 бензин":["1.6 petrol","1.6 Benzin"],"1.2 бензин":["1.2 petrol","1.2 Benzin"],
+"Дизел":["Diesel","Diesel"],"Бензин":["Petrol","Benzin"],
+"Комби":["Estate","Kombi"],"Хечбек, 5 врати":["Hatchback, 5 doors","Schrägheck, 5 Türen"],"Хечбек, 2 врати":["Hatchback, 2 doors","Schrägheck, 2 Türen"],
+"Ръчна":["Manual","Schaltgetriebe"],
+"Изберете дати и час по-долу, в данните за резервацията.":["Choose dates and times below, in the booking details.","Wählen Sie Daten und Uhrzeiten unten in den Buchungsdetails."],
+"Връщането трябва да е след получаването.":["The return must be after the pick-up.","Die Rückgabe muss nach der Abholung liegen."],
+"Променете датите":["Change the dates","Daten ändern"],
+"Не е наличен за избрания период.":["Not available for the selected period.","Im gewählten Zeitraum nicht verfügbar."],
+"Изберете друг автомобил или":["Choose another car or","Wählen Sie ein anderes Fahrzeug oder"],
+"променете датите":["change the dates","ändern Sie die Daten"],
+"Зает за периода":["Booked for this period","In diesem Zeitraum belegt"],
+"Свободен":["Available","Verfügbar"],
+"Не е наличен":["Not available","Nicht verfügbar"],
+"Избран ✓":["Selected ✓","Ausgewählt ✓"],
+"Избери автомобила":["Choose this car","Dieses Fahrzeug wählen"],
+"От":["From","Ab"],
+"при наем над 30 дни":["for rentals over 30 days","bei Mieten über 30 Tage"],
+"Година":["Year","Baujahr"],"Двигател":["Engine","Motor"],"Мощност":["Power","Leistung"],"Задвижване":["Drive","Antrieb"],"Климатик":["Air conditioning","Klimaanlage"],"Да":["Yes","Ja"],
+"Зарядно за телефон":["Phone charger","Handy-Ladegerät"],
+"Поставка за телефон":["Phone holder","Handyhalterung"],
+"Ръчна скоростна кутия":["Manual gearbox","Schaltgetriebe"],
+"Детско столче — опция за 3 € / ден":["Child seat — optional, 3 € / day","Kindersitz — optional, 3 € / Tag"],
+"Гаранционен депозит: 100 €":["Security deposit: 100 €","Kaution: 100 €"],
+"Депозитът служи като гаранция за връщане на автомобила в състоянието, в което е получен — с пълен резервоар, чист и без нови щети. Депозитът се връща в деня на връщане на автомобила, при спазване на условията.":["The deposit guarantees that the car is returned in the condition it was received — with a full tank, clean and without new damage. It is refunded on the day the car is returned, subject to the terms.","Die Kaution sichert die Rückgabe des Fahrzeugs im übernommenen Zustand — vollgetankt, sauber und ohne neue Schäden. Sie wird am Tag der Rückgabe erstattet, sofern die Bedingungen eingehalten werden."],
+// Цени и избор
+"Период":["Period","Zeitraum"],
+"Доставка":["Delivery","Lieferung"],
+"изчисляваме разстоянието…":["calculating the distance…","Entfernung wird berechnet…"],
+"0,70 € / км по пътен маршрут":["0.70 € / km by road","0,70 € / km nach Straßenroute"],
+"Детско столче":["Child seat","Kindersitz"],
+"Изберете дати на получаване и връщане по-горе, за да видите цената.":["Choose pick-up and return dates above to see the price.","Wählen Sie oben Abhol- und Rückgabedatum, um den Preis zu sehen."],
+"Датата на връщане трябва да е след датата на получаване.":["The return date must be after the pick-up date.","Das Rückgabedatum muss nach dem Abholdatum liegen."],
+"Автомобилът не е наличен за избрания период. Изберете друг автомобил или променете датите.":["The car is not available for the selected period. Choose another car or change the dates.","Das Fahrzeug ist im gewählten Zeitraum nicht verfügbar. Wählen Sie ein anderes Fahrzeug oder ändern Sie die Daten."],
+"Разстоянието по пътен маршрут се изчислява.":["The road distance is being calculated.","Die Straßenentfernung wird berechnet."],
+"Разстоянието по пътен маршрут ще бъде изчислено от нас при потвърждение на заявката. Таксата е 0,70 € / км и се добавя към сумата.":["We will calculate the road distance when confirming your request. The fee is 0.70 € / km and is added to the total.","Wir berechnen die Straßenentfernung bei der Bestätigung Ihrer Anfrage. Die Gebühr beträgt 0,70 € / km und wird zur Summe addiert."],
+"Пробег: неограничен.":["Mileage: unlimited.","Kilometer: unbegrenzt."],
+"Пробег: до 250 км на ден, над лимита 0,10 € за км.":["Mileage: up to 250 km per day, 0.10 € per km above the limit.","Kilometer: bis 250 km pro Tag, darüber 0,10 € pro km."],
+"Гаранционен депозит":["Security deposit","Kaution"],
+"Не е част от цената на наема. Депозитът се връща при връщане на автомобила съгласно условията.":["Not part of the rental price. The deposit is refunded when the car is returned, according to the terms.","Nicht Teil des Mietpreises. Die Kaution wird bei Rückgabe des Fahrzeugs gemäß den Bedingungen erstattet."],
+"Остави данни за резервация":["Leave booking details","Buchungsdaten eingeben"],
+"Резервирай":["Book","Buchen"],
+"Смени автомобила":["Change car","Fahrzeug wechseln"],
+"Изпращаме резервацията…":["Sending your booking…","Buchung wird gesendet…"],
+"Резервацията не беше изпратена. Опитайте отново.":["The booking was not sent. Please try again.","Die Buchung wurde nicht gesendet. Bitte versuchen Sie es erneut."],
+"Моля, изберете дата и час на получаване.":["Please choose a pick-up date and time.","Bitte wählen Sie Abholdatum und -zeit."],
+"Моля, изберете дата и час на връщане.":["Please choose a return date and time.","Bitte wählen Sie Rückgabedatum und -zeit."],
+"Датата на връщане трябва да е след датата на получаване.":["The return date must be after the pick-up date.","Das Rückgabedatum muss nach dem Abholdatum liegen."],
+"Моля, въведете адрес за доставка.":["Please enter a delivery address.","Bitte geben Sie eine Lieferadresse ein."],
+"Моля, въведете адрес за връщане.":["Please enter a return address.","Bitte geben Sie eine Rückgabeadresse ein."],
+"Заявката ви е получена":["Your request has been received","Ihre Anfrage ist eingegangen"],
+"Заявката ви е подготвена":["Your request is ready","Ihre Anfrage ist vorbereitet"],
+"Ще се свържем с вас за потвърждение на резервацията. Остава да изберете автомобил, дати и място и да натиснете „Резервирай“.":["We will contact you to confirm the booking. Now choose a car, dates and place and press “Book”.","Wir melden uns zur Bestätigung der Buchung. Wählen Sie nun Fahrzeug, Daten und Ort und klicken Sie auf „Buchen“."],
+"Тя ще стигне до нас, след като я изпратите като SMS. Резервацията не е потвърдена, докато не се свържем с вас. Изберете автомобил, дати, място и натиснете „Резервирай“.":["It will reach us once you send it as an SMS. The booking is not confirmed until we contact you. Choose a car, dates and place and press “Book”.","Sie erreicht uns, sobald Sie sie per SMS senden. Die Buchung ist erst bestätigt, wenn wir uns melden. Wählen Sie Fahrzeug, Daten und Ort und klicken Sie auf „Buchen“."],
+"Име":["Name","Name"],
+"Автомобил":["Car","Fahrzeug"],
+"Изберете по-долу":["Choose below","Unten wählen"],
+"Не е избран още":["Not selected yet","Noch nicht gewählt"],
+"Промени данните":["Edit details","Daten ändern"],
+"В момента свободни автомобили":["Cars currently available","Derzeit verfügbare Fahrzeuge"],
+"Изберете автомобил. След това въвеждате дата и час за получаване и връщане и виждате цената за вашия период.":["Choose a car. Then enter the pick-up and return date and time and see the price for your period.","Wählen Sie ein Fahrzeug. Danach geben Sie Abhol- und Rückgabedatum und -zeit ein und sehen den Preis für Ihren Zeitraum."],
+"Няма автомобили по избраните филтри. Променете филтрите или се обадете на 0877748693.":["No cars match the selected filters. Change the filters or call 0877748693.","Keine Fahrzeuge für die gewählten Filter. Ändern Sie die Filter oder rufen Sie 0877748693 an."],
+"Вашата заявка е получена успешно и в момента се обработва от нашия екип. Моля, изчакайте — ще се свържем с Вас възможно най-скоро, в рамките на 1 работен ден.":["Your request has been received and is being processed by our team. We will contact you as soon as possible, within 1 business day.","Ihre Anfrage ist eingegangen und wird von unserem Team bearbeitet. Wir melden uns so schnell wie möglich, innerhalb von 1 Werktag."],
+"Към началото":["Back to home","Zur Startseite"],
+"Получаване":["Pick-up","Abholung"],
+"Връщане":["Return","Rückgabe"],
+// Грешки във формата
+"Моля, въведете име.":["Please enter your name.","Bitte geben Sie Ihren Namen ein."],
+"Моля, въведете валиден телефон.":["Please enter a valid phone number.","Bitte geben Sie eine gültige Telefonnummer ein."],
+"Моля, въведете валиден имейл.":["Please enter a valid email.","Bitte geben Sie eine gültige E-Mail-Adresse ein."],
+"Моля, попълнете номера на документа за самоличност.":["Please enter your ID document number.","Bitte geben Sie die Nummer Ihres Ausweisdokuments ein."],
+"Моля, попълнете ЕГН.":["Please enter your personal number (EGN).","Bitte geben Sie Ihre persönliche Nummer (EGN) ein."],
+"Моля, попълнете датата на издаване на документа за самоличност.":["Please enter the date of issue of your ID document.","Bitte geben Sie das Ausstellungsdatum Ihres Ausweisdokuments ein."],
+"Моля, попълнете от кого е издаден документът за самоличност.":["Please enter who issued your ID document.","Bitte geben Sie an, wer Ihr Ausweisdokument ausgestellt hat."],
+"Моля, попълнете град и адрес.":["Please enter your city and address.","Bitte geben Sie Stadt und Adresse ein."],
+"Моля, попълнете номера на шофьорската книжка.":["Please enter your driving licence number.","Bitte geben Sie Ihre Führerscheinnummer ein."],
+"Моля, попълнете имената от шофьорската книжка.":["Please enter the name on your driving licence.","Bitte geben Sie den Namen auf Ihrem Führerschein ein."],
+"Моля, попълнете датата на издаване на шофьорската книжка.":["Please enter the date of issue of your driving licence.","Bitte geben Sie das Ausstellungsdatum Ihres Führerscheins ein."],
+"Моля, попълнете от кого е издадена шофьорската книжка.":["Please enter who issued your driving licence.","Bitte geben Sie an, wer Ihren Führerschein ausgestellt hat."],
+"Моля, потвърдете, че сте запознат с Общите условия и информацията за защита на личните данни.":["Please confirm that you have read the General Terms and the privacy information.","Bitte bestätigen Sie, dass Sie die AGB und die Datenschutzhinweise gelesen haben."],
+"Заявката не беше изпратена. Опитайте отново или се обадете на 0877748693.":["The request was not sent. Please try again or call 0877748693.","Die Anfrage wurde nicht gesendet. Bitte versuchen Sie es erneut oder rufen Sie 0877748693 an."]
+};
+// Части от динамични текстове (дни, цени, км и т.н.), които нямат точно съвпадение в речника
+const I18N_RULES=[
+[/Общо за услугите/g,"Total for services","Gesamt für Leistungen"],
+[/без доставката и връщането от адрес/g,"excluding delivery and collection","ohne Lieferung und Abholung"],
+[/без доставката/g,"excluding delivery","ohne Lieferung"],
+[/без връщането от адрес/g,"excluding collection","ohne Abholung"],
+[/^Избрахте /,"You selected ","Ihre Wahl: "],
+[/ под наем в Пловдив/g," for rent in Plovdiv"," zur Miete in Plowdiw"],
+[/^Черен /,"Black ","Schwarz "],[/^Бял /,"White ","Weiß "],[/^Син /,"Blue ","Blau "],
+[/ \/ ден за автомобила/g," / day for the car"," / Tag für das Fahrzeug"],
+[/(\d+\+?) дни/g,"$1 days","$1 Tage"],
+[/(\d+) ден/g,"$1 day","$1 Tag"],
+[/\/ ден/g,"/ day","/ Tag"],
+[/к\.с\./g,"hp","PS"],
+[/км/g,"km","km"]];
+const LANGS=["bg","en","de"],ORIG=new WeakMap(),ORIG_A=new WeakMap(),I18N_ATTRS=["placeholder","aria-label","alt","title"];
+let LANG=(()=>{try{const l=localStorage.getItem("lang");if(LANGS.includes(l))return l}catch(e){}return"bg"})();
+function tr(s){if(LANG==="bg"||!s||!/[А-я]/.test(s))return s;
+const m=s.match(/^(\s*)([\s\S]*?)(\s*)$/),i=LANG==="en"?0:1,hit=I18N[m[2]];
+let r=hit?hit[i]:m[2];if(!hit)I18N_RULES.forEach(x=>{r=r.replace(x[0],x[i+1])});return m[1]+r+m[3]}
+function trTree(root){if(root.nodeType===3){if(!ORIG.has(root))ORIG.set(root,root.nodeValue);root.nodeValue=tr(ORIG.get(root));return}
+if(root.nodeType!==1||/^(SCRIPT|STYLE)$/.test(root.nodeName))return;
+const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT|NodeFilter.SHOW_ELEMENT,{acceptNode:n=>n.nodeType===1&&/^(SCRIPT|STYLE)$/.test(n.nodeName)?NodeFilter.FILTER_REJECT:NodeFilter.FILTER_ACCEPT});
+let n=root;do{if(n.nodeType===3){if(!ORIG.has(n))ORIG.set(n,n.nodeValue);n.nodeValue=tr(ORIG.get(n))}
+else if(!n.hasAttribute("data-lang")){let o=ORIG_A.get(n);I18N_ATTRS.forEach(a=>{if(!n.hasAttribute(a))return;if(!o){o={};ORIG_A.set(n,o)}if(!(a in o))o[a]=n.getAttribute(a);n.setAttribute(a,tr(o[a]))})}}while(n=w.nextNode())}
+let TITLE_BG=document.title;
+function setTitle(t){TITLE_BG=t;document.title=tr(t)}
+function setLang(l){if(!LANGS.includes(l))return;LANG=l;try{localStorage.setItem("lang",l)}catch(e){}
+document.documentElement.lang=l;document.querySelectorAll("[data-lang]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.lang===l));
+document.querySelectorAll("[data-i18n-note]").forEach(e=>e.hidden=l==="bg");
+trTree(document.body);document.title=tr(TITLE_BG)}
+// Превежда и съдържанието, което скриптът генерира по-късно (автомобили, цени, съобщения)
+new MutationObserver(ms=>{if(LANG!=="bg")ms.forEach(m=>m.addedNodes.forEach(trTree))}).observe(document.documentElement,{childList:true,subtree:true});
+document.addEventListener("click",e=>{const b=e.target.closest("[data-lang]");if(b)setLang(b.dataset.lang)});
+</script>
 <script>
 // ===== Настройки за връзка със сървър (оставете празни, докато няма backend) =====
 // ROUTING_ENDPOINT: адрес на ВАШ сървърен прокси към Google Maps Distance Matrix / Directions API
@@ -776,7 +1060,7 @@ ${btn}</div></article>`};
 // ===== Начална страница =====
 $("#why-grid").innerHTML=WHY.map(whyCard).join("");
 $$("[data-stats]").forEach(e=>e.innerHTML=STATS.map(([n,l])=>`<div class="stat"><b>${n}</b><span>${l}</span></div>`).join(""));
-const fill=(id,v)=>[...new Set(v)].forEach(x=>$(id).insertAdjacentHTML("beforeend",`<option>${x}</option>`));
+const fill=(id,v)=>[...new Set(v)].forEach(x=>$(id).insertAdjacentHTML("beforeend",`<option value="${x}">${x}</option>`));
 fill("#f-type",CARS.map(c=>c.body));fill("#f-fuel",CARS.map(c=>c.fuel));fill("#f-gear",CARS.map(c=>c.gear));
 $$("[data-logo]").forEach(i=>i.src=LOGO);$$("[data-mark]").forEach(i=>i.src=MARK);
 // ===== Меню =====
@@ -785,26 +1069,71 @@ bg.addEventListener("click",()=>{const o=nav.classList.toggle("open");bg.setAttr
 nav.addEventListener("click",e=>{if(e.target.tagName==="A"){nav.classList.remove("open");bg.setAttribute("aria-expanded",false)}});
 $$("[data-open]").forEach(a=>a.addEventListener("click",()=>{$("#"+a.dataset.open).open=true}));
 // ===== Форма с данни (началната страница) =====
-const fields={name:"#b-name",phone:"#b-phone",mail:"#b-mail",note:"#b-note"};
+const fields={name:"#b-name",phone:"#b-phone",mail:"#b-mail",idn:"#b-idn",egn:"#b-egn",idd:"#b-idd",idp:"#b-idp",city:"#b-city",addr:"#b-addr",dln:"#b-dln",dlname:"#b-dlname",dld:"#b-dld",dlp:"#b-dlp",note:"#b-note"};
 Object.entries(fields).forEach(([k,s])=>{if(S[k])$(s).value=S[k]});
+if(S.idt==="pass")document.querySelector("input[name=idt][value=pass]").checked=true;
+const idt=()=>document.querySelector("input[name=idt]:checked").value;
+// Имената в шофьорската книжка се попълват от личната карта, докато клиентът не ги промени ръчно
+let dlPrev=$("#b-name").value.trim();
+$("#b-name").addEventListener("input",()=>{const d=$("#b-dlname"),n=$("#b-name").value.trim();if(!d.value.trim()||d.value.trim()===dlPrev)d.value=n;dlPrev=n});
 function fail(t){const e=$("#b-err");e.textContent=t;e.hidden=false;e.scrollIntoView({behavior:"smooth",block:"center"})}
 function buildText(){const R=S,c=CARS.find(x=>x.id===R.car),q=c&&hasD()?quote(c,R):null;
-return[`Заявка за наем${c?": "+c.name:" (автомобилът още не е избран)"}`,R.d1?`Получаване: ${bf(R.d1,R.t1)}, ${R.m1==="addr"?"доставка до "+R.a1:BASE}`:"",R.d2?`Връщане: ${bf(R.d2,R.t2)}, ${R.m2==="addr"?"вземане от "+R.a2:BASE}`:"",R.d1?`Детско столче: ${R.seat?"да":"не"}`:"",q&&!q.err?`Общо за услугите: ${fmt(q.tot)}${q.pend.length?" (без "+q.pend.join(" и ")+")":""}. Депозит: ${fmt(DEPOSIT)}`:"",`Име: ${R.name}, тел.: ${R.phone}, имейл: ${R.mail}`,R.note?`Забележка: ${R.note}`:""].filter(Boolean).join("\n")}
+return[`Заявка за наем${c?": "+c.name:" (автомобилът още не е избран)"}`,R.d1?`Получаване: ${bf(R.d1,R.t1)}, ${R.m1==="addr"?"доставка до "+R.a1:BASE}`:"",R.d2?`Връщане: ${bf(R.d2,R.t2)}, ${R.m2==="addr"?"вземане от "+R.a2:BASE}`:"",R.d1?`Детско столче: ${R.seat?"да":"не"}`:"",q&&!q.err?`Общо за услугите: ${fmt(q.tot)}${q.pend.length?" (без "+q.pend.join(" и ")+")":""}. Депозит: ${fmt(DEPOSIT)}`:"",q&&!q.err?`Брой дни: ${q.d}, цена на ден: ${fmt(q.r)}, наем на автомобила: ${fmt(q.base)}`:"",
+"\nКЛИЕНТ",`Имена: ${R.name}`,`Телефон: ${R.phone}`,`Имейл: ${R.mail}`,
+"\nДОКУМЕНТ ЗА САМОЛИЧНОСТ",`Вид: ${R.idt==="pass"?"паспорт":"лична карта"}`,`Номер: ${R.idn||"-"}`,`ЕГН: ${R.egn||"-"}`,`Дата на издаване: ${R.idd?bf(R.idd):"-"}`,`Издаден от: ${R.idp||"-"}`,`Град: ${R.city||"-"}`,`Адрес: ${R.addr||"-"}`,
+"\nШОФЬОРСКА КНИЖКА",`Номер: ${R.dln||"-"}`,`Имена: ${R.dlname||"-"}`,`Дата на издаване: ${R.dld?bf(R.dld):"-"}`,`Издадена от: ${R.dlp||"-"}`,
+R.note?`\nЗабележка: ${R.note}`:"",`\nЕзик на сайта: ${LANG.toUpperCase()}`].filter(Boolean).join("\n")}
+// Всички данни на клиента и резервацията като отделни полета в имейла
+function mailFields(R,c){const q=c&&hasD()?quote(c,R):null,ok=q&&!q.err,place=(n,a)=>R["m"+n]==="addr"?a+" "+R["a"+n]:BASE;
+return{"Автомобил":c?c.name:"не е избран",
+"Получаване":R.d1?bf(R.d1,R.t1):"не е избрано","Място на получаване":R.d1?place(1,"доставка до"):"-",
+"Връщане":R.d2?bf(R.d2,R.t2):"не е избрано","Място на връщане":R.d2?place(2,"вземане от"):"-",
+"Брой дни":ok?q.d:"-","Цена на ден":ok?fmt(q.r):"-","Наем на автомобила":ok?fmt(q.base):"-",
+"Детско столче":R.d1?(R.seat?"да":"не"):"-","Общо за услугите":ok?fmt(q.tot)+(q.pend.length?" (без "+q.pend.join(" и ")+")":""):"-","Депозит":fmt(DEPOSIT),
+"Имена":R.name,"Телефон":R.phone,"Имейл":R.mail,
+"Вид документ":R.idt==="pass"?"паспорт":"лична карта","Номер на документа":R.idn||"-","ЕГН":R.egn||"-",
+"Документ – дата на издаване":R.idd?bf(R.idd):"-","Документ – издаден от":R.idp||"-","Град":R.city||"-","Адрес":R.addr||"-",
+"Шофьорска книжка – номер":R.dln||"-","Шофьорска книжка – имена":R.dlname||"-","Шофьорска книжка – дата на издаване":R.dld?bf(R.dld):"-","Шофьорска книжка – издадена от":R.dlp||"-",
+"Допълнителна информация":R.note||"-","Език на сайта":LANG.toUpperCase()}}
 // Изпраща заявката към сървър (ако е зададен BOOKING_ENDPOINT). Връща "sent" или "err".
-async function sendReq(){const R=S;
-try{const c=CARS.find(x=>x.id===R.car);const r=await fetch(BOOKING_ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({access_key:WEB3FORMS_KEY,subject:"Нова заявка за наем"+(c?": "+c.name:"")+" – "+R.name,from_name:"Rent a Car PTB – сайт",replyto:R.mail,message:buildText(),"Автомобил":c?c.name:"не е избран",name:R.name,phone:R.phone,email:R.mail})});
-const j=await r.json().catch(()=>({}));if(!r.ok||j.success===false)throw 0;R.state="sent";store.set(R);return"sent"}catch(e){return"err"}}
+async function sendReq(links){const R=S;links=links||{};
+try{const c=CARS.find(x=>x.id===R.car);const r=await fetch(BOOKING_ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({access_key:WEB3FORMS_KEY,subject:"Нова заявка за наем"+(c?": "+c.name:"")+" – "+R.name,from_name:"Rent a Car PTB – сайт",replyto:R.mail,message:buildText()+(Object.keys(links).length?"\n\nСНИМКИ НА ДОКУМЕНТИТЕ\n"+Object.entries(links).map(([l,u])=>l+": "+u).join("\n"):""),name:R.name,phone:R.phone,email:R.mail,...mailFields(R,c),...links})});
+const j=await r.json().catch(()=>({}));if(!r.ok||j.success===false)throw 0;return"sent"}catch(e){return"err"}}
 const sendSms=()=>{location.href="sms:"+PHONE+"?&body="+encodeURIComponent(buildText())};
+// ===== Снимки на документите: смаляват се в браузъра и се качват при изпращане =====
+const DOCS_ENDPOINT="/api/documents";
+const PHOTOS={"p-idf":"Документ за самоличност – лицева страна","p-idb":"Документ за самоличност – гръб","p-dlf":"Шофьорска книжка – лицева страна","p-dlb":"Шофьорска книжка – гръб"},PH={};
+function shrink(f){return new Promise((ok,no)=>{const u=URL.createObjectURL(f),i=new Image();
+i.onload=()=>{const k=Math.min(1,1800/Math.max(i.naturalWidth,i.naturalHeight)),c=document.createElement("canvas");c.width=Math.round(i.naturalWidth*k);c.height=Math.round(i.naturalHeight*k);c.getContext("2d").drawImage(i,0,0,c.width,c.height);URL.revokeObjectURL(u);c.toBlob(b=>b?ok(b):no(),"image/jpeg",.82)};
+i.onerror=()=>{URL.revokeObjectURL(u);no()};i.src=u})}
+Object.keys(PHOTOS).forEach(id=>$("#"+id).addEventListener("change",async e=>{const f=e.target.files[0],pv=$("#"+id+"-v");delete PH[id];pv.hidden=true;if(!f)return;
+try{const b=await shrink(f);PH[id]=b;pv.src=URL.createObjectURL(b);pv.hidden=false}catch(x){e.target.value="";fail("Снимката не може да бъде прочетена. Моля, изберете снимка във формат JPG или PNG.")}}));
+async function uploadPhotos(){const out={};for(const[id,l]of Object.entries(PHOTOS)){const r=await fetch(DOCS_ENDPOINT,{method:"POST",headers:{"Content-Type":"image/jpeg"},body:PH[id]});const j=await r.json().catch(()=>({}));if(!r.ok||!j.url)throw 0;out[l]=j.url}return out}
 $("#bk").addEventListener("submit",async e=>{e.preventDefault();$("#b-err").hidden=true;
-const v=i=>$(i).value.trim();
+const v=i=>$(i).value.trim(),c=CARS.find(x=>x.id===S.car),q=c&&hasD()?quote(c,S):null;
+if(!c)return fail("Моля, изберете автомобил.");
+const pe=planErr();if(pe)return fail(pe);
+if(!q||q.err)return fail("Автомобилът не е наличен за избрания период. Изберете друг автомобил или променете датите.");
 if(!v("#b-name"))return fail("Моля, въведете име.");
 if(v("#b-phone").replace(/\D/g,"").length<9)return fail("Моля, въведете валиден телефон.");
 if(!/^\S+@\S+\.\S+$/.test(v("#b-mail")))return fail("Моля, въведете валиден имейл.");
+if(!v("#b-idn"))return fail("Моля, попълнете номера на документа за самоличност.");
+if(idt()==="id"&&!v("#b-egn"))return fail("Моля, попълнете ЕГН.");
+if(!v("#b-idd"))return fail("Моля, попълнете датата на издаване на документа за самоличност.");
+if(!v("#b-idp"))return fail("Моля, попълнете от кого е издаден документът за самоличност.");
+if(!v("#b-city")||!v("#b-addr"))return fail("Моля, попълнете град и адрес.");
+if(!PH["p-idf"]||!PH["p-idb"])return fail("Моля, приложете снимки на документа за самоличност от двете страни.");
+if(!v("#b-dln"))return fail("Моля, попълнете номера на шофьорската книжка.");
+if(!v("#b-dlname"))return fail("Моля, попълнете имената от шофьорската книжка.");
+if(!v("#b-dld"))return fail("Моля, попълнете датата на издаване на шофьорската книжка.");
+if(!v("#b-dlp"))return fail("Моля, попълнете от кого е издадена шофьорската книжка.");
+if(!PH["p-dlf"]||!PH["p-dlb"])return fail("Моля, приложете снимки на шофьорската книжка от двете страни.");
 if(!$("#b-ok").checked)return fail("Моля, потвърдете, че сте запознат с Общите условия и информацията за защита на личните данни.");
-S=Object.assign(S,{name:v("#b-name"),phone:v("#b-phone"),mail:v("#b-mail"),note:v("#b-note"),state:"sms",done:""});
-if(BOOKING_ENDPOINT){const b=$("#bk button[type=submit]");b.disabled=true;const r=await sendReq();b.disabled=false;if(r==="err")return fail("Заявката не беше изпратена. Опитайте отново или се обадете на 0877748693.")}
-store.set(S);
-if(location.hash==="#potvurzhdenie")go();else location.hash="potvurzhdenie"});
+S=Object.assign(S,Object.fromEntries(Object.entries(fields).map(([k,s])=>[k,v(s)])),{idt:idt(),done:""});store.set(S);
+if(BOOKING_ENDPOINT){const b=$("#bk button[type=submit]"),m=$("#b-msg");b.disabled=true;m.textContent="Изпращаме резервацията…";
+let r="err";try{const links=await uploadPhotos();r=await sendReq(links)}catch(x){}
+b.disabled=false;m.textContent="";if(r!=="sent")return fail("Резервацията не беше изпратена. Опитайте отново или се обадете на 0877748693.");S.done="sent"}else S.done="sms";
+store.set(S);location.hash="blagodarim";if(S.done==="sms")sendSms()});
 // ===== Втора страница: данни за резервацията, автомобили и цени =====
 const today=new Date().toISOString().slice(0,10);$("#b-d1").min=$("#b-d2").min=today;
 const mode=n=>document.querySelector(`input[name=m${n}]:checked`).value;
@@ -821,52 +1150,40 @@ KMS.st[n]="load";const a=S["a"+n];
 fetch(`${ROUTING_ENDPOINT}?origin=${encodeURIComponent(BASE)}&destination=${encodeURIComponent(a)}`).then(r=>r.json()).then(j=>{if(!(j.km>=0))throw 0;if(S["a"+n]===a){KMS[n]=j.km;KMS.st[n]="ok"}}).catch(()=>{KMS.st[n]="err"}).then(()=>{renderCars();renderPick()})}
 function planChanged(n){readPlan();sync();
 if(n){KMS[n]=null;KMS.st[n]="";clearTimeout(tm[n]);tm[n]=setTimeout(()=>loadKm(n),700)}
-renderCars();renderPick();if(conf())renderTop()}
+renderCars();renderPick()}
 $("#b-d1").addEventListener("change",()=>{if(!$("#b-d2").value||$("#b-d2").value<$("#b-d1").value)$("#b-d2").value=$("#b-d1").value;$("#b-d2").min=$("#b-d1").value||today});
 ["#b-d1","#b-t1","#b-d2","#b-t2","#b-seat"].forEach(s=>$(s).addEventListener("change",()=>planChanged()));
 $$("input[name=m1]").forEach(e=>e.addEventListener("change",()=>planChanged(1)));$$("input[name=m2]").forEach(e=>e.addEventListener("change",()=>planChanged(2)));
 $("#b-a1").addEventListener("input",()=>{S.a1=addr(1);planChanged(1)});$("#b-a2").addEventListener("input",()=>{S.a2=addr(2);planChanged(2)});
 function planErr(){if(!S.d1||!S.t1)return"Моля, изберете дата и час на получаване.";if(!S.d2||!S.t2)return"Моля, изберете дата и час на връщане.";if(span(S.d1,S.t1,S.d2,S.t2)<0)return"Датата на връщане трябва да е след датата на получаване.";if(S.m1==="addr"&&(S.a1||"").length<5)return"Моля, въведете адрес за доставка.";if(S.m2==="addr"&&(S.a2||"").length<5)return"Моля, въведете адрес за връщане.";return""}
-const conf=()=>cur==="potvurzhdenie"&&hasC();
-function renderTop(){const R=S,c=CARS.find(x=>x.id===R.car),sent=R.state==="sent";
-$("#ok-title").textContent=sent?"Заявката ви е получена":"Заявката ви е подготвена";
-$("#ok-sub").textContent=sent?"Ще се свържем с вас за потвърждение на резервацията. Остава да изберете автомобил, дати и място и да натиснете „Резервирай“.":"Тя ще стигне до нас, след като я изпратите като SMS. Резервацията не е потвърдена, докато не се свържем с вас. Изберете автомобил, дати, място и натиснете „Резервирай“.";
-$("#ok-cta").innerHTML="";
-$("#ok-sum").innerHTML=`<h2>Вашата заявка</h2><div class="kv"><div><span>Име</span><b>${esc(R.name)}</b></div><div><span>Телефон</span><b>${esc(R.phone)}</b></div><div><span>Имейл</span><b>${esc(R.mail)}</b></div><div><span>Период</span><b>${hasD()?bf(R.d1,R.t1)+"<br>"+bf(R.d2,R.t2):"Изберете по-долу"}</b></div><div><span>Автомобил</span><b>${c?c.name:"Не е избран още"}</b></div></div><a class="chg" href="#book">Промени данните</a>`}
 function renderCars(){const p=+$("#f-price").value||1e9,t=$("#f-type").value,f=$("#f-fuel").value,g=$("#f-gear").value;
 const l=CARS.filter(c=>c.tiers[0]<=p&&(!t||c.body===t)&&(!f||c.fuel===f)&&(!g||c.gear===g));
 $("#car-grid").innerHTML=l.length?l.map(carCard).join(""):'<p class="empty">Няма автомобили по избраните филтри. Променете филтрите или се обадете на 0877748693.</p>';reveal()}
 function renderPick(){const el=$("#pick"),c=CARS.find(x=>x.id===S.car);
-if(!c){el.hidden=true;return}
+if(!c){el.hidden=true;$("#details").hidden=true;return}
 const q=hasD()?quote(c,S):null;let body,ok=false;
 if(!q||q.err==="dates")body='<p class="pend">Изберете дати на получаване и връщане по-горе, за да видите цената.</p>';
 else if(q.err==="order")body='<div class="alert">Датата на връщане трябва да е след датата на получаване.</div>';
 else if(q.err==="busy")body='<div class="alert">Автомобилът не е наличен за избрания период. Изберете друг автомобил или променете датите.</div>';
 else{ok=true;body=q.rows.map(([a,b,s])=>`<div class="srow"><span>${a}${s?`<small>${s}</small>`:""}</span><b>${b}</b></div>`).join("")+`<div class="stot"><span>Общо за услугите${q.pend.length?" (без "+q.pend.join(" и ")+")":""}</span><b>${fmt(q.tot)}</b></div>${q.pend.length?`<p class="pend">${ROUTING_ENDPOINT?"Разстоянието по пътен маршрут се изчислява.":"Разстоянието по пътен маршрут ще бъде изчислено от нас при потвърждение на заявката. Таксата е 0,70 € / км и се добавя към сумата."}</p>`:""}<p class="pend" style="color:#c5d0e0">${q.d>2?"Пробег: неограничен.":"Пробег: до 250 км на ден, над лимита 0,10 € за км."}</p><div class="sdep"><strong><span>Гаранционен депозит</span><span>${fmt(DEPOSIT)}</span></strong>Не е част от цената на наема. Депозитът се връща при връщане на автомобила съгласно условията.</div>`}
-const lbl=!hasC()?"Остави данни за резервация":"Резервирай";
+$("#details").hidden=!ok;
 el.hidden=false;
-el.innerHTML=`<img src="${IMG[c.id]}" alt="${c.name}"><div><h3>Избрахте ${c.name}</h3>${body}<div class="actions">${ok?`<button class="btn btn-acc" type="button" data-send>${lbl}</button>`:""}<button class="btn btn-ghost" type="button" data-unpick>Смени автомобила</button></div><p class="fmsg" id="pick-msg" role="status" style="color:#c5d0e0"></p></div>`}
+el.innerHTML=`<img src="${IMG[c.id]}" alt="${c.name}"><div><h3>Избрахте ${c.name}</h3>${body}<div class="actions">${ok?`<button class="btn btn-acc" type="button" data-details>Продължи с данните</button>`:""}<button class="btn btn-ghost" type="button" data-unpick>Смени автомобила</button></div><p class="fmsg" id="pick-msg" role="status" style="color:#c5d0e0"></p></div>`}
 function setupCars(){
-const cf=conf();$("#ok-hero").hidden=!cf;
 $("#cars-h").textContent="В момента свободни автомобили";
 $("#cars-p").textContent="Изберете автомобил. След това въвеждате дата и час за получаване и връщане и виждате цената за вашия период.";
 writePlan();readPlan();$("#plan").hidden=!S.open;
-if(cf)renderTop();
 [1,2].forEach(n=>{if(KMS.st[n]==="")loadKm(n)});
 renderCars();renderPick()}
 ["#f-price","#f-type","#f-fuel","#f-gear"].forEach(s=>$(s).addEventListener("change",renderCars));
 $("#view-cars").addEventListener("click",async e=>{
 const pk=e.target.closest("[data-pick]");
-if(pk&&!pk.disabled){S.car=pk.dataset.pick;S.open=true;readPlan();$("#plan").hidden=false;renderCars();renderPick();if(conf())renderTop();$("#plan").scrollIntoView({behavior:"smooth",block:"start"});return}
-if(e.target.closest("[data-unpick]")){S.car="";store.set(S);renderCars();renderPick();if(conf())renderTop();return}
+if(pk&&!pk.disabled){S.car=pk.dataset.pick;S.open=true;readPlan();$("#plan").hidden=false;renderCars();renderPick();$("#plan").scrollIntoView({behavior:"smooth",block:"start"});return}
+if(e.target.closest("[data-unpick]")){S.car="";store.set(S);renderCars();renderPick();return}
 if(e.target.closest("[data-sms]")){sendSms();return}
-if(e.target.closest("[data-send]")){
-if(!hasC()){location.hash="book";return}
-const m=$("#pick-msg"),er=planErr();
+if(e.target.closest("[data-details]")){const m=$("#pick-msg"),er=planErr();
 if(er){m.textContent=er;m.style.color="#ffb4ab";$("#plan").scrollIntoView({behavior:"smooth"});return}
-m.style.color="#c5d0e0";
-if(BOOKING_ENDPOINT){m.textContent="Изпращаме резервацията…";const b=e.target.closest("[data-send]");b.disabled=true;const r=await sendReq();b.disabled=false;if(r!=="sent"){m.style.color="#ffb4ab";m.textContent="Резервацията не беше изпратена. Опитайте отново.";return}S.done="sent"}else S.done="sms";
-store.set(S);location.hash="blagodarim";if(S.done==="sms")sendSms()}});
+m.textContent="";$("#details").scrollIntoView({behavior:"smooth",block:"start"})}});
 function renderThanks(){const R=S,c=CARS.find(x=>x.id===R.car);
 $("#th-sub").textContent="Вашата заявка е получена успешно и в момента се обработва от нашия екип. Моля, изчакайте — ще се свържем с Вас възможно най-скоро, в рамките на 1 работен ден.";
 $("#th-cta").innerHTML='<a class="btn btn-ghost" href="#home">Към началото</a>';
@@ -874,11 +1191,11 @@ $("#th-sum").innerHTML=`<h2>Вашата резервация</h2><div class="kv
 $("#view-thanks").addEventListener("click",e=>{if(e.target.closest("[data-sms]"))sendSms()});
 // ===== Превключване между страниците (един файл) =====
 const T0=document.title;let cur="";
-function go(){const h=decodeURIComponent(location.hash.slice(1)),v=(h==="potvurzhdenie"||h==="avtomobili")?h:(h==="blagodarim"&&S.done&&hasC()&&S.car&&hasD())?h:h==="plan"?(cur&&cur!=="home"?cur:"avtomobili"):"home",ch=v!==cur;cur=v;
+function go(){const h=decodeURIComponent(location.hash.slice(1)),v=(h==="potvurzhdenie"||h==="avtomobili"||h==="book")?"avtomobili":(h==="blagodarim"&&S.done&&hasC()&&S.car&&hasD())?h:h==="plan"?(cur&&cur!=="home"?cur:"avtomobili"):"home",ch=v!==cur;cur=v;
 $("#view-home").hidden=v!=="home";$("#view-cars").hidden=v==="home"||v==="blagodarim";$("#view-thanks").hidden=v!=="blagodarim";
-if(v==="home")document.title=T0;
-else if(v==="blagodarim"){renderThanks();document.title="Благодарим | Рента ПТБ Строй"}
-else{setupCars();document.title=conf()?"Заявка за наем | Рента ПТБ Строй":"Автомобили и цени | Рента ПТБ Строй"}
+if(v==="home")setTitle(T0);
+else if(v==="blagodarim"){renderThanks();setTitle("Благодарим | Рента ПТБ Строй")}
+else{setupCars();setTitle("Автомобили и цени | Рента ПТБ Строй")}
 if(ch){const t=(v==="home"||h==="plan")&&h&&document.getElementById(h);t?t.scrollIntoView({behavior:"instant"}):window.scrollTo({top:0,behavior:"instant"})}
 nav.classList.remove("open");reveal()}
 // ===== Появяване при скролиране =====
@@ -887,6 +1204,7 @@ if(!("IntersectionObserver" in window)){els.forEach(x=>x.classList.add("in"));re
 io=io||new IntersectionObserver(es=>es.forEach(x=>{if(x.isIntersecting){x.target.classList.add("in");io.unobserve(x.target)}}),{threshold:.1});els.forEach(x=>io.observe(x))}
 addEventListener("hashchange",go);
 go();
+setLang(LANG);
 
 </script>
 </body>
