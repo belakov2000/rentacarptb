@@ -176,14 +176,19 @@ form label{font-size:.85rem;font-weight:700;display:block;margin-bottom:4px}
 .fmsg{font-size:.9rem;color:var(--muted);min-height:1.2em}
 .fmsg.err{color:#b3261e;font-weight:700}
 /* footer */
-footer{background:#0a1320;color:#b8c4d6;padding:48px 0 calc(48px + env(safe-area-inset-bottom,0px))}
-.fgrid{display:grid;gap:28px}
-@media(min-width:800px){.fgrid{grid-template-columns:1.4fr 1fr 1fr}}
+footer{background:#0a1320;color:#b8c4d6;padding:36px 0 calc(24px + env(safe-area-inset-bottom,0px));font-size:.92rem}
+.fgrid{display:grid;gap:22px;grid-template-columns:1fr 1fr}
+.fbrand{grid-column:1/-1}.fbrand p{margin-top:6px}
+@media(min-width:800px){.fgrid{grid-template-columns:1.3fr 1fr 1.3fr}.fbrand{grid-column:auto}}
+.fct{background:none;border:0;padding:0;font:inherit;color:inherit;cursor:pointer}.fct:hover{color:var(--acc)}
+.fct span{display:inline-block;transition:transform .2s}.fct[aria-expanded=true] span{transform:rotate(180deg)}
+footer .fct-list{margin:6px 0 2px 10px;word-break:break-word}
 footer strong{color:#fff}
-footer ul{list-style:none;padding:0;margin:10px 0 0;display:grid;gap:6px}
+footer ul{list-style:none;padding:0;margin:8px 0 0;display:grid;gap:4px}
 footer a{text-decoration:none}
 footer a:hover{color:var(--acc)}
-.copy{border-top:1px solid rgba(255,255,255,.1);margin-top:32px;padding-top:20px;font-size:.88rem}
+.copy{border-top:1px solid rgba(255,255,255,.1);margin-top:24px;padding-top:16px;font-size:.85rem;line-height:1.7}
+.flegal{display:inline-block}
 /* floating call */
 .fab{display:none;position:fixed;left:16px;right:16px;bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:60;box-shadow:0 12px 30px -8px rgba(0,0,0,.5)}
 
@@ -253,7 +258,7 @@ legend{font-weight:800;font-size:1.08rem;padding:0;margin-bottom:10px}
 .rev blockquote{margin:0}.rev blockquote::before{content:"„";display:block;font-size:3.4rem;line-height:.6;color:var(--acc);font-weight:800}
 .rev figcaption{font-weight:800}
 .vimg{background:#fff;border-bottom:1px solid var(--line)}.vimg .fg{padding:4px 0}
-.firm{font-size:.88rem;line-height:1.7}.firm strong{display:block;margin-bottom:4px}
+.firm{line-height:1.6}.firm strong{display:block;margin-bottom:8px}
 .vimg{background:#e9edf3;border:0}.vimg .fg{padding:0}
 .qbar{background:var(--navy);color:#fff;border-radius:22px;padding:22px;margin-bottom:22px}
 .qbar strong{font-size:1.1rem}.qbar p{font-size:.85rem;color:#c5d0e0;margin-top:10px}
@@ -491,7 +496,7 @@ button.btn-ghost{background:transparent}
 <li>Неограничен пробег при наем над 2 дни</li>
 <li>При наем до 2 дни пробегът е до 250 км на ден. Над лимита се дължат 0,10 € за км</li>
 <li>Автомобилът се предоставя чист и зареден до горе и така очакваме да ни го върнете</li>
-<li>Автомобилите са обслужени и готови за път</li>
+<li>Минимална възраст 18 години, валидна лична карта или паспорт и валидна шофьорска книжка.</li>
 </ul>
 <p class="warn">Крайната цена и условията могат да зависят от избрания автомобил и периода на наемане. Свържете се с нас за актуална оферта.</p>
 </div>
@@ -522,26 +527,37 @@ button.btn-ghost{background:transparent}
 </div>
 </div>
 </section>
+<section id="faq" hidden>
+<div class="wrap">
+<div class="sec-head"><h2>Често задавани въпроси</h2></div>
+<details class="dt"><summary>Мога ли да пътувам с автомобила в чужбина?</summary><div class="doc"><p>Да. Позволено е пътуване с автомобила извън България. За всяка държава се прилага отделна такса за пътуване в чужбина. При резервация можете да изберете държавата, до която ще пътувате, и ще видите съответната такса.</p></div></details>
+<details class="dt"><summary>Какъв е размерът на депозита?</summary><div class="doc"><p>Депозитът е 100 €.</p><p>Автомобилът се предоставя чист, с пълен резервоар и без щети. След връщането на автомобила депозитът се възстановява, при условие че автомобилът е върнат в същото състояние – чист, с пълен резервоар и без нови щети.</p></div></details>
+<details class="dt"><summary>Мога ли да наема автомобил без кредитна карта?</summary><div class="doc"><p>Да. Не е необходима кредитна карта, за да наемете автомобил.</p></div></details>
+<details class="dt"><summary>Има ли ограничение на километрите?</summary><div class="doc"><p>При наем до 2 дни включително са включени до 250 км.</p><p>При наем за повече от 2 дни получавате неограничен пробег.</p></div></details>
+<details class="dt"><summary>Как получавам автомобила?</summary><div class="doc"><p>За да получите автомобила, е необходимо първо да направите безплатна резервация през нашия сайт.</p><p>След като направите резервацията, ще получите необходимата информация за получаването на автомобила.</p></div></details>
+<details class="dt"><summary>Има ли такса за резервация?</summary><div class="doc"><p>Не. Резервацията през сайта е напълно безплатна.</p><p>При резервация можете да посочите държавата, до която ще пътувате, и ако за нея има такса за пътуване в чужбина, тя ще бъде показана предварително.</p></div></details>
+</div>
+</section>
 <section id="legal" hidden>
 <div class="wrap">
-<div class="sec-head"><h2>Общи условия и защита на личните данни</h2><p data-i18n-note hidden>Правно обвързващият текст на Общите условия и информацията за личните данни е на български език.</p></div>
+<div class="sec-head"><h2>Общи условия, лични данни и бисквитки</h2><p data-i18n-note hidden>Правно обвързващият текст на Общите условия и информацията за личните данни е на български език.</p></div>
 <details class="dt" id="t-terms"><summary>Общи условия</summary><div class="doc">
-<h4>IV. ДЕПОЗИТ И ЗАСТРАХОВКА</h4>
-<h5>Чл. 4. Депозит</h5>
+<h4>I. ДЕПОЗИТ И ЗАСТРАХОВКА</h4>
+<h5>Чл. 1. Депозит</h5>
 <p>1. НАЕМАТЕЛЯТ внася депозит в размер на 100,00 EUR (сто евро), платим предварително при сключване на настоящия договор.</p>
 <p>2. Депозитът има обезпечителен характер и служи като гаранция за изпълнение на всички задължения по договора.</p>
 <p>3. Депозитът не ограничава правото на НАЕМОДАТЕЛЯ да претендира вреди, обезщетения и пропуснати ползи над неговия размер.</p>
 <p>4. Депозитът се възстановява на НАЕМАТЕЛЯ след връщане на моторното превозно средство, след приспадане на дължими суми, щети или други задължения по договора.</p>
-<h5>Чл. 4а. Застрахователно покритие и отказ от допълнителна защита</h5>
+<h5>Чл. 1а. Застрахователно покритие и отказ от допълнителна защита</h5>
 <p>1. НАЕМОДАТЕЛЯТ предоставя автомобила със задължителна застраховка „Гражданска отговорност“.</p>
 <p>2. НАЕМАТЕЛЯТ е уведомен, че може да наеме автомобила с допълнително застрахователно покритие „Автокаско“ срещу допълнително възнаграждение от 70,00 EUR за всеки започнат 24-часов период и срещу депозит в размер на 0,00 EUR (нула евро), приложим само при избор на това покритие.</p>
 <p>3. С подписването на настоящия договор НАЕМАТЕЛЯТ декларира, че е информиран и доброволно отказва допълнителното застрахователно покритие „Автокаско“.</p>
 <p>4. При отказ всички щети, разходи, обезщетения и пропуснати ползи, които не се покриват от застраховка или не могат да бъдат възстановени от трети лица, остават изцяло за сметка на НАЕМАТЕЛЯ.</p>
-<h4>V. ПРАВА И ЗАДЪЛЖЕНИЯ</h4>
-<h5>Чл. 5. НАЕМОДАТЕЛЯТ:</h5>
+<h4>II. ПРАВА И ЗАДЪЛЖЕНИЯ</h4>
+<h5>Чл. 2. НАЕМОДАТЕЛЯТ:</h5>
 <p>1. Предоставя автомобила в технически изправно състояние.</p>
 <p>2. Осигурява валидна застраховка „Гражданска отговорност“, винетка, ГТП и платени данъци.</p>
-<h5>Чл. 6. НАЕМАТЕЛЯТ:</h5>
+<h5>Чл. 3. НАЕМАТЕЛЯТ:</h5>
 <p>1. Управлява автомобила лично или допуска трето лице само на своя отговорност.</p>
 <p>2. Притежава валидно СУМПС.</p>
 <p>3. Не управлява след употреба на алкохол и/или наркотични вещества.</p>
@@ -552,15 +568,14 @@ button.btn-ghost{background:transparent}
 <p>8. Носи отговорност за всички глоби, фишове и нарушения, извършени по време на ползването на автомобила.</p>
 <p>9. При загуба на ключове, документи или аксесоари дължи всички разходи по възстановяването им.</p>
 <p>10. При връщане на автомобила НАЕМАТЕЛЯТ е длъжен да представи касов бон за заредено гориво, издаден от бензиностанция, удостоверяващ зареждането на автомобила непосредствено преди връщането му. Бензиностанцията следва да се намира на разстояние не по-голямо от 10 (десет) километра от адреса за връщане, посочен в договора. При непредставяне на валиден касов бон или при зареждане извън посочения радиус се приема, че автомобилът не е върнат с пълен резервоар и се прилага съответният разход за дозареждане съгласно договора.</p>
-<h4>VI. ПРИЕМО-ПРЕДАВАТЕЛЕН ПРОТОКОЛ</h4>
-<h5>Чл. 7. Протоколът:</h5>
-<ul>
-<li>има доказателствена сила;</li>
-<li>удостоверява състоянието на МПС;</li>
-<li>е неразделна част от договора.</li>
-</ul>
-<h4>VII. НЕУСТОЙКИ</h4>
-<h5>Чл. 8.</h5>
+<h4>III. ПРИЕМО-ПРЕДАВАТЕЛЕН ПРОТОКОЛ</h4>
+<h5>Чл. 4.</h5>
+<p>Протоколът:</p>
+<p>1. има доказателствена сила;</p>
+<p>2. удостоверява състоянието на МПС;</p>
+<p>3. е неразделна част от договора.</p>
+<h4>IV. НЕУСТОЙКИ</h4>
+<h5>Чл. 5.</h5>
 <p>Посочените по-долу неустойки се дължат независимо една от друга и могат да бъдат начислявани кумулативно. Заплащането на неустойка не освобождава НАЕМАТЕЛЯ от задължението за обезщетяване на всички причинени вреди и пропуснати ползи, когато такива са настъпили.</p>
 <p>1. Закъснение при връщане на автомобила. При закъснение при връщането на автомобила без предварително писмено уведомление, изпратено на електронния адрес на НАЕМОДАТЕЛЯ, НАЕМАТЕЛЯТ дължи неустойка в размер на 5,00 EUR (пет евро) за всеки започнат час закъснение, както и обезщетение за пропуснати ползи в размер на 20,00 EUR (двадесет евро) за всеки период от 24 (двадесет и четири) часа.</p>
 <p>2. Пробег. При пробег над 250 (двеста и петдесет) километра на ден НАЕМАТЕЛЯТ дължи допълнително заплащане в размер на 0,10 EUR (нула евро и десет евроцента) за всеки километър над посочения лимит. При наем за срок над 2 (два) дни пробегът е неограничен.</p>
@@ -570,8 +585,8 @@ button.btn-ghost{background:transparent}
 <li>при пушене в автомобила или превозване на животни – еднократна неустойка в размер на 20,00 EUR (двадесет евро) за всяко отделно нарушение;</li>
 <li>при връщане на автомобила на адрес, различен от уговорения в договора адрес за връщане, НАЕМАТЕЛЯТ дължи такса в размер на 2,00 EUR (две евро) за всеки километър, изчислен по най-краткия пътен маршрут между уговорения адрес за връщане и действителното място на предаване на автомобила, както и еднократна неустойка в размер на 50,00 EUR (петдесет евро).</li>
 </ul>
-<h4>VIII. ЩЕТИ И ОТГОВОРНОСТ</h4>
-<h5>Чл. 9.</h5>
+<h4>V. ЩЕТИ И ОТГОВОРНОСТ</h4>
+<h5>Чл. 6.</h5>
 <p>НАЕМАТЕЛЯТ носи пълна имуществена отговорност за:</p>
 <ul>
 <li>всички преки и косвени щети;</li>
@@ -589,8 +604,8 @@ button.btn-ghost{background:transparent}
 <li>пропуснати ползи.</li>
 </ul>
 <p>При ползване от второ лице НАЕМАТЕЛЯТ отговаря солидарно за всички вреди и задължения.</p>
-<h4>IX. АЛКОХОЛ И НАРКОТИЧНИ ВЕЩЕСТВА</h4>
-<h5>Чл. 10.</h5>
+<h4>VI. АЛКОХОЛ И НАРКОТИЧНИ ВЕЩЕСТВА</h4>
+<h5>Чл. 7.</h5>
 <p>При управление след употреба на алкохол, наркотични вещества или техни аналози:</p>
 <ul>
 <li>застрахователното покритие се счита за неприложимо;</li>
@@ -598,16 +613,16 @@ button.btn-ghost{background:transparent}
 <li>всички щети по автомобила и към трети лица остават изцяло за негова сметка;</li>
 <li>дължи пълно обезщетение без ограничение.</li>
 </ul>
-<h4>X. ЗАДЪРЖАНЕ ОТ МВР</h4>
-<h5>Чл. 11.</h5>
+<h4>VII. ЗАДЪРЖАНЕ ОТ МВР</h4>
+<h5>Чл. 8.</h5>
 <p>При задържане на регистрационни табели, свидетелство за регистрация, ключове или документи НАЕМАТЕЛЯТ дължи:</p>
 <ul>
 <li>пропуснати ползи;</li>
 <li>административни разходи;</li>
 <li>всички разходи по възстановяване.</li>
 </ul>
-<h4>XI. ПРЕКРАТЯВАНЕ</h4>
-<h5>Чл. 12.</h5>
+<h4>VIII. ПРЕКРАТЯВАНЕ</h4>
+<h5>Чл. 9.</h5>
 <p>Договорът се счита за прекратен само при:</p>
 <ul>
 <li>връщане на МПС в изправност;</li>
@@ -616,23 +631,21 @@ button.btn-ghost{background:transparent}
 <li>подписан приемо-предавателен протокол;</li>
 <li>изпълнение на всички финансови задължения.</li>
 </ul>
-<h4>XII. СЪДЕБНА ПОДСЪДНОСТ</h4>
-<h5>Чл. 13.</h5>
+<h4>IX. СЪДЕБНА ПОДСЪДНОСТ</h4>
+<h5>Чл. 10.</h5>
 <p>Всички спорове по договора се решават от компетентния съд в гр. Пловдив, съгласно българското материално и процесуално право. НАЕМАТЕЛЯТ приема тази клауза изрично и предварително.</p>
-<h4>XIII. ПРЕДСЪДЕБНО ИЗПЪЛНЕНИЕ</h4>
-<h5>Чл. 14.</h5>
+<h4>X. ПРЕДСЪДЕБНО ИЗПЪЛНЕНИЕ</h4>
+<h5>Чл. 11.</h5>
 <p>Всички задължения по договора са незабавно изискуеми. При забава НАЕМОДАТЕЛЯТ има право да пристъпи към съдебно и принудително събиране без допълнително уведомление.</p>
-<h4>XIV. ДОПЪЛНИТЕЛНИ РАЗПОРЕДБИ</h4>
-<h5>Чл. 15.</h5>
-<ul>
-<li>Устни уговорки не пораждат действие.</li>
-<li>Настоящият договор има предимство пред други общи условия.</li>
-<li>За неуредените случаи се прилага действащото законодателство на Република България.</li>
-</ul>
-<h4>XV. ЗАКЛЮЧИТЕЛНИ РАЗПОРЕДБИ</h4>
-<h5>Чл. 16.</h5>
+<h4>XI. ДОПЪЛНИТЕЛНИ РАЗПОРЕДБИ</h4>
+<h5>Чл. 12.</h5>
+<p>1. Устни уговорки не пораждат действие.</p>
+<p>2. Настоящият договор има предимство пред други общи условия.</p>
+<p>3. За неуредените случаи се прилага действащото законодателство на Република България.</p>
+<h4>XII. ЗАКЛЮЧИТЕЛНИ РАЗПОРЕДБИ</h4>
+<h5>Чл. 13.</h5>
 <p>1. Договорът се съставя в два екземпляра – по един за всяка страна.</p>
-<p>2. Договорът, Приемо-предавателният протокол и Декларацията по чл. 4а са неразделни части от правоотношението.</p>
+<p>2. Договорът, Приемо-предавателният протокол и Декларацията по чл. 1а са неразделни части от правоотношението.</p>
 </div></details>
 <details class="dt" id="t-privacy"><summary>Защита на личните данни</summary><div class="doc">
 <h4>Информация за обработване на лични данни</h4>
@@ -663,6 +676,13 @@ button.btn-ghost{background:transparent}
 <p>Имате право на жалба до Комисията за защита на личните данни (КЗЛД), гр. София, бул. „Проф. Цветан Лазаров“ № 2, www.cpdp.bg.</p>
 <h5>8. Сайт</h5>
 <p>Сайтът не използва аналитични и рекламни бисквитки. Той зарежда шрифтове от Google Fonts, поради което IP адресът ви може да бъде предаден на Google.</p>
+</div></details>
+<details class="dt" id="t-cookies"><summary>Политика за бисквитки</summary><div class="doc">
+<h4>Политика за бисквитки</h4>
+<p>Сайтът използва само необходимите бисквитки и локално хранилище на браузъра, за да работи правилно – например за запомняне на избрания език, на данните във формата за резервация и на избора ви относно бисквитките.</p>
+<p>Не използваме аналитични, рекламни или маркетингови бисквитки и не проследяваме посещенията ви.</p>
+<p>Сайтът зарежда шрифтове от Google Fonts, поради което IP адресът ви може да бъде предаден на Google.</p>
+<p>Можете да изтриете запазените данни по всяко време от настройките на браузъра си.</p>
 </div></details>
 </div>
 </section>
@@ -786,11 +806,11 @@ button.btn-ghost{background:transparent}
 <footer>
 <div class="wrap">
 <div class="fgrid">
-<div><span class="ftile"><img data-logo alt="Лого на Рента ПТБ" width="170" height="106"></span><strong>„Рента ПТБ Строй“ ЕООД</strong><p style="margin-top:8px">Коли под наем на конкурентни цени.</p><p style="margin-top:12px">Телефон: <a href="tel:+359877748693"><strong>+359877748693</strong></a></p><p style="margin-top:6px">Имейл: <a href="mailto:rentaptb_stroi@abv.bg"><strong>rentaptb_stroi@abv.bg</strong></a></p></div>
-<div><strong>Навигация</strong><ul><li><a href="#home">Начало</a></li><li><a href="#avtomobili">Автомобили</a></li><li><a href="#terms">Условия</a></li><li><a href="#about">За нас</a></li><li><a href="#contact">Контакти</a></li><li><a href="#t-terms" data-open="t-terms">Общи условия</a></li><li><a href="#t-privacy" data-open="t-privacy">Защита на личните данни</a></li></ul></div>
-<div class="firm"><strong>Фирмени данни</strong>„РЕНТА ПТБ СТРОЙ“ ЕООД<br>ЕИК: 208817102<br>МОЛ: Теодор Белаков<br>Седалище и адрес на управление: гр. Пловдив, п.к. 4027, р-н Северен, бул. Дунав № 10<br>На чужд език: RENTA PTB STROY LTD.</div>
+<div class="fbrand"><strong>РЕНТА ПТБ СТРОЙ ЕООД</strong><p>🚗 Коли под наем в Пловдив</p></div>
+<div><strong>Бързи връзки</strong><ul><li><a href="#avtomobili">Автомобили</a></li><li><a href="#terms">Условия</a></li><li><a href="#about">За нас</a></li><li><button type="button" class="fct" id="fct" aria-expanded="false" aria-controls="fct-list">Контакти <span aria-hidden="true">▾</span></button><ul class="fct-list" id="fct-list" hidden><li>📞 <a href="tel:+359877748693">+359 877 748 693</a></li><li>✉️ <a href="mailto:rentaptb_stroi@abv.bg">rentaptb_stroi@abv.bg</a></li></ul></li><li><a href="#faq" data-faq>FAQ</a></li></ul></div>
+<div class="firm"><strong>Фирмени данни</strong>„Рента ПТБ Строй“ ЕООД<br>ЕИК: 208817102<br>МОЛ: Теодор Белаков<br>гр. Пловдив, бул. Дунав 10</div>
 </div>
-<p class="copy">© 2026 Рента ПТБ Строй ЕООД. Всички права запазени.</p>
+<p class="copy">© 2026 Рента ПТБ Строй ЕООД. Всички права запазени. <span class="flegal"><a href="#t-terms" data-open="t-terms">Общи условия</a> | <a href="#t-privacy" data-open="t-privacy">Политика за лични данни</a> | <a href="#t-cookies" data-open="t-cookies">Политика за бисквитки</a></span></p>
 </div>
 </footer>
 
@@ -921,6 +941,7 @@ const I18N={
 "При наем до 2 дни пробегът е до 250 км на ден. Над лимита се дължат 0,10 € за км":["For rentals up to 2 days mileage is limited to 250 km per day. Above the limit 0.10 € per km is charged","Bei Mieten bis 2 Tage sind 250 km pro Tag inklusive. Darüber hinaus werden 0,10 € pro km berechnet"],
 "Автомобилът се предоставя чист и зареден до горе и така очакваме да ни го върнете":["The car is provided clean and with a full tank, and we expect it to be returned the same way","Das Fahrzeug wird sauber und vollgetankt übergeben, und wir erwarten, dass es genauso zurückgegeben wird"],
 "Автомобилите са обслужени и готови за път":["The cars are serviced and ready for the road","Die Fahrzeuge sind gewartet und fahrbereit"],
+"Минимална възраст 18 години, валидна лична карта или паспорт и валидна шофьорска книжка.":["Minimum age 18, a valid ID card or passport and a valid driving licence.","Mindestalter 18 Jahre, gültiger Personalausweis oder Reisepass und gültiger Führerschein."],
 "Крайната цена и условията могат да зависят от избрания автомобил и периода на наемане. Свържете се с нас за актуална оферта.":["The final price and terms may depend on the chosen car and rental period. Contact us for a current offer.","Endpreis und Bedingungen können vom gewählten Fahrzeug und Mietzeitraum abhängen. Kontaktieren Sie uns für ein aktuelles Angebot."],
 "„Рента ПТБ Строй“ ЕООД предлага автомобили под наем за хора, които търсят надежден автомобил, ясни условия и конкурентна цена.":["Renta PTB Stroy Ltd. offers rental cars for people looking for a reliable car, clear terms and a competitive price.","Renta PTB Stroy EOOD bietet Mietwagen für alle, die ein zuverlässiges Fahrzeug, klare Bedingungen und einen fairen Preis suchen."],
 "Нашата цел е да предоставяме чисти, обслужени и подготвени автомобили, с които клиентите да могат спокойно да пътуват.":["Our goal is to provide clean, serviced and well-prepared cars so our customers can travel with peace of mind.","Unser Ziel ist es, saubere, gewartete und vorbereitete Fahrzeuge anzubieten, mit denen unsere Kunden entspannt reisen können."],
@@ -965,6 +986,32 @@ const I18N={
 "Телефон:":["Phone:","Telefon:"],
 "Имейл:":["Email:","E-Mail:"],
 "Навигация":["Navigation","Navigation"],
+"РЕНТА ПТБ СТРОЙ ЕООД":["RENTA PTB STROY LTD.","RENTA PTB STROY LTD."],
+"🚗 Коли под наем в Пловдив":["🚗 Car rental in Plovdiv","🚗 Autovermietung in Plowdiw"],
+"Бързи връзки":["Quick links","Schnellzugriff"],
+"„Рента ПТБ Строй“ ЕООД":["Renta PTB Stroy Ltd.","Renta PTB Stroy EOOD"],
+"гр. Пловдив, бул. Дунав 10":["10 Dunav Blvd., Plovdiv","Bul. Dunav 10, Plowdiw"],
+"© 2026 Рента ПТБ Строй ЕООД. Всички права запазени.":["© 2026 Renta PTB Stroy Ltd. All rights reserved.","© 2026 Renta PTB Stroy EOOD. Alle Rechte vorbehalten."],
+"Политика за лични данни":["Privacy policy","Datenschutzerklärung"],
+"Политика за бисквитки":["Cookie policy","Cookie-Richtlinie"],
+"Общи условия, лични данни и бисквитки":["Terms, privacy and cookies","AGB, Datenschutz und Cookies"],
+"Често задавани въпроси":["Frequently asked questions","Häufig gestellte Fragen"],
+"Мога ли да пътувам с автомобила в чужбина?":["Can I travel abroad with the car?","Darf ich mit dem Auto ins Ausland fahren?"],
+"Да. Позволено е пътуване с автомобила извън България. За всяка държава се прилага отделна такса за пътуване в чужбина. При резервация можете да изберете държавата, до която ще пътувате, и ще видите съответната такса.":["Yes. Travelling outside Bulgaria is allowed. A separate cross-border fee applies for each country. When booking, you can select the country you will travel to and see the corresponding fee.","Ja. Fahrten außerhalb Bulgariens sind erlaubt. Für jedes Land gilt eine eigene Auslandsgebühr. Bei der Buchung können Sie das Reiseland auswählen und sehen die entsprechende Gebühr."],
+"Какъв е размерът на депозита?":["How much is the deposit?","Wie hoch ist die Kaution?"],
+"Депозитът е 100 €.":["The deposit is €100.","Die Kaution beträgt 100 €."],
+"Автомобилът се предоставя чист, с пълен резервоар и без щети. След връщането на автомобила депозитът се възстановява, при условие че автомобилът е върнат в същото състояние – чист, с пълен резервоар и без нови щети.":["The car is handed over clean, with a full tank and without damage. The deposit is refunded after return, provided the car is returned in the same condition – clean, with a full tank and without new damage.","Das Auto wird sauber, vollgetankt und ohne Schäden übergeben. Die Kaution wird nach der Rückgabe erstattet, sofern das Auto im gleichen Zustand zurückgegeben wird – sauber, vollgetankt und ohne neue Schäden."],
+"Мога ли да наема автомобил без кредитна карта?":["Can I rent a car without a credit card?","Kann ich ohne Kreditkarte ein Auto mieten?"],
+"Да. Не е необходима кредитна карта, за да наемете автомобил.":["Yes. No credit card is required to rent a car.","Ja. Für die Anmietung ist keine Kreditkarte erforderlich."],
+"Има ли ограничение на километрите?":["Is there a mileage limit?","Gibt es eine Kilometerbegrenzung?"],
+"При наем до 2 дни включително са включени до 250 км.":["Rentals of up to 2 days include up to 250 km.","Bei Mieten bis einschließlich 2 Tagen sind bis zu 250 km inklusive."],
+"При наем за повече от 2 дни получавате неограничен пробег.":["Rentals of more than 2 days come with unlimited mileage.","Bei Mieten über 2 Tage erhalten Sie unbegrenzte Kilometer."],
+"Как получавам автомобила?":["How do I get the car?","Wie erhalte ich das Auto?"],
+"За да получите автомобила, е необходимо първо да направите безплатна резервация през нашия сайт.":["To get the car, first make a free booking on our website.","Um das Auto zu erhalten, nehmen Sie zuerst eine kostenlose Buchung auf unserer Website vor."],
+"След като направите резервацията, ще получите необходимата информация за получаването на автомобила.":["After booking, you will receive all the information you need to collect the car.","Nach der Buchung erhalten Sie alle nötigen Informationen zur Übernahme des Autos."],
+"Има ли такса за резервация?":["Is there a booking fee?","Gibt es eine Buchungsgebühr?"],
+"Не. Резервацията през сайта е напълно безплатна.":["No. Booking on the website is completely free.","Nein. Die Buchung über die Website ist völlig kostenlos."],
+"При резервация можете да посочите държавата, до която ще пътувате, и ако за нея има такса за пътуване в чужбина, тя ще бъде показана предварително.":["When booking, you can specify the country you will travel to, and if a cross-border fee applies, it will be shown in advance.","Bei der Buchung können Sie das Reiseland angeben; fällt dafür eine Auslandsgebühr an, wird sie vorab angezeigt."],
 "Фирмени данни":["Company details","Firmendaten"],
 "ЕИК: 208817102":["Company ID (EIK): 208817102","Firmennummer (EIK): 208817102"],
 "Седалище и адрес на управление: гр. Пловдив, п.к. 4027, р-н Северен, бул. Дунав № 10":["Registered office: 10 Dunav Blvd., Severen district, 4027 Plovdiv","Sitz: Bul. Dunav 10, Bezirk Severen, 4027 Plowdiw"],
@@ -1248,6 +1295,9 @@ bg.addEventListener("click",()=>{const o=nav.classList.toggle("open");bg.setAttr
 nav.addEventListener("click",e=>{if(e.target.tagName==="A"){nav.classList.remove("open");bg.setAttribute("aria-expanded",false)}});
 function showLegal(id){$("#legal").hidden=false;$$("#legal details").forEach(d=>d.open=d.id===id)}
 $$("[data-open]").forEach(a=>a.addEventListener("click",()=>showLegal(a.dataset.open)));
+function showFaq(){$("#faq").hidden=false}
+$("#fct").addEventListener("click",function(){const o=this.getAttribute("aria-expanded")!=="true";this.setAttribute("aria-expanded",o);$("#fct-list").hidden=!o});
+$$("[data-faq]").forEach(a=>a.addEventListener("click",()=>{showFaq();if(location.hash==="#faq")$("#faq").scrollIntoView()}));
 // ===== Форма с данни (началната страница) =====
 const fields={name:"#b-name",phone:"#b-phone",mail:"#b-mail",idn:"#b-idn",egn:"#b-egn",idd:"#b-idd",idp:"#b-idp",city:"#b-city",addr:"#b-addr",dln:"#b-dln",dlname:"#b-dlname",dld:"#b-dld",dlp:"#b-dlp",note:"#b-note",icn:"#b-icn",ieik:"#b-ieik",ivat:"#b-ivat",imol:"#b-imol",iaddr:"#b-iaddr",pname:"#b-pname",pegn:"#b-pegn",paddr:"#b-paddr"};
 Object.entries(fields).forEach(([k,s])=>{if(S[k])$(s).value=S[k]});
@@ -1427,7 +1477,7 @@ document.addEventListener("visibilitychange",()=>{if(!document.hidden)pollStatus
 $("#view-thanks").addEventListener("click",e=>{if(e.target.closest("[data-sms]"))sendSms()});
 // ===== Превключване между страниците (един файл) =====
 const T0=document.title;let cur="";
-function go(){const h=decodeURIComponent(location.hash.slice(1));if(h==="t-terms"||h==="t-privacy")showLegal(h);const v=(h==="potvurzhdenie"||h==="avtomobili"||h==="book")?"avtomobili":(h==="blagodarim"&&S.done&&hasC()&&S.car&&hasD())?h:h==="plan"?(cur&&cur!=="home"?cur:"avtomobili"):"home",ch=v!==cur;cur=v;
+function go(){const h=decodeURIComponent(location.hash.slice(1));if(h==="t-terms"||h==="t-privacy"||h==="t-cookies")showLegal(h);else $("#legal").hidden=true;$("#faq").hidden=h!=="faq";const v=(h==="potvurzhdenie"||h==="avtomobili"||h==="book")?"avtomobili":(h==="blagodarim"&&S.done&&hasC()&&S.car&&hasD())?h:h==="plan"?(cur&&cur!=="home"?cur:"avtomobili"):"home",ch=v!==cur;cur=v;
 $("#view-home").hidden=v!=="home";$("#view-cars").hidden=v==="home"||v==="blagodarim";$("#view-thanks").hidden=v!=="blagodarim";
 if(v==="home")setTitle(T0);
 else if(v==="blagodarim"){renderThanks();pollStatus();setTitle("Благодарим | Рента ПТБ Строй")}
