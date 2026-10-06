@@ -375,6 +375,7 @@ button.btn-ghost{background:transparent}
 <symbol id="i-fuel" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M4 21V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v16M3 21h12M14 9h2a2 2 0 0 1 2 2v5a1.5 1.5 0 0 0 3 0V8l-3-3M6 8h6"/></symbol>
 <symbol id="i-road" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M12 12c0-2 0-4 0-6m0 12v-2M5 21L9 3m10 18L15 3"/></symbol>
 <symbol id="i-shield" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6zM9 12l2 2 4-4"/></symbol>
+<symbol id="i-kit" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M4 7h16a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1zM12 10.5v6M9 13.5h6"/></symbol>
 <symbol id="i-check" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
 </svg>
 
@@ -427,6 +428,7 @@ button.btn-ghost{background:transparent}
 <div class="card fear rv"><span class="x" aria-hidden="true">✓</span><h3>Ясна цена</h3><p>Знаете точната цена още преди да наемете. Без скрити такси и неприятни изненади.</p></div>
 <div class="card fear rv"><span class="x" aria-hidden="true">✓</span><h3>Коректно отношение</h3><p>Състоянието на автомобила се описва предварително, за да знаете точно какво получавате.</p></div>
 <div class="card fear rv"><span class="x" aria-hidden="true">✓</span><h3>Чист и поддържан автомобил</h3><p>Всеки автомобил се проверява и поддържа редовно, за да потеглите спокойно и уверено.</p></div>
+<div class="card fear rv"><span class="x" aria-hidden="true">✓</span><h3>24/7 пътна помощ</h3><p>24/7 пътна помощ при авария – вземаме повредения автомобил и осигуряваме заместващ.</p></div>
 </div>
 </div>
 </section>
@@ -804,6 +806,8 @@ const I18N={
 "Коректно отношение":["Fair treatment","Faire Behandlung"],
 "Състоянието на автомобила се описва предварително, за да знаете точно какво получавате.":["The car's condition is recorded in advance, so you know exactly what you are getting.","Der Zustand des Fahrzeugs wird im Voraus dokumentiert, damit Sie genau wissen, was Sie bekommen."],
 "Чист и поддържан автомобил":["A clean, well-maintained car","Ein sauberes, gepflegtes Fahrzeug"],
+"24/7 пътна помощ":["24/7 roadside assistance","24/7 Pannenhilfe"],
+"24/7 пътна помощ при авария – вземаме повредения автомобил и осигуряваме заместващ.":["24/7 roadside assistance in case of a breakdown – we collect the broken-down car and provide a replacement.","24/7 Pannenhilfe bei einem Defekt – wir holen das defekte Fahrzeug ab und stellen ein Ersatzfahrzeug bereit."],
 "Всеки автомобил се проверява и поддържа редовно, за да потеглите спокойно и уверено.":["Every car is regularly inspected and maintained, so you can set off calmly and confidently.","Jedes Fahrzeug wird regelmäßig geprüft und gewartet, damit Sie entspannt und sicher losfahren können."],
 "МОЛ: Теодор Белаков":["Managing director: Teodor Belakov","Geschäftsführer: Teodor Belakov"],
 "Всичко необходимо за спокойно пътуване":["Everything you need for a relaxed trip","Alles für eine entspannte Reise"],
@@ -817,8 +821,8 @@ const I18N={
 "Автомобилът се предава зареден до горе.":["The car is handed over with a full tank.","Das Fahrzeug wird vollgetankt übergeben."],
 "Неограничен пробег над 2 дни":["Unlimited mileage over 2 days","Unbegrenzte Kilometer ab 2 Tagen"],
 "При наем над 2 дни пътувате без ограничение на километрите.":["For rentals over 2 days you drive without a mileage limit.","Bei Mieten über 2 Tage fahren Sie ohne Kilometerbegrenzung."],
-"Гаранционен депозит 100 €":["Security deposit 100 €","Kaution 100 €"],
-"Връща се в деня на връщане на автомобила, при спазване на условията.":["Refunded on the day the car is returned, subject to the terms.","Wird am Tag der Rückgabe erstattet, sofern die Bedingungen eingehalten werden."],
+"Задължително оборудване":["Mandatory equipment","Pflichtausstattung"],
+"Всеки автомобил е оборудван с аптечка за първа помощ, предупредителен триъгълник, светлоотразителна жилетка, резервна гума, крик и ключ за джанти.":["Every car is equipped with a first aid kit, warning triangle, reflective vest, spare tyre, jack and wheel wrench.","Jedes Fahrzeug ist mit Verbandskasten, Warndreieck, Warnweste, Ersatzrad, Wagenheber und Radschlüssel ausgestattet."],
 "Години опит":["Years of experience","Jahre Erfahrung"],
 "Доволни клиенти":["Happy customers","Zufriedene Kunden"],
 "Автомобила":["Cars","Fahrzeuge"],
@@ -1155,7 +1159,7 @@ const WHY=[
 ["i-spark","Винаги чист автомобил","Получавате автомобила чист и подготвен за вашето пътуване."],
 ["i-fuel","Зареден до горе","Автомобилът се предава зареден до горе."],
 ["i-road","Неограничен пробег над 2 дни","При наем над 2 дни пътувате без ограничение на километрите."],
-["i-shield","Гаранционен депозит 100 €","Връща се в деня на връщане на автомобила, при спазване на условията."]];
+["i-kit","Задължително оборудване","Всеки автомобил е оборудван с аптечка за първа помощ, предупредителен триъгълник, светлоотразителна жилетка, резервна гума, крик и ключ за джанти."]];
 const STATS=[["2+","Години опит"],["1600+","Доволни клиенти"],["80+","Автомобила"]];
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const fmt=n=>{const s=(Math.round(n*100)/100).toFixed(2).replace(".",",");return(s.endsWith(",00")?s.slice(0,-3):s)+" €"};
