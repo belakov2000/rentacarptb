@@ -382,6 +382,9 @@ button.btn-ghost{background:transparent}
 #bk .invh{margin:0;font-weight:800}
 #bk .seg .opt{padding:12px 14px;margin:0}
 #bk .hint{display:block;margin-top:4px;font-size:.78rem;color:var(--muted)}
+#bk .lbl-opt{font-weight:500;color:var(--muted);font-size:.85em}
+#bk button[type=submit][disabled]{opacity:.45;cursor:not-allowed}
+#b-need{margin:-4px 0 0}
 #bk .phin{padding:10px;background:var(--soft)}
 #bk .phprev{display:block;margin-top:8px;width:100%;max-height:160px;object-fit:contain;border-radius:12px;background:var(--soft)}
 #bk .phprev[hidden]{display:none}
@@ -790,11 +793,12 @@ button.btn-ghost{background:transparent}
 </div>
 </fieldset>
 <fieldset class="fbox"><legend><span class="fn">5</span>Допълнително</legend>
-<div><label for="b-note">Допълнителна информация</label><textarea id="b-note"></textarea></div>
+<div><label for="b-note">Допълнителна информация <span class="lbl-opt">(по избор)</span></label><textarea id="b-note" placeholder="Например: номер на полет, специални изисквания или въпроси към нас"></textarea><small class="hint">Попълването на това поле не е задължително.</small></div>
 </fieldset>
 <label class="opt"><input type="checkbox" id="b-ok"><span>Запознат съм с <a href="#t-terms" data-open="t-terms">Общите условия</a> и <a href="#t-privacy" data-open="t-privacy">информацията за защита на личните данни</a> и съм съгласен данните ми да се обработват за целите на заявката.</span></label>
 <div id="b-err" class="alert" role="alert" hidden></div>
-<button class="btn btn-dark" type="submit">Изпрати резервацията</button>
+<button class="btn btn-dark" type="submit" disabled>Изпрати резервацията</button>
+<p class="hint" id="b-need" aria-live="polite"></p>
 <p class="fmsg" id="b-msg" role="status"></p>
 </form>
 </div>
@@ -914,6 +918,10 @@ const I18N={
 "Издадена от / къде":["Issued by / where","Ausgestellt von / wo"],
 "Допълнително":["Additional","Zusätzlich"],
 "Допълнителна информация":["Additional information","Zusätzliche Informationen"],
+"(по избор)":["(optional)","(optional)"],
+"Например: номер на полет, специални изисквания или въпроси към нас":["For example: flight number, special requests or questions for us","Zum Beispiel: Flugnummer, besondere Wünsche oder Fragen an uns"],
+"Попълването на това поле не е задължително.":["This field is optional.","Dieses Feld ist optional."],
+"За да изпратите резервацията, попълнете всички задължителни полета и приемете Общите условия.":["To send the booking, fill in all required fields and accept the Terms and Conditions.","Um die Buchung zu senden, füllen Sie alle Pflichtfelder aus und akzeptieren Sie die AGB."],
 "Запознат съм с":["I have read the","Ich habe die"],
 "Общите условия":["General Terms","Allgemeinen Geschäftsbedingungen"],
 "и":["and the","und die"],
@@ -1354,35 +1362,21 @@ const PHOTOS={"p-idf":"Документ за самоличност – лице
 function shrink(f){return new Promise((ok,no)=>{const u=URL.createObjectURL(f),i=new Image();
 i.onload=()=>{const k=Math.min(1,1800/Math.max(i.naturalWidth,i.naturalHeight)),c=document.createElement("canvas");c.width=Math.round(i.naturalWidth*k);c.height=Math.round(i.naturalHeight*k);c.getContext("2d").drawImage(i,0,0,c.width,c.height);URL.revokeObjectURL(u);c.toBlob(b=>b?ok(b):no(),"image/jpeg",.82)};
 i.onerror=()=>{URL.revokeObjectURL(u);no()};i.src=u})}
-Object.keys(PHOTOS).forEach(id=>$("#"+id).addEventListener("change",async e=>{const f=e.target.files[0],pv=$("#"+id+"-v");delete PH[id];pv.hidden=true;if(!f)return;
-try{const b=await shrink(f);PH[id]=b;pv.src=URL.createObjectURL(b);pv.hidden=false}catch(x){e.target.value="";fail("Снимката не може да бъде прочетена. Моля, изберете снимка във формат JPG или PNG.")}}));
+Object.keys(PHOTOS).forEach(id=>$("#"+id).addEventListener("change",async e=>{const f=e.target.files[0],pv=$("#"+id+"-v");delete PH[id];pv.hidden=true;syncSubmit();if(!f)return;
+try{const b=await shrink(f);PH[id]=b;pv.src=URL.createObjectURL(b);pv.hidden=false;syncSubmit()}catch(x){e.target.value="";syncSubmit();fail("Снимката не може да бъде прочетена. Моля, изберете снимка във формат JPG или PNG.")}}));
 async function uploadPhotos(){const out={};for(const[id,l]of Object.entries(PHOTOS)){const r=await fetch(DOCS_ENDPOINT,{method:"POST",headers:{"Content-Type":"image/jpeg"},body:PH[id]});const j=await r.json().catch(()=>({}));if(!r.ok||!j.url)throw 0;out[l]=j.url}return out}
+// Проверка на задължителните полета (без „Допълнително“). Докато има липси, бутонът за изпращане е неактивен.
+const v=i=>$(i).value.trim();
+function formErr(){const c=CARS.find(x=>x.id===S.car),q=c&&hasD()?quote(c,S):null;if(!c)return("Моля, изберете автомобил.");const pe=planErr();if(pe)return(pe);if(!q||q.err)return("Автомобилът не е наличен за избрания период. Изберете друг автомобил или променете датите.");if(!v("#b-name"))return("Моля, въведете име.");if(v("#b-phone").replace(/\D/g,"").length<9)return("Моля, въведете валиден телефон.");if(!/^\S+@\S+\.\S+$/.test(v("#b-mail")))return("Моля, въведете валиден имейл.");if(!v("#b-idn"))return("Моля, попълнете номера на документа за самоличност.");if(idt()==="id"&&!v("#b-egn"))return("Моля, попълнете ЕГН.");if(!v("#b-idd"))return("Моля, попълнете датата на издаване на документа за самоличност.");if(!v("#b-idp"))return("Моля, попълнете от кого е издаден документът за самоличност.");if(!v("#b-city")||!v("#b-addr"))return("Моля, попълнете град и адрес.");if(!PH["p-idf"]||!PH["p-idb"])return("Моля, приложете снимки на документа за самоличност от двете страни.");if(!v("#b-dln"))return("Моля, попълнете номера на шофьорската книжка.");if(!v("#b-dlname"))return("Моля, попълнете имената от шофьорската книжка.");if(!v("#b-dld"))return("Моля, попълнете датата на издаване на шофьорската книжка.");if(!v("#b-dlp"))return("Моля, попълнете от кого е издадена шофьорската книжка.");if(!PH["p-dlf"]||!PH["p-dlb"])return("Моля, приложете снимки на шофьорската книжка от двете страни.");if(!pay())return("Моля, изберете начин на плащане.");if(pay()==="bank"&&(!v("#b-icn")||!v("#b-ieik")||!v("#b-iaddr")))return("Моля, попълнете име на фирмата, ЕИК и адрес за фактурата.");if(!$("#b-ok").checked)return("Моля, потвърдете, че сте запознат с Общите условия и информацията за защита на личните данни.");return""}
+let sending=false;
+function syncSubmit(){if(sending)return;const er=formErr(),n=$("#b-need");$("#bk button[type=submit]").disabled=!!er;n.textContent=er?"За да изпратите резервацията, попълнете всички задължителни полета и приемете Общите условия.":"";n.hidden=!er}
+["input","change"].forEach(t=>$("#bk").addEventListener(t,()=>setTimeout(syncSubmit)));
 $("#bk").addEventListener("submit",async e=>{e.preventDefault();$("#b-err").hidden=true;
-const v=i=>$(i).value.trim(),c=CARS.find(x=>x.id===S.car),q=c&&hasD()?quote(c,S):null;
-if(!c)return fail("Моля, изберете автомобил.");
-const pe=planErr();if(pe)return fail(pe);
-if(!q||q.err)return fail("Автомобилът не е наличен за избрания период. Изберете друг автомобил или променете датите.");
-if(!v("#b-name"))return fail("Моля, въведете име.");
-if(v("#b-phone").replace(/\D/g,"").length<9)return fail("Моля, въведете валиден телефон.");
-if(!/^\S+@\S+\.\S+$/.test(v("#b-mail")))return fail("Моля, въведете валиден имейл.");
-if(!v("#b-idn"))return fail("Моля, попълнете номера на документа за самоличност.");
-if(idt()==="id"&&!v("#b-egn"))return fail("Моля, попълнете ЕГН.");
-if(!v("#b-idd"))return fail("Моля, попълнете датата на издаване на документа за самоличност.");
-if(!v("#b-idp"))return fail("Моля, попълнете от кого е издаден документът за самоличност.");
-if(!v("#b-city")||!v("#b-addr"))return fail("Моля, попълнете град и адрес.");
-if(!PH["p-idf"]||!PH["p-idb"])return fail("Моля, приложете снимки на документа за самоличност от двете страни.");
-if(!v("#b-dln"))return fail("Моля, попълнете номера на шофьорската книжка.");
-if(!v("#b-dlname"))return fail("Моля, попълнете имената от шофьорската книжка.");
-if(!v("#b-dld"))return fail("Моля, попълнете датата на издаване на шофьорската книжка.");
-if(!v("#b-dlp"))return fail("Моля, попълнете от кого е издадена шофьорската книжка.");
-if(!PH["p-dlf"]||!PH["p-dlb"])return fail("Моля, приложете снимки на шофьорската книжка от двете страни.");
-if(!pay())return fail("Моля, изберете начин на плащане.");
-if(pay()==="bank"&&(!v("#b-icn")||!v("#b-ieik")||!v("#b-iaddr")))return fail("Моля, попълнете име на фирмата, ЕИК и адрес за фактурата.");
-if(!$("#b-ok").checked)return fail("Моля, потвърдете, че сте запознат с Общите условия и информацията за защита на личните данни.");
+const er=formErr();if(er)return fail(er);
 S=Object.assign(S,Object.fromEntries(Object.entries(fields).map(([k,s])=>[k,v(s)])),{idt:idt(),pay:pay(),done:"",bid:"",btok:"",bst:"",bnote:""});store.set(S);
-if(BOOKING_ENDPOINT){const b=$("#bk button[type=submit]"),m=$("#b-msg");b.disabled=true;m.textContent="Изпращаме резервацията…";
+if(BOOKING_ENDPOINT){const b=$("#bk button[type=submit]"),m=$("#b-msg");sending=b.disabled=true;m.textContent="Изпращаме резервацията…";
 let r="err";try{const links=await uploadPhotos(),sb=await sendBooking(links);r=sb==="busy"?"busy":sb?"sent":await sendReq(links)}catch(x){}
-b.disabled=false;m.textContent="";if(r==="busy"){loadAvail();return fail("Автомобилът вече е резервиран за част от избрания период. Изберете други дати или друг автомобил.")}if(r!=="sent")return fail("Резервацията не беше изпратена. Опитайте отново или се обадете на +359877748693.");S.done="sent"}else S.done="sms";
+sending=b.disabled=false;m.textContent="";syncSubmit();if(r==="busy"){loadAvail();return fail("Автомобилът вече е резервиран за част от избрания период. Изберете други дати или друг автомобил.")}if(r!=="sent")return fail("Резервацията не беше изпратена. Опитайте отново или се обадете на +359877748693.");S.done="sent"}else S.done="sms";
 store.set(S);location.hash="blagodarim";if(S.done==="sms")sendSms()});
 // ===== Втора страница: данни за резервацията, автомобили и цени =====
 const today=new Date().toISOString().slice(0,10);$("#b-d1").min=$("#b-d2").min=today;
@@ -1399,9 +1393,12 @@ function loadKm(n){if(S["m"+n]!=="addr"||(S["a"+n]||"").length<5){KMS[n]=null;KM
 if(!ROUTING_ENDPOINT){KMS.st[n]="no";return}
 KMS.st[n]="load";const a=S["a"+n];
 fetch(`${ROUTING_ENDPOINT}?origin=${encodeURIComponent(BASE)}&destination=${encodeURIComponent(a)}`).then(r=>r.json()).then(j=>{if(!(j.km>=0))throw 0;if(S["a"+n]===a){KMS[n]=j.km;KMS.st[n]="ok"}}).catch(()=>{KMS.st[n]="err"}).then(()=>{renderCars();renderPick()})}
+// Пазим позицията на екрана: картите с автомобили над календара сменят височината си при нови дати и иначе избутват страницата
+function keepView(fn){const a=$("#cal"),r=a&&!a.hidden?a.getBoundingClientRect():null,on=r&&r.bottom>0&&r.top<innerHeight;fn();
+if(on){const d=a.getBoundingClientRect().top-r.top;if(d)window.scrollBy({top:d,behavior:"instant"})}}
 function planChanged(n){readPlan();sync();
 if(n){KMS[n]=null;KMS.st[n]="";clearTimeout(tm[n]);tm[n]=setTimeout(()=>loadKm(n),700)}
-renderCars();renderPick()}
+keepView(()=>{renderCars();renderPick()})}
 $("#b-d1").addEventListener("change",()=>{if(!$("#b-d2").value||$("#b-d2").value<$("#b-d1").value)$("#b-d2").value=$("#b-d1").value;$("#b-d2").min=$("#b-d1").value||today});
 ["#b-d1","#b-d2"].forEach(s=>$(s).addEventListener("change",()=>{calStep=0}));
 ["#b-d1","#b-t1","#b-d2","#b-t2","#b-seat","#b-abr"].forEach(s=>$(s).addEventListener("change",()=>planChanged()));
@@ -1419,7 +1416,7 @@ if(!q||q.err==="dates")body='<p class="pend">Изберете дати на по
 else if(q.err==="order")body='<div class="alert">Датата на връщане трябва да е след датата на получаване.</div>';
 else if(q.err==="busy")body='<div class="alert">Автомобилът не е наличен за избрания период. Изберете друг автомобил или променете датите.</div>';
 else{ok=true;body=q.rows.map(([a,b,s])=>`<div class="srow"><span>${a}${s?`<small>${s}</small>`:""}</span><b>${b}</b></div>`).join("")+`<div class="stot"><span>Общо за услугите${q.pend.length?" (без "+q.pend.join(" и ")+")":""}</span><b>${fmt(q.tot)}</b></div>${q.pend.length?`<p class="pend">${ROUTING_ENDPOINT?"Разстоянието по пътен маршрут се изчислява.":"Разстоянието по пътен маршрут ще бъде изчислено от нас при потвърждение на заявката. Таксата е 0,70 € / км и се добавя към сумата."}</p>`:""}<p class="pend" style="color:#c5d0e0">${q.d>2?"Пробег: неограничен.":"Пробег: до 250 км на ден, над лимита 0,10 € за км."}</p><div class="sdep"><strong><span>Гаранционен депозит</span><span>${fmt(DEPOSIT)}</span></strong>Не е част от цената на наема. Депозитът се връща при връщане на автомобила съгласно условията.</div>`}
-$("#details").hidden=!ok;
+$("#details").hidden=!ok;syncSubmit();
 el.hidden=false;
 el.innerHTML=`<img src="${IMG[c.id]}" alt="${c.name}"><div><h3>Избрахте ${c.name}</h3>${body}<div class="actions">${ok?`<button class="btn btn-acc" type="button" data-details>Продължи с данните</button>`:""}<button class="btn btn-ghost" type="button" data-unpick>Смени автомобила</button></div><p class="fmsg" id="pick-msg" role="status" style="color:#c5d0e0"></p></div>`}
 // ===== Календар със заетите дни за избрания автомобил =====
