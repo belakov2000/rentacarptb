@@ -155,7 +155,10 @@ let template: Record<string, Uint8Array> | null = null;
 export function buildContract(d: ContractData): Uint8Array {
   template ||= unzipSync(Buffer.from(TEMPLATE_BASE64, "base64"));
   const v = values(d);
-  const xml = strFromU8(template["word/document.xml"]).replace(/\{\{(\w+)\}\}/g, (_, k) => xmlEsc(v[k] || (OPTIONAL.has(k) ? "" : BLANK)));
+  // Имената на наемателя над подписите („Име: …“) остават празни – наемателят ги пише ръчно при подписване
+  const xml = strFromU8(template["word/document.xml"])
+    .replace(/Име: \{\{name\}\}/g, "Име: {{signName}}")
+    .replace(/\{\{(\w+)\}\}/g, (_, k) => xmlEsc(v[k] || (OPTIONAL.has(k) ? "" : BLANK)));
   return zipSync({ ...template, "word/document.xml": strToU8(xml) }, { level: 6 });
 }
 

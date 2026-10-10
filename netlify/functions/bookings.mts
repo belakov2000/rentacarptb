@@ -39,7 +39,7 @@ const toText = (html: string) =>
     .trim();
 
 type Attachment = { name: string; content: string }; // content – base64
-async function sendMail(to: string, toName: string, subject: string, html: string, replyTo?: string, attachment?: Attachment[]) {
+async function sendMail(to: string, toName: string, subject: string, html: string, replyTo?: string, attachment?: Attachment[], lang = "bg", preheader = "") {
   const key = process.env.BREVO_API_KEY;
   if (!key) throw new Error("BREVO_API_KEY is not set");
   const r = await fetch("https://api.brevo.com/v3/smtp/email", {
@@ -50,8 +50,11 @@ async function sendMail(to: string, toName: string, subject: string, html: strin
       to: [{ email: to, name: toName || to }],
       ...(replyTo ? { replyTo: { email: replyTo } } : {}),
       subject,
-      htmlContent: `<!doctype html><html><head><meta charset="utf-8"><title>${esc(subject)}</title></head><body>${html}</body></html>`,
+      // Пълен HTML документ с език и кратък текст за прегледа в пощата – писмата изглеждат като лична кореспонденция, не като бюлетин
+      htmlContent: `<!doctype html><html lang="${lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(subject)}</title></head><body style="margin:0;padding:16px;background:#fff">${preheader ? `<div style="display:none;max-height:0;overflow:hidden">${esc(preheader)}</div>` : ""}${html}</body></html>`,
       textContent: toText(html),
+      // Транзакционно писмо (отговор на заявка на клиента) – уникална референция, за да не се групира с други писма в една нишка
+      headers: { "X-Entity-Ref-ID": crypto.randomUUID(), "X-Auto-Response-Suppress": "OOF, AutoReply" },
       ...(attachment?.length ? { attachment } : {}),
     }),
   });
@@ -110,6 +113,7 @@ const CUSTOMER: Record<string, Record<string, string>> = {
     pay: "Плащане", bank: "По банков път срещу фактура (фирма)", bankp: "По банков път срещу фактура (физическо лице)", cash: "В брой на място при получаване (с касов бон)",
     bankInfo: "Ще ви изпратим фактура с банковите ни данни за плащане.",
     cashInfo: "Плащането е в брой при получаване на автомобила – ще ви издадем касов бон.",
+    why: "Получавате това писмо, защото направихте заявка за наем на автомобил на rentacar-ptb.com.",
   },
   en: {
     okSubj: "Your booking is confirmed – Rent a Car PTB",
@@ -123,6 +127,7 @@ const CUSTOMER: Record<string, Record<string, string>> = {
     pay: "Payment", bank: "Bank transfer against invoice (company)", bankp: "Bank transfer against invoice (private person)", cash: "Cash on pick-up (with fiscal receipt)",
     bankInfo: "We will send you an invoice with our bank details for payment.",
     cashInfo: "Payment is in cash when you pick up the car – you will receive a fiscal receipt.",
+    why: "You are receiving this email because you requested a car rental on rentacar-ptb.com.",
   },
   de: {
     okSubj: "Ihre Buchung ist bestätigt – Rent a Car PTB",
@@ -136,6 +141,7 @@ const CUSTOMER: Record<string, Record<string, string>> = {
     pay: "Zahlung", bank: "Banküberweisung gegen Rechnung (Firma)", bankp: "Banküberweisung gegen Rechnung (Privatperson)", cash: "Bar bei Abholung (mit Kassenbon)",
     bankInfo: "Wir senden Ihnen eine Rechnung mit unseren Bankdaten zur Zahlung.",
     cashInfo: "Die Zahlung erfolgt bar bei Abholung des Fahrzeugs – Sie erhalten einen Kassenbon.",
+    why: "Sie erhalten diese E-Mail, weil Sie auf rentacar-ptb.com einen Mietwagen angefragt haben.",
   },
 };
 
@@ -150,9 +156,11 @@ function customerMail(b: Booking) {
       (b.note ? `<p>${esc(t.note)}<br>${esc(b.note).replace(/\n/g, "<br>")}</p>` : "") +
       `<table style="border-collapse:collapse;margin:14px 0">${row(t.car, b.car)}${row(t.pickup, b.pickup)}${row(t.dropoff, b.dropoff)}${ok ? row(t.total, b.total) + row(t.deposit, "100 €") + row(t.pay, t[b.payment] || "") : ""}</table>` +
       (ok && t[b.payment] ? `<p>${esc(b.payment === "cash" ? t.cashInfo : t.bankInfo)}</p>` : "") +
-      `<p>${esc(t.q.replace("{phone}", PHONE))}</p><p>Рента ПТБ Строй ЕООД<br>гр. Пловдив, бул. Дунав 10</p>`,
+      `<p>${esc(t.q.replace("{phone}", PHONE))}</p>` +
+      `<p style="color:#5b6577;font-size:13px;border-top:1px solid #e6e9ef;padding-top:12px">${esc(t.why)}<br>Рента ПТБ Строй ЕООД · гр. Пловдив, бул. Дунав 10 · ${PHONE} · <a href="https://rentacar-ptb.com" style="color:#5b6577">rentacar-ptb.com</a></p>`,
   );
-  return { subject: ok ? t.okSubj : t.noSubj, html };
+  const ref = b.id.slice(0, 6).toUpperCase();
+  return { subject: `${ok ? t.okSubj : t.noSubj} (№ ${ref})`, html, preheader: `${ok ? t.ok : t.no} ${b.car}, ${b.pickup}` };
 }
 
 // ===== Страница за фирмата =====
@@ -377,7 +385,7 @@ export default async (req: Request, context: Context) => {
 
   const mail = customerMail(updated);
   try {
-    await sendMail(updated.email, updated.name, mail.subject, mail.html, OWNER_EMAIL);
+    await sendMail(updated.email, updated.name, mail.subject, mail.html, OWNER_EMAIL, undefined, updated.lang, mail.preheader);
   } catch (e) {
     console.error(e);
     return managePage(updated, url.origin, `Решението е записано и клиентът го вижда на сайта, но имейлът до ${updated.email} не беше изпратен. Моля, свържете се с клиента.`, null, cd);
