@@ -281,8 +281,8 @@ legend{font-weight:800;font-size:1.08rem;padding:0;margin-bottom:10px}
 .sec-head h2,.cbox h2,.hx h1,.hcard h2,.stat b{font-family:Oswald,"Arial Narrow",Impact,sans-serif;font-weight:700;letter-spacing:.01em}
 .sec-head h2,.cbox h2,.hcard h2{text-transform:uppercase}
 .sec-head h2{font-size:clamp(1.9rem,5.5vw,2.9rem);line-height:1.08}
-.hx{background:radial-gradient(900px 520px at 85% 0%,rgba(52,104,214,.38),transparent 62%),radial-gradient(700px 420px at 0% 100%,rgba(255,183,3,.10),transparent 60%),#08101f;color:#fff;padding:44px 0 56px;overflow:hidden}
-.hx-grid{display:grid;gap:34px;align-items:center}
+.hx{background:radial-gradient(900px 520px at 85% 0%,rgba(52,104,214,.38),transparent 62%),radial-gradient(700px 420px at 0% 100%,rgba(255,183,3,.10),transparent 60%),#08101f;color:#fff;padding:28px 0 32px;overflow:hidden}
+.hx-grid{display:grid;gap:20px;align-items:center}
 @media(min-width:960px){.hx-grid{grid-template-columns:1.3fr .7fr;gap:56px}}
 .pill{display:inline-flex;gap:9px;align-items:center;border:1px solid rgba(255,255,255,.2);border-radius:999px;padding:7px 15px;font-size:.8rem;font-weight:800;color:#c5d0e0;background:rgba(255,255,255,.05)}
 .pill i{width:8px;height:8px;border-radius:50%;background:var(--acc)}
@@ -290,7 +290,7 @@ legend{font-weight:800;font-size:1.08rem;padding:0;margin-bottom:10px}
 .hx h1 em{font-style:normal;color:var(--acc);display:block}
 .hx .sub{font-size:1.08rem;color:#c5d0e0;max-width:560px}
 .hx .fine{font-size:.88rem;color:#9fb0c8;margin-top:10px;max-width:560px}
-.hx .stats{display:flex;gap:30px;flex-wrap:wrap;text-align:left;margin-top:30px;padding-top:22px;border-top:1px solid rgba(255,255,255,.14);max-width:560px}
+.hx .stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;text-align:left;margin-top:18px;padding-top:14px;border-top:1px solid rgba(255,255,255,.14);max-width:560px}
 .hx .stat b{font-size:2.2rem}
 .hcard{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.16);border-radius:26px;padding:22px}
 .hcard .lg{background:#fff;border-radius:18px;padding:12px;display:grid;place-items:center}
@@ -298,6 +298,39 @@ legend{font-weight:800;font-size:1.08rem;padding:0;margin-bottom:10px}
 .hcard h2{font-size:1.7rem;margin:20px 0 8px;line-height:1.1}
 .hcard p{color:#c5d0e0;font-size:.95rem}
 .hcard .tel{display:block;font-family:Oswald,Arial,sans-serif;font-weight:700;font-size:2.1rem;color:var(--acc);text-decoration:none;margin:14px 0 16px}
+@media(max-width:959px){
+.hx{padding:16px 0 20px}
+.hx-grid{gap:16px}
+.hx h1{font-size:clamp(2rem,8vw,3.5rem);margin:12px 0}
+.hx .sub{font-size:.95rem;line-height:1.5}
+.hx .free{margin-top:12px;font-size:.9rem}
+.hx .stats{gap:8px;margin-top:14px;padding-top:12px}
+.hx .stat b{font-size:1.9rem}
+.hx .stat span{font-size:.75rem}
+.hcard{padding:16px;border-radius:20px}
+.hcard .lg{display:none}
+.hcard h2{margin:0 0 8px;font-size:1.5rem}
+.hcard p{font-size:.9rem;line-height:1.5}
+.hcard .cta-row{margin-top:12px}
+.hcard .btn{padding:10px 20px;min-height:46px}
+}
+@media(max-width:360px){
+.hx{padding:8px 0 12px}
+.hx .wrap{width:calc(100% - 24px)}
+.hx-grid{gap:12px}
+.hx .pill{padding:4px 10px}
+.hx h1{font-size:1.75rem;margin:10px 0}
+.hx .sub{font-size:.85rem;line-height:1.4}
+.hx .free{padding:8px 10px;margin-top:10px;font-size:.8rem}
+.hx .stats{gap:4px;margin-top:10px;padding-top:8px}
+.hx .stat b{font-size:1.6rem}
+.hx .stat span{font-size:.7rem}
+.hcard{padding:12px}
+.hcard h2{font-size:1.3rem}
+.hcard p{font-size:.8rem;line-height:1.4}
+.hcard .cta-row{margin-top:6px}
+.hcard .btn{font-size:.85rem;min-height:42px}
+}
 #how{background:var(--soft)}#how .step::before{background:repeating-linear-gradient(var(--line) 0 8px,transparent 8px 14px);filter:brightness(.85)}
 input[type=date],input[type=time]{min-width:0;max-width:100%;-webkit-appearance:none;appearance:none;text-align:left;display:block}
 .row>div,.qgrid>div{min-width:0}
@@ -411,8 +444,7 @@ button.btn-ghost{background:transparent}
 <nav id="nav" aria-label="Основно меню">
 <ul>
 <li><a href="#home">Начало</a></li>
-<li><a href="#avtomobili">Автомобили</a></li>
-<li><a href="#avtomobili">Резервация</a></li>
+<li><a href="#avtomobili">Автомобили и резервация</a></li>
 <li><a href="#about">За нас</a></li>
 <li><a href="#terms">Условия</a></li>
 <li><a href="#contact">Контакти</a></li>
@@ -434,7 +466,6 @@ button.btn-ghost{background:transparent}
 <span class="pill"><i></i>Пловдив · Рента ПТБ Строй</span>
 <h1>Коли под наем <em>от 15 € на ден</em></h1>
 <p class="sub">Надеждни и обслужени автомобили. Чисти и заредени до горе. Неограничен пробег при наем над 2 дни и 100 € гаранционен депозит.</p>
-<p class="fine">15 € на ден е минималната цена при наем над 30 дни за избрани автомобили.</p>
 <p class="free"><svg width="22" height="22" aria-hidden="true"><use href="#i-check"/></svg><span><b>Резервацията е безплатна.</b></span></p>
 <div class="stats" data-stats></div>
 </div>
@@ -442,7 +473,7 @@ button.btn-ghost{background:transparent}
 <div class="lg"><img data-logo alt="Лого на Рента ПТБ – коли под наем" width="240" height="150"></div>
 <h2>Резервирай за минути</h2>
 <p>Остави данните си, избери период и автомобил и виж цената за твоите дати. Резервацията е безплатна.</p>
-<div class="cta-row" style="margin:18px 0 0"><a class="btn btn-acc" href="#avtomobili">Резервирай онлайн</a></div>
+<div class="cta-row"><a class="btn btn-acc" href="#avtomobili">Резервирай онлайн</a></div>
 </aside>
 </div>
 </section>
@@ -525,6 +556,8 @@ button.btn-ghost{background:transparent}
 <p class="co">„Рента ПТБ Строй“ ЕООД</p>
 <p style="margin-top:6px">Адрес: гр. Пловдив, бул. Дунав 10</p>
 <p style="margin-top:6px;font-size:.88rem">„РЕНТА ПТБ СТРОЙ“ ЕООД, ЕИК 208817102</p>
+<p style="margin-top:6px;font-size:.88rem"><span>Телефон:</span> <a href="tel:+359877748693">+359877748693</a></p>
+<p style="margin-top:6px;font-size:.88rem"><span>Имейл:</span> <a href="mailto:rentaptb_stroi@abv.bg" style="overflow-wrap:anywhere">rentaptb_stroi@abv.bg</a></p>
 <div class="hours"><strong>Работно време</strong><div><span>Понеделник – петък</span><b>08:00 – 20:00</b></div><div><span>Събота и неделя</span><b>09:00 – 19:00</b></div></div>
 <div class="cta-row" style="margin-top:20px"><a class="btn btn-acc" href="#avtomobili">Резервирай онлайн</a></div>
 </div>
@@ -845,6 +878,7 @@ const I18N={
 "Коли под наем":["Car rental","Autovermietung"],
 "Начало":["Home","Start"],
 "Автомобили":["Cars","Fahrzeuge"],
+"Автомобили и резервация":["Cars & booking","Fahrzeuge & Buchung"],
 "Резервация":["Booking","Buchung"],
 "За нас":["About us","Über uns"],
 "Условия":["Terms","Bedingungen"],
@@ -1247,7 +1281,7 @@ const WHY=[
 ["i-fuel","Зареден до горе","Автомобилът се предава зареден до горе."],
 ["i-road","Неограничен пробег над 2 дни","При наем над 2 дни пътувате без ограничение на километрите."],
 ["i-kit","Задължително оборудване","Всеки автомобил е оборудван с аптечка за първа помощ, предупредителен триъгълник, светлоотразителна жилетка, резервна гума, крик и ключ за джанти."]];
-const STATS=[["2+","Години опит"],["1600+","Доволни клиенти"],["80+","Автомобила"]];
+const STATS=[["2+","Години опит"],["1600+","Доволни клиенти"],["20+","Автомобила"]];
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const fmt=n=>{const s=(Math.round(n*100)/100).toFixed(2).replace(".",",");return(s.endsWith(",00")?s.slice(0,-3):s)+" €"};
 const rate=(c,d)=>c.tiers[d>30?2:d>15?1:0];
