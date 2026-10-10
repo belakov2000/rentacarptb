@@ -792,6 +792,7 @@ button.btn-ghost{background:transparent}
 <div><label for="b-name">Имена (както са в личната карта)</label><input id="b-name" autocomplete="name" placeholder="Име, презиме, фамилия" required></div>
 <div><label for="b-cit">Гражданство</label><input id="b-cit" autocomplete="country-name" value="България" placeholder="напр. България" required></div>
 <div class="row"><div><label for="b-phone">Телефон</label><input id="b-phone" type="tel" autocomplete="tel" required></div><div><label for="b-mail">Имейл</label><input id="b-mail" type="email" autocomplete="email" required></div></div>
+<div><label for="b-seat-count">Брой столчета</label><select id="b-seat-count" aria-describedby="b-seat-hint"><option value="0">Без детско столче</option><option value="1">1 столче</option><option value="2">2 столчета</option></select><small class="hint" id="b-seat-hint">Брой столчета (3 € / ден за всяко)</small></div>
 </fieldset>
 <fieldset class="fbox"><legend><span class="fn">2</span>Лична карта / паспорт</legend>
 <div class="seg" role="radiogroup" aria-label="Вид документ"><label class="opt"><input type="radio" name="idt" value="id" checked><span>Лична карта</span></label><label class="opt"><input type="radio" name="idt" value="pass"><span>Паспорт</span></label></div>
@@ -1117,6 +1118,7 @@ const I18N={
 "4. Пътуване в чужбина":["4. Travel abroad","4. Auslandsreise"],
 "Пътуване в чужбина":["Travel abroad","Auslandsreise"],
 "Брой столчета (3 € / ден за всяко)":["Number of seats (3 € / day each)","Anzahl der Sitze (3 € / Tag pro Sitz)"],"Брой столчета":["Number of seats","Anzahl der Sitze"],"1 столче":["1 seat","1 Sitz"],"2 столчета":["2 seats","2 Sitze"],
+"Без детско столче":["No child seat","Kein Kindersitz"],
 "Изберете държавите, в които ще пътувате. За всяка държава се заплаща еднократна такса.":["Choose the countries you will travel to. A one-time fee applies for each country.","Wählen Sie die Länder, in die Sie reisen. Für jedes Land fällt eine einmalige Gebühr an."],
 "еднократна такса":["one-time fee","einmalige Gebühr"],
 "Пътуване в чужбина · еднократна такса":["Travel abroad · one-time fee","Auslandsreise · einmalige Gebühr"],
@@ -1428,7 +1430,7 @@ store.set(S);location.hash="blagodarim";if(S.done==="sms")sendSms()});
 const today=new Date().toISOString().slice(0,10);$("#b-d1").min=$("#b-d2").min=today;
 const mode=n=>document.querySelector(`input[name=m${n}]:checked`).value;
 const addr=n=>$("#b-a"+n).value.trim();
-const sync=()=>{$("#a1").hidden=mode(1)!=="addr";$("#a2").hidden=mode(2)!=="addr";$("#abr-list").hidden=!$("#b-abr").checked;$("#seat-n").hidden=!$("#b-seat").checked};
+const sync=()=>{$("#a1").hidden=mode(1)!=="addr";$("#a2").hidden=mode(2)!=="addr";$("#abr-list").hidden=!$("#b-abr").checked;$("#seat-n").hidden=!$("#b-seat").checked;$("#b-seat-count").value=String(seatN(S))};
 $("#ctry-grid").innerHTML=ABROAD.map(([k,n,f])=>`<label class="opt"><input type="checkbox" value="${k}"><img src="https://flagcdn.com/w80/${k}.png" alt="" width="30" height="20" loading="lazy"><span class="cn">${n}<small>еднократна такса</small></span><b>${fmt(f)}</b></label>`).join("");
 function readPlan(){S.d1=$("#b-d1").value;S.t1=$("#b-t1").value;S.d2=$("#b-d2").value;S.t2=$("#b-t2").value;S.m1=mode(1);S.a1=addr(1);S.m2=mode(2);S.a2=addr(2);S.seat=$("#b-seat").checked;S.seatN=+($("input[name=seatn]:checked")||{}).value||1;S.abr=$("#b-abr").checked;S.ctry=$$("#ctry-grid input:checked").map(e=>e.value);store.set(S)}
 function writePlan(){$("#b-d1").value=S.d1||"";$("#b-d2").value=S.d2||"";$("#b-t1").value=S.t1||"12:00";$("#b-t2").value=S.t2||"12:00";
@@ -1449,6 +1451,7 @@ $("#b-d1").addEventListener("change",()=>{if(!$("#b-d2").value||$("#b-d2").value
 ["#b-d1","#b-d2"].forEach(s=>$(s).addEventListener("change",()=>{calStep=0}));
 ["#b-d1","#b-t1","#b-d2","#b-t2","#b-seat","#b-abr"].forEach(s=>$(s).addEventListener("change",()=>planChanged()));
 $$("input[name=seatn]").forEach(e=>e.addEventListener("change",()=>planChanged()));
+$("#b-seat-count").addEventListener("change",()=>{const count=+$("#b-seat-count").value;$("#b-seat").checked=count>0;$$("input[name=seatn]").forEach(e=>e.checked=+e.value===(count||1));planChanged()});
 $$("#ctry-grid input").forEach(e=>e.addEventListener("change",()=>planChanged()));
 $$("input[name=m1]").forEach(e=>e.addEventListener("change",()=>planChanged(1)));$$("input[name=m2]").forEach(e=>e.addEventListener("change",()=>planChanged(2)));
 $("#b-a1").addEventListener("input",()=>{S.a1=addr(1);planChanged(1)});$("#b-a2").addEventListener("input",()=>{S.a2=addr(2);planChanged(2)});
