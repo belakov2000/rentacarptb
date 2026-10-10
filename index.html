@@ -384,6 +384,7 @@ button.btn-ghost{background:transparent}
 .plancard fieldset{align-content:start}
 .ctry{display:grid;gap:12px}.ctry .hint{margin:0}
 .ctry-grid{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(220px,1fr))}
+.seat-seg{display:grid;grid-template-columns:1fr 1fr;gap:10px}.seatn .hint{margin:0 0 8px}.seat-seg .opt{align-items:center;padding:12px 14px}.seat-seg .opt input{margin-top:0}
 .ctry-grid .opt{align-items:center;padding:12px 14px}.ctry-grid .opt input{margin-top:0}
 .ctry-grid img{width:30px;height:20px;object-fit:cover;border-radius:3px;box-shadow:0 0 0 1px rgba(0,0,0,.12);flex:none}
 .ctry-grid .cn{flex:1;display:flex;flex-direction:column;gap:2px}.ctry-grid .cn small{font-weight:500;color:#5b6b82;font-size:.82rem}
@@ -771,7 +772,8 @@ button.btn-ghost{background:transparent}
 <div class="addr" id="a2" hidden><label for="b-a2">Адрес за вземане на автомобила</label><input id="b-a2" placeholder="Град, улица, номер"></div>
 </fieldset>
 <fieldset class="full"><legend>3. Допълнително</legend>
-<label class="opt"><input type="checkbox" id="b-seat"><span>Добави детско столче — 3 € / ден</span></label>
+<label class="opt"><input type="checkbox" id="b-seat" aria-controls="seat-n"><span>Добави детско столче — 3 € / ден</span></label>
+<div class="seatn" id="seat-n" hidden><p class="hint">Брой столчета (3 € / ден за всяко)</p><div class="seat-seg" role="radiogroup" aria-label="Брой столчета"><label class="opt"><input type="radio" name="seatn" value="1" checked><span>1 столче</span></label><label class="opt"><input type="radio" name="seatn" value="2"><span>2 столчета</span></label></div></div>
 </fieldset>
 <fieldset class="full"><legend>4. Пътуване в чужбина</legend>
 <label class="opt"><input type="checkbox" id="b-abr" aria-controls="abr-list"><span>Пътуване в чужбина</span></label>
@@ -1114,6 +1116,7 @@ const I18N={
 "Детско столче":["Child seat","Kindersitz"],
 "4. Пътуване в чужбина":["4. Travel abroad","4. Auslandsreise"],
 "Пътуване в чужбина":["Travel abroad","Auslandsreise"],
+"Брой столчета (3 € / ден за всяко)":["Number of seats (3 € / day each)","Anzahl der Sitze (3 € / Tag pro Sitz)"],"Брой столчета":["Number of seats","Anzahl der Sitze"],"1 столче":["1 seat","1 Sitz"],"2 столчета":["2 seats","2 Sitze"],
 "Изберете държавите, в които ще пътувате. За всяка държава се заплаща еднократна такса.":["Choose the countries you will travel to. A one-time fee applies for each country.","Wählen Sie die Länder, in die Sie reisen. Für jedes Land fällt eine einmalige Gebühr an."],
 "еднократна такса":["one-time fee","einmalige Gebühr"],
 "Пътуване в чужбина · еднократна такса":["Travel abroad · one-time fee","Auslandsreise · einmalige Gebühr"],
@@ -1302,6 +1305,7 @@ let S=store.get()||{};
 const KMS={1:null,2:null,st:{1:"",2:""}};
 const hasC=()=>!!(S.name&&S.phone&&S.mail),hasD=()=>!!(S.d1&&S.d2);
 // ===== Ценови преглед за конкретен автомобил и конкретни дати =====
+const seatN=R=>R.seat?(+R.seatN===2?2:1):0;
 function quote(c,R){
 const d=span(R.d1,R.t1,R.d2,R.t2);
 if(!d)return{err:"dates"};if(d<0)return{err:"order"};if(busy(c,R.d1,R.d2))return{err:"busy"};
@@ -1309,7 +1313,7 @@ const r=rate(c,d);let tot=r*d;const pend=[],rows=[["Период",`${d} ${d>1?"�
 [[1,"Доставка","доставката"],[2,"Връщане от адрес","връщането от адрес"]].forEach(([n,t,w])=>{if(R["m"+n]!=="addr")return;const k=KMS[n];
 if(k!=null){const p=k*KM_RATE;tot+=p;rows.push([t,fmt(p),`${String(k).replace(".",",")} км × 0,70 €`])}
 else{rows.push([t,"—",KMS.st[n]==="load"?"изчисляваме разстоянието…":"0,70 € / км по пътен маршрут"]);pend.push(w)}});
-if(R.seat){tot+=SEAT*d;rows.push(["Детско столче",fmt(SEAT*d),`${d} × ${fmt(SEAT)}`])}
+if(R.seat){const n=seatN(R);tot+=SEAT*n*d;rows.push(["Детско столче",fmt(SEAT*n*d),`${n>1?n+" × ":""}${d} × ${fmt(SEAT)}`])}
 abrSel(R).forEach(([,n,f])=>{tot+=f;rows.push([n,fmt(f),"Пътуване в чужбина · еднократна такса"])});
 return{d,r,tot,rows,pend,base:r*d}}
 // ===== Компоненти =====
@@ -1363,7 +1367,7 @@ $("#b-name").addEventListener("input",()=>{const d=$("#b-dlname"),n=$("#b-name")
 function fail(t){const e=$("#b-err");e.textContent=t;e.hidden=false;e.scrollIntoView({behavior:"smooth",block:"center"})}
 const abrText=R=>{const l=abrSel(R);return l.length?l.map(([,n,f])=>`${n} (${fmt(f)})`).join(", "):"не"};
 function buildText(){const R=S,c=CARS.find(x=>x.id===R.car),q=c&&hasD()?quote(c,R):null;
-return[`Заявка за наем${c?": "+c.name:" (автомобилът още не е избран)"}`,R.d1?`Получаване: ${bf(R.d1,R.t1)}, ${R.m1==="addr"?"доставка до "+R.a1:BASE}`:"",R.d2?`Връщане: ${bf(R.d2,R.t2)}, ${R.m2==="addr"?"вземане от "+R.a2:BASE}`:"",R.d1?`Детско столче: ${R.seat?"да":"не"}`:"",R.d1?`Пътуване в чужбина: ${abrText(R)}`:"",q&&!q.err?`Общо за услугите: ${fmt(q.tot)}${q.pend.length?" (без "+q.pend.join(" и ")+")":""}. Депозит: ${fmt(DEPOSIT)}`:"",q&&!q.err?`Брой дни: ${q.d}, цена на ден: ${fmt(q.r)}, наем на автомобила: ${fmt(q.base)}`:"",
+return[`Заявка за наем${c?": "+c.name:" (автомобилът още не е избран)"}`,R.d1?`Получаване: ${bf(R.d1,R.t1)}, ${R.m1==="addr"?"доставка до "+R.a1:BASE}`:"",R.d2?`Връщане: ${bf(R.d2,R.t2)}, ${R.m2==="addr"?"вземане от "+R.a2:BASE}`:"",R.d1?`Детско столче: ${R.seat?"да, "+seatN(R)+" бр.":"не"}`:"",R.d1?`Пътуване в чужбина: ${abrText(R)}`:"",q&&!q.err?`Общо за услугите: ${fmt(q.tot)}${q.pend.length?" (без "+q.pend.join(" и ")+")":""}. Депозит: ${fmt(DEPOSIT)}`:"",q&&!q.err?`Брой дни: ${q.d}, цена на ден: ${fmt(q.r)}, наем на автомобила: ${fmt(q.base)}`:"",
 R.pay?`\nПЛАЩАНЕ: ${PAY[R.pay]}`:"",invText(R)?"ДАННИ ЗА ФАКТУРА\n"+invText(R):"",
 "\nКЛИЕНТ",`Имена: ${R.name}`,`Гражданство: ${R.cit||"-"}`,`Телефон: ${R.phone}`,`Имейл: ${R.mail}`,
 "\nДОКУМЕНТ ЗА САМОЛИЧНОСТ",`Вид: ${R.idt==="pass"?"паспорт":"лична карта"}`,`Номер: ${R.idn||"-"}`,`ЕГН: ${R.egn||"-"}`,`Дата на издаване: ${R.idd?bf(R.idd):"-"}`,`Издаден от: ${R.idp||"-"}`,`Град: ${R.city||"-"}`,`Адрес: ${R.addr||"-"}`,
@@ -1375,7 +1379,7 @@ return{"Автомобил":c?c.name:"не е избран",
 "Получаване":R.d1?bf(R.d1,R.t1):"не е избрано","Място на получаване":R.d1?place(1,"доставка до"):"-",
 "Връщане":R.d2?bf(R.d2,R.t2):"не е избрано","Място на връщане":R.d2?place(2,"вземане от"):"-",
 "Брой дни":ok?q.d:"-","Цена на ден":ok?fmt(q.r):"-","Наем на автомобила":ok?fmt(q.base):"-",
-"Детско столче":R.d1?(R.seat?"да":"не"):"-","Пътуване в чужбина":R.d1?abrText(R):"-","Общо за услугите":ok?fmt(q.tot)+(q.pend.length?" (без "+q.pend.join(" и ")+")":""):"-","Депозит":fmt(DEPOSIT),
+"Детско столче":R.d1?(R.seat?"да, "+seatN(R)+" бр.":"не"):"-","Пътуване в чужбина":R.d1?abrText(R):"-","Общо за услугите":ok?fmt(q.tot)+(q.pend.length?" (без "+q.pend.join(" и ")+")":""):"-","Депозит":fmt(DEPOSIT),
 "Имена":R.name,"Гражданство":R.cit||"-","Телефон":R.phone,"Имейл":R.mail,
 "Вид документ":R.idt==="pass"?"паспорт":"лична карта","Номер на документа":R.idn||"-","ЕГН":R.egn||"-",
 "Документ – дата на издаване":R.idd?bf(R.idd):"-","Документ – издаден от":R.idp||"-","Град":R.city||"-","Адрес":R.addr||"-",
@@ -1396,7 +1400,7 @@ const j=await r.json().catch(()=>({}));if(r.status===409)return"busy";if(!r.ok||
 // Данни за автоматичното попълване на договора за наем (изпраща се до фирмата като прикачен файл)
 const contractData=(R,q)=>{const ok=q&&!q.err,leg=n=>R["m"+n]==="addr"?{addr:R["a"+n],km:KMS[n]}:null;
 return{citizen:R.cit,idt:R.idt,idn:R.idn,egn:R.egn,idd:R.idd,idp:R.idp,city:R.city,addr:R.addr,dln:R.dln,dld:R.dld,dlp:R.dlp,d1:R.d1,t1:R.t1,d2:R.d2,t2:R.t2,
-days:ok?q.d:null,rent:ok?q.base:null,seat:ok&&R.seat?SEAT*q.d:0,seatN:R.seat?1:0,seatDay:R.seat?SEAT:0,del:leg(1),ret:leg(2),abroad:abrSel(R).map(([,name,fee])=>({name,fee}))}};
+days:ok?q.d:null,rent:ok?q.base:null,seat:ok&&R.seat?SEAT*seatN(R)*q.d:0,seatN:seatN(R),seatDay:R.seat?SEAT*seatN(R):0,del:leg(1),ret:leg(2),abroad:abrSel(R).map(([,name,fee])=>({name,fee}))}};
 const sendSms=()=>{location.href="sms:"+PHONE+"?&body="+encodeURIComponent(buildText())};
 // ===== Снимки на документите: смаляват се в браузъра и се качват при изпращане =====
 const DOCS_ENDPOINT="/api/documents";
@@ -1424,12 +1428,12 @@ store.set(S);location.hash="blagodarim";if(S.done==="sms")sendSms()});
 const today=new Date().toISOString().slice(0,10);$("#b-d1").min=$("#b-d2").min=today;
 const mode=n=>document.querySelector(`input[name=m${n}]:checked`).value;
 const addr=n=>$("#b-a"+n).value.trim();
-const sync=()=>{$("#a1").hidden=mode(1)!=="addr";$("#a2").hidden=mode(2)!=="addr";$("#abr-list").hidden=!$("#b-abr").checked};
+const sync=()=>{$("#a1").hidden=mode(1)!=="addr";$("#a2").hidden=mode(2)!=="addr";$("#abr-list").hidden=!$("#b-abr").checked;$("#seat-n").hidden=!$("#b-seat").checked};
 $("#ctry-grid").innerHTML=ABROAD.map(([k,n,f])=>`<label class="opt"><input type="checkbox" value="${k}"><img src="https://flagcdn.com/w80/${k}.png" alt="" width="30" height="20" loading="lazy"><span class="cn">${n}<small>еднократна такса</small></span><b>${fmt(f)}</b></label>`).join("");
-function readPlan(){S.d1=$("#b-d1").value;S.t1=$("#b-t1").value;S.d2=$("#b-d2").value;S.t2=$("#b-t2").value;S.m1=mode(1);S.a1=addr(1);S.m2=mode(2);S.a2=addr(2);S.seat=$("#b-seat").checked;S.abr=$("#b-abr").checked;S.ctry=$$("#ctry-grid input:checked").map(e=>e.value);store.set(S)}
+function readPlan(){S.d1=$("#b-d1").value;S.t1=$("#b-t1").value;S.d2=$("#b-d2").value;S.t2=$("#b-t2").value;S.m1=mode(1);S.a1=addr(1);S.m2=mode(2);S.a2=addr(2);S.seat=$("#b-seat").checked;S.seatN=+($("input[name=seatn]:checked")||{}).value||1;S.abr=$("#b-abr").checked;S.ctry=$$("#ctry-grid input:checked").map(e=>e.value);store.set(S)}
 function writePlan(){$("#b-d1").value=S.d1||"";$("#b-d2").value=S.d2||"";$("#b-t1").value=S.t1||"12:00";$("#b-t2").value=S.t2||"12:00";
 document.querySelector(`input[name=m1][value=${S.m1==="addr"?"addr":"store"}]`).checked=true;document.querySelector(`input[name=m2][value=${S.m2==="addr"?"addr":"store"}]`).checked=true;
-$("#b-a1").value=S.a1||"";$("#b-a2").value=S.a2||"";$("#b-seat").checked=!!S.seat;$("#b-abr").checked=!!S.abr;$$("#ctry-grid input").forEach(e=>e.checked=(S.ctry||[]).includes(e.value));sync()}
+$("#b-a1").value=S.a1||"";$("#b-a2").value=S.a2||"";$("#b-seat").checked=!!S.seat;$$("input[name=seatn]").forEach(e=>e.checked=+e.value===(+S.seatN===2?2:1));$("#b-abr").checked=!!S.abr;$$("#ctry-grid input").forEach(e=>e.checked=(S.ctry||[]).includes(e.value));sync()}
 const tm={};
 function loadKm(n){if(S["m"+n]!=="addr"||(S["a"+n]||"").length<5){KMS[n]=null;KMS.st[n]="";return}
 if(!ROUTING_ENDPOINT){KMS.st[n]="no";return}
@@ -1444,6 +1448,7 @@ keepView(()=>{renderCars();renderPick()})}
 $("#b-d1").addEventListener("change",()=>{if(!$("#b-d2").value||$("#b-d2").value<$("#b-d1").value)$("#b-d2").value=$("#b-d1").value;$("#b-d2").min=$("#b-d1").value||today});
 ["#b-d1","#b-d2"].forEach(s=>$(s).addEventListener("change",()=>{calStep=0}));
 ["#b-d1","#b-t1","#b-d2","#b-t2","#b-seat","#b-abr"].forEach(s=>$(s).addEventListener("change",()=>planChanged()));
+$$("input[name=seatn]").forEach(e=>e.addEventListener("change",()=>planChanged()));
 $$("#ctry-grid input").forEach(e=>e.addEventListener("change",()=>planChanged()));
 $$("input[name=m1]").forEach(e=>e.addEventListener("change",()=>planChanged(1)));$$("input[name=m2]").forEach(e=>e.addEventListener("change",()=>planChanged(2)));
 $("#b-a1").addEventListener("input",()=>{S.a1=addr(1);planChanged(1)});$("#b-a2").addEventListener("input",()=>{S.a2=addr(2);planChanged(2)});
