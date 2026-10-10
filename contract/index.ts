@@ -139,7 +139,8 @@ function values(d: ContractData): Record<string, string> {
     seatTotal: seatN && d.seat && d.days ? ` – общо ${money(d.seat)} за ${d.days} ${d.days === 1 ? "ден" : "дни"}` : "",
     seatNo, seatYes,
     pickupPlace: del.place, returnPlace: ret.place,
-    d1: bgDate(d.d1), t1: d.t1, d2: bgDate(d.d2), t2: d.t2,
+    d1: bgDate(d.d1), t1: d.t1,
+    returnDate: "", returnTime: "", returnAddress: "",
     landlord: LANDLORD,
   };
 }
