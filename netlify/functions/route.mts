@@ -10,9 +10,16 @@ const UA = "rentacar-ptb.com booking distance (rentaptb_stroi@abv.bg)";
 
 type Place = { lat: number; lon: number; name: string };
 
+// Област Пловдив – при еднакви имена на улици се предпочитат адресите тук
+const PLOVDIV_BOX = "24.45,42.35,25.05,41.95";
+
+// Ако клиентът не е посочил населено място, адресът е в Пловдив (иначе „Свобода 73“ се намира в с. Свобода, Добрич)
+const withCity = (addr: string) =>
+  /пловдив|plovdiv|(^|[\s,])(гр|с|град|село)(\.|\s)/i.test(addr) ? addr : `${addr}, Пловдив`;
+
 async function geocode(q: string, bgOnly: boolean): Promise<Place | null> {
   const u = new URL("https://nominatim.openstreetmap.org/search");
-  u.search = new URLSearchParams({ q, format: "json", limit: "1", "accept-language": "bg", ...(bgOnly ? { countrycodes: "bg" } : {}) }).toString();
+  u.search = new URLSearchParams({ q, format: "json", limit: "1", "accept-language": "bg", viewbox: PLOVDIV_BOX, ...(bgOnly ? { countrycodes: "bg" } : {}) }).toString();
   const r = await fetch(u, { headers: { "User-Agent": UA, Accept: "application/json" } });
   if (!r.ok) return null;
   const [p] = (await r.json()) as { lat: string; lon: string; display_name: string }[];
@@ -21,6 +28,11 @@ async function geocode(q: string, bgOnly: boolean): Promise<Place | null> {
 
 // Първо търсим точния адрес, после без данни за блок/вход/етаж/апартамент и накрая извън България
 async function findPlace(addr: string) {
+  const full = withCity(addr);
+  if (full !== addr) {
+    const p = await geocode(full, true);
+    if (p) return p;
+  }
   const short = addr.replace(/(^|[,\s])(бл|вх|ет|ап)(\.\s*|\s+)[\wА-я-]+/gi, "").trim();
   return (await geocode(addr, true)) || (short !== addr && (await geocode(short, true))) || (await geocode(addr, false));
 }
@@ -34,7 +46,7 @@ async function googleKm(dest: string): Promise<{ km: number; place: string } | n
     headers: { "Content-Type": "application/json", "X-Goog-Api-Key": key, "X-Goog-FieldMask": "routes.distanceMeters" },
     body: JSON.stringify({
       origin: { address: OFFICE_ADDRESS },
-      destination: { address: dest },
+      destination: { address: withCity(dest) },
       travelMode: "DRIVE",
       languageCode: "bg",
       regionCode: "bg",
