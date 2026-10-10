@@ -3,13 +3,13 @@ import type { Config, Context } from "@netlify/functions";
 import { and, eq, gte, lte, ne } from "drizzle-orm";
 import { db } from "../../db/index.js";
 import { bookings } from "../../db/schema.js";
-import { buildContract, contractFileName, parseContract } from "../../contract/index.js";
+import { buildContract, contractFileName, parseContract, type ContractData } from "../../contract/index.js";
 
 // Резервации с потвърждение от фирмата.
 // POST /api/bookings                 – записва заявката и праща имейл до фирмата с бутони „Потвърди“ / „Откажи“
 // GET  /api/bookings/:id?t=…         – статус на заявката за страницата „Благодарим“ на клиента
 // GET  /api/bookings/:id/manage?key=… – страница за фирмата с данните и бутоните (линкът е само в имейла)
-// POST /api/bookings/:id/manage?key=… – потвърждава или отказва и праща имейл до клиента
+// POST /api/bookings/:id/manage?key=… – потвърждава или отказва и праща имейл до клиента; поправя километрите в договора
 // GET  /api/bookings/:id/contract?key=… – попълненият договор за наем (.docx), линкът е само в имейла и на страницата за фирмата
 const OWNER_EMAIL = process.env.BOOKING_OWNER_EMAIL || "rentaptb_stroi@abv.bg";
 const SENDER_EMAIL = process.env.BREVO_SENDER_EMAIL || OWNER_EMAIL;
@@ -61,6 +61,14 @@ async function sendMail(to: string, toName: string, subject: string, html: strin
 const DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 const contracts = () => getStore("contracts");
 const contractLink = (origin: string, b: { id: string; adminToken: string }) => `${origin}/api/bookings/${b.id}/contract?key=${b.adminToken}`;
+// Данните на договора се пазят до файла, за да може договорът да се генерира отново (напр. с поправени километри)
+const contractDataKey = (id: string) => `${id}.json`;
+async function saveContract(id: string, data: ContractData) {
+  const file = buildContract(data);
+  await contracts().set(id, new Blob([new Uint8Array(file)]), { metadata: { name: contractFileName(data) } });
+  await contracts().setJSON(contractDataKey(id), data);
+  return file;
+}
 
 const btn = (href: string, label: string, bg: string, fg = "#fff") =>
   `<a href="${esc(href)}" style="display:inline-block;background:${bg};color:${fg};padding:14px 26px;border-radius:999px;font-weight:700;text-decoration:none;margin:4px 8px 4px 0">${esc(label)}</a>`;
@@ -155,7 +163,7 @@ function page(title: string, body: string, status = 200) {
 .kv div{display:flex;justify-content:space-between;gap:14px;padding:8px 0;border-bottom:1px solid #e6e9ef}.kv span{color:#5b6577}.badge{display:inline-block;padding:6px 14px;border-radius:999px;font-weight:700;margin-bottom:12px}
 .pending{background:#fff4cc}.confirmed{background:#d9f5e3;color:#11643a}.rejected{background:#fde2e0;color:#9b1c13}
 button{font:inherit;font-weight:700;border:0;border-radius:999px;padding:14px 22px;cursor:pointer;width:100%;margin-top:10px}.ok{background:#1a8f4c;color:#fff}.no{background:#c0392b;color:#fff}
-textarea{width:100%;box-sizing:border-box;font:inherit;padding:10px;border:1px solid #cdd3dd;border-radius:12px;min-height:70px}label{display:block;font-weight:700;margin:16px 0 6px;font-size:.9rem}</style></head>
+textarea,input{width:100%;box-sizing:border-box;font:inherit;padding:10px;border:1px solid #cdd3dd;border-radius:12px;min-height:70px}label{display:block;font-weight:700;margin:16px 0 6px;font-size:.9rem}</style></head>
 <body><main>${body}</main></body></html>`,
     {
       status,
@@ -176,7 +184,17 @@ const PAY_BG: Record<string, string> = {
 };
 const STATUS_BG: Record<string, string> = { pending: "Очаква потвърждение", confirmed: "Потвърдена", rejected: "Отказана" };
 
-function managePage(b: Booking, origin: string, msg = "", conflict: { name: string; pickup: string; dropoff: string } | null = null) {
+// Форма за поправка на километрите за доставка / връщане от адрес (договорът се попълва наново)
+function kmForm(cd: ContractData | null) {
+  const legs = cd ? ([["kmDel", "Доставка до", cd.del], ["kmRet", "Връщане от", cd.ret]] as const).filter(([, , l]) => l) : [];
+  if (!legs.length) return "";
+  const fields = legs
+    .map(([n, label, l]) => `<label for="${n}">${esc(label)}: ${esc(l!.addr)}</label><input id="${n}" name="${n}" inputmode="decimal" placeholder="км" value="${l!.km != null ? String(l!.km).replace(".", ",") : ""}">`)
+    .join("");
+  return `<form method="post" style="margin-top:22px;padding-top:6px;border-top:1px solid #e6e9ef"><p style="margin:10px 0 0"><b>Километри в договора</b> (по пътен маршрут от бул. Дунав 10, 0,70 EUR/км). Ако разстоянието в Google Maps е различно, въведете го тук – договорът се попълва наново.</p>${fields}<button class="ok" style="background:#0f1b2d" name="action" value="km">Запази километрите и обнови договора</button></form>`;
+}
+
+function managePage(b: Booking, origin: string, msg = "", conflict: { name: string; pickup: string; dropoff: string } | null = null, cd: ContractData | null = null) {
   const kv = [
     ["Клиент", b.name], ["Телефон", b.phone], ["Имейл", b.email], ["Автомобил", b.car],
     ["Получаване", b.pickup], ["Връщане", b.dropoff], ["Общо", b.total], ["Плащане", PAY_BG[b.payment] || ""],
@@ -193,7 +211,7 @@ function managePage(b: Booking, origin: string, msg = "", conflict: { name: stri
       : `<p>Решението е взето${b.decidedAt ? " на " + esc(b.decidedAt.toLocaleString("bg-BG", { timeZone: "Europe/Sofia" })) : ""}. Клиентът е уведомен по имейл и на сайта.</p>`;
   return page(
     "Резервация – " + b.name,
-    `<h1>Резервация</h1><span class="badge ${b.status}">${STATUS_BG[b.status] || b.status}</span>${msg ? `<p><b>${esc(msg)}</b></p>` : ""}${warn}<div class="kv">${kv}</div><p><a href="${esc(contractLink(origin, b))}" style="display:block;text-align:center;background:#0f1b2d;color:#fff;padding:14px 22px;border-radius:999px;font-weight:700;text-decoration:none;margin-top:16px">📄 Изтегли попълнения договор за наем</a></p>${actions}`,
+    `<h1>Резервация</h1><span class="badge ${b.status}">${STATUS_BG[b.status] || b.status}</span>${msg ? `<p><b>${esc(msg)}</b></p>` : ""}${warn}<div class="kv">${kv}</div><p><a href="${esc(contractLink(origin, b))}" style="display:block;text-align:center;background:#0f1b2d;color:#fff;padding:14px 22px;border-radius:999px;font-weight:700;text-decoration:none;margin-top:16px">📄 Изтегли попълнения договор за наем</a></p>${actions}${kmForm(cd)}`,
   );
 }
 
@@ -240,8 +258,7 @@ export default async (req: Request, context: Context) => {
       const data = parseContract(body.contract, b.name, b.carId);
       if (!data) console.error("Contract data missing in the booking request");
       else {
-        const file = buildContract(data);
-        await contracts().set(row.id, new Blob([file]), { metadata: { name: contractFileName(data) } });
+        const file = await saveContract(row.id, data);
         contract = [{ name: contractFileName(data), content: Buffer.from(file).toString("base64") }];
       }
     } catch (e) {
@@ -320,13 +337,35 @@ export default async (req: Request, context: Context) => {
 
   // GET само показва страницата – решението става с бутон (POST), за да не се задейства от предварителни прегледи на линкове
   const conflict = b.status === "pending" ? await findConflict(b.carId, b.startDate || "", b.endDate || "", b.id) : null;
-  if (req.method !== "POST") return managePage(b, url.origin, "", conflict);
+  const cd = ((await contracts().get(contractDataKey(id), { type: "json" }).catch(() => null)) as ContractData | null) || null;
+  if (req.method !== "POST") return managePage(b, url.origin, "", conflict, cd);
 
   const form = await req.formData().catch(() => null);
   const action = form?.get("action");
-  if (action !== "confirm" && action !== "reject") return managePage(b, url.origin, "", conflict);
-  if (action === "confirm" && conflict) return managePage(b, url.origin, "Резервацията не е потвърдена – датите вече са заети.", conflict);
-  if (b.status !== "pending") return managePage(b, url.origin, "Тази резервация вече е обработена.");
+
+  // Поправка на километрите – договорът се генерира наново със същите данни и новото разстояние
+  if (action === "km") {
+    if (!cd) return managePage(b, url.origin, "Данните на договора не са намерени.", conflict, cd);
+    const km = (name: string) => {
+      const v = Number(String(form?.get(name) ?? "").trim().replace(",", "."));
+      return Number.isFinite(v) && v >= 0 && v < 5000 ? Math.round(v * 10) / 10 : null;
+    };
+    const next: ContractData = {
+      ...cd,
+      del: cd.del ? { ...cd.del, km: km("kmDel") } : null,
+      ret: cd.ret ? { ...cd.ret, km: km("kmRet") } : null,
+    };
+    try {
+      await saveContract(id, next);
+    } catch (e) {
+      console.error("Contract could not be regenerated", e);
+      return managePage(b, url.origin, "Договорът не можа да бъде обновен. Опитайте отново.", conflict, cd);
+    }
+    return managePage(b, url.origin, "Километрите са записани – изтеглете договора отново.", conflict, next);
+  }
+  if (action !== "confirm" && action !== "reject") return managePage(b, url.origin, "", conflict, cd);
+  if (action === "confirm" && conflict) return managePage(b, url.origin, "Резервацията не е потвърдена – датите вече са заети.", conflict, cd);
+  if (b.status !== "pending") return managePage(b, url.origin, "Тази резервация вече е обработена.", null, cd);
 
   const note = typeof form?.get("note") === "string" ? String(form!.get("note")).trim().slice(0, 1000) : "";
   const [updated] = await db
@@ -334,19 +373,21 @@ export default async (req: Request, context: Context) => {
     .set({ status: action === "confirm" ? "confirmed" : "rejected", note, decidedAt: new Date() })
     .where(and(eq(bookings.id, id), eq(bookings.status, "pending")))
     .returning();
-  if (!updated) return managePage(b, url.origin, "Тази резервация вече е обработена.");
+  if (!updated) return managePage(b, url.origin, "Тази резервация вече е обработена.", null, cd);
 
   const mail = customerMail(updated);
   try {
     await sendMail(updated.email, updated.name, mail.subject, mail.html, OWNER_EMAIL);
   } catch (e) {
     console.error(e);
-    return managePage(updated, url.origin, `Решението е записано и клиентът го вижда на сайта, но имейлът до ${updated.email} не беше изпратен. Моля, свържете се с клиента.`);
+    return managePage(updated, url.origin, `Решението е записано и клиентът го вижда на сайта, но имейлът до ${updated.email} не беше изпратен. Моля, свържете се с клиента.`, null, cd);
   }
   return managePage(
     updated,
     url.origin,
     action === "confirm" ? "Резервацията е потвърдена. Клиентът получи имейл." : "Резервацията е отказана. Клиентът получи имейл.",
+    null,
+    cd,
   );
 };
 

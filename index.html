@@ -1396,7 +1396,7 @@ const j=await r.json().catch(()=>({}));if(r.status===409)return"busy";if(!r.ok||
 // Данни за автоматичното попълване на договора за наем (изпраща се до фирмата като прикачен файл)
 const contractData=(R,q)=>{const ok=q&&!q.err,leg=n=>R["m"+n]==="addr"?{addr:R["a"+n],km:KMS[n]}:null;
 return{citizen:R.cit,idt:R.idt,idn:R.idn,egn:R.egn,idd:R.idd,idp:R.idp,city:R.city,addr:R.addr,dln:R.dln,dld:R.dld,dlp:R.dlp,d1:R.d1,t1:R.t1,d2:R.d2,t2:R.t2,
-days:ok?q.d:null,rent:ok?q.base:null,seat:ok&&R.seat?SEAT*q.d:0,del:leg(1),ret:leg(2),abroad:abrSel(R).map(([,name,fee])=>({name,fee}))}};
+days:ok?q.d:null,rent:ok?q.base:null,seat:ok&&R.seat?SEAT*q.d:0,seatN:R.seat?1:0,seatDay:R.seat?SEAT:0,del:leg(1),ret:leg(2),abroad:abrSel(R).map(([,name,fee])=>({name,fee}))}};
 const sendSms=()=>{location.href="sms:"+PHONE+"?&body="+encodeURIComponent(buildText())};
 // ===== Снимки на документите: смаляват се в браузъра и се качват при изпращане =====
 const DOCS_ENDPOINT="/api/documents";

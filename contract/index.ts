@@ -68,7 +68,7 @@ export type ContractData = {
   idt: string; idn: string; egn: string; idd: string; idp: string; city: string; addr: string;
   dln: string; dld: string; dlp: string;
   d1: string; t1: string; d2: string; t2: string;
-  days: number | null; rent: number | null; seat: number | null;
+  days: number | null; rent: number | null; seat: number | null; seatN: number; seatDay: number | null;
   del: Leg; ret: Leg; abroad: { name: string; fee: number }[];
 };
 
@@ -88,6 +88,8 @@ export function parseContract(c: any, name: string, carId: string): ContractData
     dln: s(c.dln, 40), dld: date(c.dld), dlp: s(c.dlp, 120),
     d1: date(c.d1), t1: time(c.t1), d2: date(c.d2), t2: time(c.t2),
     days: num(c.days), rent: num(c.rent), seat: num(c.seat),
+    // Брой столчета и цена на ден за всички (по-старите заявки пращат само общата сума)
+    seatN: Math.min(5, Math.floor(num(c.seatN) ?? (num(c.seat) ? 1 : 0))), seatDay: num(c.seatDay),
     del: leg(c.del), ret: leg(c.ret),
     abroad: Array.isArray(c.abroad)
       ? c.abroad.slice(0, 20).map((a: any) => ({ name: s(a?.name, 60), fee: num(a?.fee) ?? 0 })).filter((a: { name: string }) => a.name)
@@ -113,7 +115,9 @@ function values(d: ContractData): Record<string, string> {
   };
   const del = legVals(d.del), ret = legVals(d.ret);
   const [delNo, delYes] = check(!!d.del), [retNo, retYes] = check(!!d.ret), [abrNo, abrYes] = check(d.abroad.length > 0);
-  const rentTotal = d.rent != null ? d.rent + (d.seat || 0) : null;
+  const seatN = d.seat || d.seatDay ? Math.max(1, d.seatN) : 0;
+  const seatDay = seatN ? d.seatDay ?? (d.seat && d.days ? d.seat / d.days : null) : 0;
+  const [seatNo, seatYes] = check(seatN > 0);
   return {
     date: bgDate(d.d1), name: d.name, egn: d.egn, citizen: d.citizen,
     address: [d.city, d.addr].filter(Boolean).join(", "),
@@ -122,14 +126,18 @@ function values(d: ContractData): Record<string, string> {
     dln: d.dln, dld: bgDate(d.dld), dlp: d.dlp,
     carModel: car?.model || "", carReg: car?.reg || "", carVin: car?.vin || "", carFuel: car?.fuel || "", carColor: car?.color || "",
     period: hours && d.days ? `${hours} ${hours === 1 ? "час" : "часа"} / ${d.days} ${d.days === 1 ? "ден" : "дни"} (${words(d.days)} ${d.days === 1 ? "ден" : "дни"})` : "",
-    start: d.d1 && d.t1 ? `${bgDate(d.d1)} г., ${timeText(d.t1)}` : "",
-    end: d.d2 && d.t2 ? `${bgDate(d.d2)} г., ${timeText(d.t2)}` : "",
-    rent: rentTotal != null ? money(rentTotal) + (d.seat ? `, в т.ч. детско столче – ${money(d.seat)}` : "") : "",
+    startDate: bgDate(d.d1), startTime: d.t1 ? timeText(d.t1) : "",
+    endDate: bgDate(d.d2), endTime: d.t2 ? timeText(d.t2) : "",
+    rent: d.rent != null ? money(d.rent) : "",
     delAddr: del.addr, delFee: del.fee, delKm: del.km, delNo, delYes,
     retAddr: ret.addr, retFee: ret.fee, retKm: ret.km, retNo, retYes,
     abrList: d.abroad.length ? d.abroad.map((a) => a.name).join(", ") : "—",
     abrFee: money(d.abroad.reduce((t, a) => t + a.fee, 0)),
     abrNo, abrYes,
+    seatN: seatN ? `${seatN} (${words(seatN)}) ${seatN === 1 ? "брой" : "броя"}` : "—",
+    seatFee: seatDay != null ? money(seatDay) : `${BLANK} EUR`,
+    seatTotal: seatN && d.seat && d.days ? ` – общо ${money(d.seat)} за ${d.days} ${d.days === 1 ? "ден" : "дни"}` : "",
+    seatNo, seatYes,
     pickupPlace: del.place, returnPlace: ret.place,
     d1: bgDate(d.d1), t1: d.t1, d2: bgDate(d.d2), t2: d.t2,
     landlord: LANDLORD,
@@ -139,7 +147,7 @@ function values(d: ContractData): Record<string, string> {
 const xmlEsc = (v: string) => v.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
 
 // Допълнения, които могат да останат празни (без линия)
-const OPTIONAL = new Set(["delKm", "retKm"]);
+const OPTIONAL = new Set(["delKm", "retKm", "seatTotal"]);
 let template: Record<string, Uint8Array> | null = null;
 
 // Връща попълнения договор като .docx
