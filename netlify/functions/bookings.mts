@@ -1,13 +1,16 @@
+import { getStore } from "@netlify/blobs";
 import type { Config, Context } from "@netlify/functions";
 import { and, eq, gte, lte, ne } from "drizzle-orm";
 import { db } from "../../db/index.js";
 import { bookings } from "../../db/schema.js";
+import { buildContract, contractFileName, parseContract } from "../../contract/index.js";
 
 // Резервации с потвърждение от фирмата.
 // POST /api/bookings                 – записва заявката и праща имейл до фирмата с бутони „Потвърди“ / „Откажи“
 // GET  /api/bookings/:id?t=…         – статус на заявката за страницата „Благодарим“ на клиента
 // GET  /api/bookings/:id/manage?key=… – страница за фирмата с данните и бутоните (линкът е само в имейла)
 // POST /api/bookings/:id/manage?key=… – потвърждава или отказва и праща имейл до клиента
+// GET  /api/bookings/:id/contract?key=… – попълненият договор за наем (.docx), линкът е само в имейла и на страницата за фирмата
 const OWNER_EMAIL = process.env.BOOKING_OWNER_EMAIL || "rentaptb_stroi@abv.bg";
 const SENDER_EMAIL = process.env.BREVO_SENDER_EMAIL || OWNER_EMAIL;
 const SENDER_NAME = "Rent a Car PTB";
@@ -35,7 +38,8 @@ const toText = (html: string) =>
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 
-async function sendMail(to: string, toName: string, subject: string, html: string, replyTo?: string) {
+type Attachment = { name: string; content: string }; // content – base64
+async function sendMail(to: string, toName: string, subject: string, html: string, replyTo?: string, attachment?: Attachment[]) {
   const key = process.env.BREVO_API_KEY;
   if (!key) throw new Error("BREVO_API_KEY is not set");
   const r = await fetch("https://api.brevo.com/v3/smtp/email", {
@@ -48,10 +52,15 @@ async function sendMail(to: string, toName: string, subject: string, html: strin
       subject,
       htmlContent: `<!doctype html><html><head><meta charset="utf-8"><title>${esc(subject)}</title></head><body>${html}</body></html>`,
       textContent: toText(html),
+      ...(attachment?.length ? { attachment } : {}),
     }),
   });
   if (!r.ok) throw new Error(`Brevo error ${r.status}: ${await r.text()}`);
 }
+
+const DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+const contracts = () => getStore("contracts");
+const contractLink = (origin: string, b: { id: string; adminToken: string }) => `${origin}/api/bookings/${b.id}/contract?key=${b.adminToken}`;
 
 const btn = (href: string, label: string, bg: string, fg = "#fff") =>
   `<a href="${esc(href)}" style="display:inline-block;background:${bg};color:${fg};padding:14px 26px;border-radius:999px;font-weight:700;text-decoration:none;margin:4px 8px 4px 0">${esc(label)}</a>`;
@@ -167,7 +176,7 @@ const PAY_BG: Record<string, string> = {
 };
 const STATUS_BG: Record<string, string> = { pending: "Очаква потвърждение", confirmed: "Потвърдена", rejected: "Отказана" };
 
-function managePage(b: Booking, msg = "", conflict: { name: string; pickup: string; dropoff: string } | null = null) {
+function managePage(b: Booking, origin: string, msg = "", conflict: { name: string; pickup: string; dropoff: string } | null = null) {
   const kv = [
     ["Клиент", b.name], ["Телефон", b.phone], ["Имейл", b.email], ["Автомобил", b.car],
     ["Получаване", b.pickup], ["Връщане", b.dropoff], ["Общо", b.total], ["Плащане", PAY_BG[b.payment] || ""],
@@ -184,13 +193,13 @@ function managePage(b: Booking, msg = "", conflict: { name: string; pickup: stri
       : `<p>Решението е взето${b.decidedAt ? " на " + esc(b.decidedAt.toLocaleString("bg-BG", { timeZone: "Europe/Sofia" })) : ""}. Клиентът е уведомен по имейл и на сайта.</p>`;
   return page(
     "Резервация – " + b.name,
-    `<h1>Резервация</h1><span class="badge ${b.status}">${STATUS_BG[b.status] || b.status}</span>${msg ? `<p><b>${esc(msg)}</b></p>` : ""}${warn}<div class="kv">${kv}</div>${actions}`,
+    `<h1>Резервация</h1><span class="badge ${b.status}">${STATUS_BG[b.status] || b.status}</span>${msg ? `<p><b>${esc(msg)}</b></p>` : ""}${warn}<div class="kv">${kv}</div><p><a href="${esc(contractLink(origin, b))}" style="display:block;text-align:center;background:#0f1b2d;color:#fff;padding:14px 22px;border-radius:999px;font-weight:700;text-decoration:none;margin-top:16px">📄 Изтегли попълнения договор за наем</a></p>${actions}`,
   );
 }
 
 export default async (req: Request, context: Context) => {
   const url = new URL(req.url);
-  const id = context.params.id;
+  const id = context.params.id || url.pathname.split("/")[3];
 
   // ===== Нова заявка от сайта =====
   if (!id) {
@@ -224,18 +233,40 @@ export default async (req: Request, context: Context) => {
     await db.insert(bookings).values(row);
 
     const manage = `${url.origin}/api/bookings/${row.id}/manage?key=${row.adminToken}`;
+    // Попълненият договор за наем се пази на сървъра (линк в имейла) и се прикача към имейла.
+    // Ако не може да се генерира, заявката пак се изпраща.
+    let contract: Attachment[] = [];
     try {
-      await sendMail(
-        OWNER_EMAIL,
-        "Rent a Car PTB",
-        `Нова заявка за наем: ${b.car} – ${b.name}`,
-        wrapMail(
-          `<p style="font-size:17px"><b>Нова заявка за наем от сайта.</b> Потвърдете или откажете – клиентът ще получи имейл и ще види решението на сайта.</p>` +
-            `<p>${btn(manage, "Потвърди резервацията", "#1a8f4c")}${btn(manage, "Откажи", "#c0392b")}</p>` +
-            `<pre style="white-space:pre-wrap;font-family:Arial,sans-serif;background:#f3f5f9;padding:16px;border-radius:12px">${esc(message).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1">$1</a>')}</pre>`,
-        ),
-        b.email,
+      const data = parseContract(body.contract, b.name, b.carId);
+      if (!data) console.error("Contract data missing in the booking request");
+      else {
+        const file = buildContract(data);
+        await contracts().set(row.id, new Blob([file]), { metadata: { name: contractFileName(data) } });
+        contract = [{ name: contractFileName(data), content: Buffer.from(file).toString("base64") }];
+      }
+    } catch (e) {
+      console.error("Contract could not be generated", e);
+    }
+    const ownerMail = (attached: boolean) =>
+      wrapMail(
+        `<p style="font-size:17px"><b>Нова заявка за наем от сайта.</b> Потвърдете или откажете – клиентът ще получи имейл и ще види решението на сайта.</p>` +
+          `<p>${btn(manage, "Потвърди резервацията", "#1a8f4c")}${btn(manage, "Откажи", "#c0392b")}</p>` +
+          (contract.length
+            ? `<p>📄 <b>Договорът за наем е попълнен</b> с данните на клиента и автомобила – готов за печат.${attached ? " Прикачен е към този имейл." : ""}</p>` +
+              `<p>${btn(contractLink(url.origin, row), "Изтегли договора за наем", "#0f1b2d")}</p>`
+            : `<p>Договорът за наем не можа да бъде попълнен автоматично за тази заявка.</p>`) +
+          `<pre style="white-space:pre-wrap;font-family:Arial,sans-serif;background:#f3f5f9;padding:16px;border-radius:12px">${esc(message).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1">$1</a>')}</pre>`,
       );
+    const subject = `Нова заявка за наем: ${b.car} – ${b.name}`;
+    try {
+      try {
+        await sendMail(OWNER_EMAIL, "Rent a Car PTB", subject, ownerMail(contract.length > 0), b.email, contract);
+      } catch (e) {
+        if (!contract.length) throw e;
+        // Ако пощата откаже прикачения файл, изпращаме писмото без него – договорът остава достъпен от линка
+        console.error("Email with the contract attached failed, sending without the attachment", e);
+        await sendMail(OWNER_EMAIL, "Rent a Car PTB", subject, ownerMail(false), b.email);
+      }
     } catch (e) {
       console.error(e);
       await db.delete(bookings).where(eq(bookings.id, row.id));
@@ -247,6 +278,26 @@ export default async (req: Request, context: Context) => {
   }
 
   if (!ID_RE.test(id)) return new Response("Not found", { status: 404 });
+
+  // ===== Договор за наем (.docx) за фирмата =====
+  if (url.pathname.endsWith("/contract")) {
+    const key = url.searchParams.get("key") || "";
+    if (!TOKEN_RE.test(key)) return page("Не е намерен", "<h1>Договорът не е намерен</h1>", 404);
+    const [b] = await db.select({ id: bookings.id }).from(bookings).where(and(eq(bookings.id, id), eq(bookings.adminToken, key)));
+    const file = b && (await contracts().getWithMetadata(id, { type: "arrayBuffer" }));
+    if (!file) return page("Не е намерен", "<h1>Договорът не е намерен</h1>", 404);
+    const name = String(file.metadata?.name || "Dogovor-naem.docx");
+    return new Response(file.data, {
+      headers: {
+        "Content-Type": DOCX,
+        "Content-Disposition": `attachment; filename="${name.replace(/[^\w.-]/g, "_")}"`,
+        "Cache-Control": "private, no-store",
+        "X-Robots-Tag": "noindex, nofollow",
+        "Referrer-Policy": "no-referrer",
+      },
+    });
+  }
+
   const manage = url.pathname.endsWith("/manage");
 
   // ===== Статус за клиента =====
@@ -269,13 +320,13 @@ export default async (req: Request, context: Context) => {
 
   // GET само показва страницата – решението става с бутон (POST), за да не се задейства от предварителни прегледи на линкове
   const conflict = b.status === "pending" ? await findConflict(b.carId, b.startDate || "", b.endDate || "", b.id) : null;
-  if (req.method !== "POST") return managePage(b, "", conflict);
+  if (req.method !== "POST") return managePage(b, url.origin, "", conflict);
 
   const form = await req.formData().catch(() => null);
   const action = form?.get("action");
-  if (action !== "confirm" && action !== "reject") return managePage(b, "", conflict);
-  if (action === "confirm" && conflict) return managePage(b, "Резервацията не е потвърдена – датите вече са заети.", conflict);
-  if (b.status !== "pending") return managePage(b, "Тази резервация вече е обработена.");
+  if (action !== "confirm" && action !== "reject") return managePage(b, url.origin, "", conflict);
+  if (action === "confirm" && conflict) return managePage(b, url.origin, "Резервацията не е потвърдена – датите вече са заети.", conflict);
+  if (b.status !== "pending") return managePage(b, url.origin, "Тази резервация вече е обработена.");
 
   const note = typeof form?.get("note") === "string" ? String(form!.get("note")).trim().slice(0, 1000) : "";
   const [updated] = await db
@@ -283,22 +334,23 @@ export default async (req: Request, context: Context) => {
     .set({ status: action === "confirm" ? "confirmed" : "rejected", note, decidedAt: new Date() })
     .where(and(eq(bookings.id, id), eq(bookings.status, "pending")))
     .returning();
-  if (!updated) return managePage(b, "Тази резервация вече е обработена.");
+  if (!updated) return managePage(b, url.origin, "Тази резервация вече е обработена.");
 
   const mail = customerMail(updated);
   try {
     await sendMail(updated.email, updated.name, mail.subject, mail.html, OWNER_EMAIL);
   } catch (e) {
     console.error(e);
-    return managePage(updated, `Решението е записано и клиентът го вижда на сайта, но имейлът до ${updated.email} не беше изпратен. Моля, свържете се с клиента.`);
+    return managePage(updated, url.origin, `Решението е записано и клиентът го вижда на сайта, но имейлът до ${updated.email} не беше изпратен. Моля, свържете се с клиента.`);
   }
   return managePage(
     updated,
+    url.origin,
     action === "confirm" ? "Резервацията е потвърдена. Клиентът получи имейл." : "Резервацията е отказана. Клиентът получи имейл.",
   );
 };
 
 export const config: Config = {
-  path: ["/api/bookings", "/api/bookings/:id", "/api/bookings/:id/manage"],
+  path: ["/api/bookings", "/api/bookings/:id", "/api/bookings/:id/manage", "/api/bookings/:id/contract"],
   method: ["GET", "POST"],
 };
