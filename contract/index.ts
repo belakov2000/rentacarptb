@@ -158,6 +158,8 @@ export function buildContract(d: ContractData): Uint8Array {
   // Имената на наемателя над подписите („Име: …“) остават празни – наемателят ги пише ръчно при подписване
   const xml = strFromU8(template["word/document.xml"])
     .replace(/Име: \{\{name\}\}/g, "Име: {{signName}}")
+    // „Място“ в двете декларации е мястото, откъдето клиентът взема автомобила (офисът или адресът за доставка)
+    .replace(/Място: Пловдив[.,] бул\. Дунав 10/g, "Място: {{pickupPlace}}")
     .replace(/\{\{(\w+)\}\}/g, (_, k) => xmlEsc(v[k] || (OPTIONAL.has(k) ? "" : BLANK)));
   return zipSync({ ...template, "word/document.xml": strToU8(xml) }, { level: 6 });
 }
