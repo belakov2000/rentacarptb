@@ -123,6 +123,19 @@ nav a{display:block;padding:14px 0;font-size:1.05rem;border-bottom:1px solid rgb
 .fear .x{display:grid;place-items:center;width:40px;height:40px;border-radius:50%;background:#e3f6e8;color:#1e8e3e;font-weight:800;font-size:1.1rem;margin-bottom:14px}
 .fear-end{margin-top:26px;font-family:Oswald,Arial,sans-serif;font-size:clamp(1.3rem,3.5vw,1.8rem);font-weight:700;text-transform:uppercase;color:var(--navy)}
 .th-q{margin-top:22px;color:#c5d0e0}.th-q a{color:var(--acc);font-weight:800;text-decoration:none}
+/* карта Google Maps с връзка за упътване */
+.gmap{position:relative;margin-top:22px;border-radius:20px;overflow:hidden;border:1px solid rgba(255,255,255,.16);background:#0e1a30;box-shadow:0 14px 34px rgba(0,0,0,.28)}
+.gmap iframe{display:block;width:100%;height:240px;border:0;pointer-events:none;filter:saturate(.9)}
+.gmap-go{position:absolute;inset:0;display:flex;align-items:flex-end;text-decoration:none;color:#fff}
+.gmap-go:focus-visible{outline:3px solid var(--acc);outline-offset:-3px;border-radius:20px}
+.gmap-bar{display:flex;align-items:center;gap:12px;width:100%;padding:14px 16px;background:linear-gradient(0deg,rgba(8,16,31,.96),rgba(8,16,31,.86));backdrop-filter:blur(4px)}
+.gmap-bar svg{flex:none;color:var(--acc)}
+.gmap-bar>span{flex:1;min-width:0;display:grid;line-height:1.25}
+.gmap-bar b{font-weight:800;font-size:.95rem}
+.gmap-bar small{color:#c5d0e0;font-size:.8rem}
+.gmap-bar em{flex:none;font-style:normal;font-weight:800;font-size:.85rem;color:#08101f;background:var(--acc);padding:8px 12px;border-radius:999px;transition:transform .2s}
+.gmap-go:hover .gmap-bar em{transform:translateX(3px)}
+.th-side .gmap{margin-top:18px}
 .hours{margin:18px 0 0;max-width:360px}.hours strong{display:block;margin-bottom:6px;color:#fff}.hours div{display:flex;justify-content:space-between;gap:16px;padding:8px 0;border-top:1px solid rgba(255,255,255,.14);color:#c5d0e0}.hours b{color:var(--acc)}
 /* cars */
 #cars{background:var(--soft)}
@@ -448,7 +461,7 @@ button.btn-ghost{background:transparent}
 #bk .phprev[hidden]{display:none}
 #details{padding:0 0 72px}
 </style>
-<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"AutoRental","@id":"https://rentacar-ptb.com/#business","name":"Рента ПТБ Строй ЕООД","legalName":"РЕНТА ПТБ СТРОЙ ЕООД","description":"Коли под наем в Пловдив с доставка до Летище Пловдив и до адрес в цяла България.","url":"https://rentacar-ptb.com/","logo":"https://rentacar-ptb.com/images/logo.png","image":"https://rentacar-ptb.com/images/og-image.jpg","telephone":"+359877748693","email":"rentaptb_stroi@abv.bg","identifier":{"@type":"PropertyValue","propertyID":"ЕИК","value":"208817102"},"address":{"@type":"PostalAddress","streetAddress":"бул. Дунав 10","addressLocality":"Пловдив","postalCode":"4027","addressCountry":"BG"},"areaServed":[{"@type":"City","name":"Пловдив"},{"@type":"Country","name":"България"},{"@type":"Airport","name":"Летище Пловдив","iataCode":"PDV"}],"priceRange":"15–25 € на ден","currenciesAccepted":"EUR","paymentAccepted":"В брой, банков превод","knowsLanguage":["bg","en","de"]},{"@type":"WebSite","@id":"https://rentacar-ptb.com/#website","url":"https://rentacar-ptb.com/","name":"Рента ПТБ Строй – коли под наем в Пловдив","inLanguage":["bg","en","de"],"publisher":{"@id":"https://rentacar-ptb.com/#business"}}]}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"AutoRental","@id":"https://rentacar-ptb.com/#business","name":"Рента ПТБ Строй ЕООД","legalName":"РЕНТА ПТБ СТРОЙ ЕООД","description":"Коли под наем в Пловдив с доставка до Летище Пловдив и до адрес в цяла България.","url":"https://rentacar-ptb.com/","logo":"https://rentacar-ptb.com/images/logo.png","image":"https://rentacar-ptb.com/images/og-image.jpg","telephone":"+359877748693","email":"rentaptb_stroi@abv.bg","identifier":{"@type":"PropertyValue","propertyID":"ЕИК","value":"208817102"},"address":{"@type":"PostalAddress","streetAddress":"бул. Дунав 10","addressLocality":"Пловдив","postalCode":"4027","addressCountry":"BG"},"hasMap":"https://maps.app.goo.gl/3Z6hxjwnggn99cNu7","areaServed":[{"@type":"City","name":"Пловдив"},{"@type":"Country","name":"България"},{"@type":"Airport","name":"Летище Пловдив","iataCode":"PDV"}],"priceRange":"15–25 € на ден","currenciesAccepted":"EUR","paymentAccepted":"В брой, банков превод","knowsLanguage":["bg","en","de"]},{"@type":"WebSite","@id":"https://rentacar-ptb.com/#website","url":"https://rentacar-ptb.com/","name":"Рента ПТБ Строй – коли под наем в Пловдив","inLanguage":["bg","en","de"],"publisher":{"@id":"https://rentacar-ptb.com/#business"}}]}</script>
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -596,6 +609,10 @@ button.btn-ghost{background:transparent}
 <p style="margin-top:6px;font-size:.88rem"><span>Имейл:</span> <a href="mailto:rentaptb_stroi@abv.bg" style="overflow-wrap:anywhere">rentaptb_stroi@abv.bg</a></p>
 <div class="hours"><strong>Работно време</strong><div><span>Понеделник – петък</span><b>08:00 – 20:00</b></div><div><span>Събота и неделя</span><b>09:00 – 19:00</b></div></div>
 <div class="cta-row" style="margin-top:20px"><a class="btn btn-acc" href="#avtomobili">Резервирай онлайн</a></div>
+<div class="gmap">
+<iframe src="https://maps.google.com/maps?q=%D0%A0%D0%B5%D0%BD%D1%82%D0%B0+%D0%9F%D0%A2%D0%91+%D0%A1%D1%82%D1%80%D0%BE%D0%B9+%E2%80%93+Rent+a+Car+Plovdiv,+bul.+Dunav+10,+Plovdiv&amp;z=16&amp;output=embed" title="Карта: Рента ПТБ Строй, гр. Пловдив, бул. Дунав 10" loading="lazy" referrerpolicy="no-referrer-when-downgrade" tabindex="-1" aria-hidden="true"></iframe>
+<a class="gmap-go" href="https://www.google.com/maps/dir/?api=1&amp;destination=%D0%A0%D0%B5%D0%BD%D1%82%D0%B0+%D0%9F%D0%A2%D0%91+%D0%A1%D1%82%D1%80%D0%BE%D0%B9+%E2%80%93+Rent+a+Car+Plovdiv,+bul.+Dunav+10,+Plovdiv" target="_blank" rel="noopener" aria-label="Упътване до гр. Пловдив, бул. Дунав 10 в Google Maps"><span class="gmap-bar"><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a7 7 0 0 0-7 7c0 5.2 7 13 7 13s7-7.8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z" fill="currentColor"/></svg><span><b>гр. Пловдив, бул. Дунав 10</b><small>Отвори упътване в Google Maps</small></span><em>Навигация →</em></span></a>
+</div>
 </div>
 </div>
 </section>
@@ -748,12 +765,14 @@ button.btn-ghost{background:transparent}
 <p>Имате право на жалба до Комисията за защита на личните данни (КЗЛД), гр. София, бул. „Проф. Цветан Лазаров“ № 2, www.cpdp.bg.</p>
 <h5>8. Сайт</h5>
 <p>Сайтът не използва аналитични и рекламни бисквитки. Той зарежда шрифтове от Google Fonts, поради което IP адресът ви може да бъде предаден на Google.</p>
+<p>На началната страница и на страницата след резервация има вградена карта от Google Maps. При зареждането ѝ IP адресът ви се предава на Google, а Google може да използва свои бисквитки съгласно своята политика за поверителност.</p>
 </div></details>
 <details class="dt" id="t-cookies"><summary>Политика за бисквитки</summary><div class="doc">
 <h4>Политика за бисквитки</h4>
 <p>Сайтът използва само необходимите бисквитки и локално хранилище на браузъра, за да работи правилно – например за запомняне на избрания език, на данните във формата за резервация и на избора ви относно бисквитките.</p>
 <p>Не използваме аналитични, рекламни или маркетингови бисквитки и не проследяваме посещенията ви.</p>
 <p>Сайтът зарежда шрифтове от Google Fonts, поради което IP адресът ви може да бъде предаден на Google.</p>
+<p>На началната страница и на страницата след резервация има вградена карта от Google Maps. При зареждането ѝ IP адресът ви се предава на Google, а Google може да използва свои бисквитки съгласно своята политика за поверителност.</p>
 <p>Можете да изтриете запазените данни по всяко време от настройките на браузъра си.</p>
 </div></details>
 </div>
@@ -772,7 +791,13 @@ button.btn-ghost{background:transparent}
 <div class="cta-row" id="th-cta"></div>
 <p class="th-q">Въпроси? Свържете се с нас: <a href="tel:+359877748693">+359877748693</a></p>
 </div>
+<div class="th-side">
 <aside class="hcard" id="th-sum" aria-label="Вашата резервация"></aside>
+<div class="gmap">
+<iframe src="https://maps.google.com/maps?q=%D0%A0%D0%B5%D0%BD%D1%82%D0%B0+%D0%9F%D0%A2%D0%91+%D0%A1%D1%82%D1%80%D0%BE%D0%B9+%E2%80%93+Rent+a+Car+Plovdiv,+bul.+Dunav+10,+Plovdiv&amp;z=16&amp;output=embed" title="Карта: Рента ПТБ Строй, гр. Пловдив, бул. Дунав 10" loading="lazy" referrerpolicy="no-referrer-when-downgrade" tabindex="-1" aria-hidden="true"></iframe>
+<a class="gmap-go" href="https://www.google.com/maps/dir/?api=1&amp;destination=%D0%A0%D0%B5%D0%BD%D1%82%D0%B0+%D0%9F%D0%A2%D0%91+%D0%A1%D1%82%D1%80%D0%BE%D0%B9+%E2%80%93+Rent+a+Car+Plovdiv,+bul.+Dunav+10,+Plovdiv" target="_blank" rel="noopener" aria-label="Упътване до гр. Пловдив, бул. Дунав 10 в Google Maps"><span class="gmap-bar"><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a7 7 0 0 0-7 7c0 5.2 7 13 7 13s7-7.8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z" fill="currentColor"/></svg><span><b>гр. Пловдив, бул. Дунав 10</b><small>Отвори упътване в Google Maps</small></span><em>Навигация →</em></span></a>
+</div>
+</div>
 </div>
 </section>
 </div>
@@ -930,6 +955,11 @@ const I18N={
 "Резервирай за минути":["Book in minutes","In wenigen Minuten buchen"],
 "Остави данните си, избери период и автомобил и виж цената за твоите дати.":["Leave your details, choose dates and a car and see the price for your period.","Geben Sie Ihre Daten ein, wählen Sie Zeitraum und Fahrzeug und sehen Sie den Preis für Ihre Daten."],
 "Резервирай онлайн":["Book online","Online buchen"],
+"Карта: Рента ПТБ Строй, гр. Пловдив, бул. Дунав 10":["Map: Renta PTB Stroy, 10 Dunav Blvd., Plovdiv","Karte: Renta PTB Stroy, Bul. Dunav 10, Plowdiw"],
+"Упътване до гр. Пловдив, бул. Дунав 10 в Google Maps":["Directions to 10 Dunav Blvd., Plovdiv in Google Maps","Route zu Bul. Dunav 10, Plowdiw in Google Maps"],
+"Отвори упътване в Google Maps":["Open directions in Google Maps","Route in Google Maps öffnen"],
+"Навигация →":["Directions →","Route →"],
+"На началната страница и на страницата след резервация има вградена карта от Google Maps. При зареждането ѝ IP адресът ви се предава на Google, а Google може да използва свои бисквитки съгласно своята политика за поверителност.":["The home page and the page after booking contain an embedded Google Maps map. When it loads, your IP address is sent to Google, and Google may use its own cookies according to its privacy policy.","Die Startseite und die Seite nach der Buchung enthalten eine eingebettete Google-Maps-Karte. Beim Laden wird Ihre IP-Adresse an Google übermittelt, und Google kann eigene Cookies gemäß seiner Datenschutzerklärung verwenden."],
 "Спокойствие и сигурност при всяко наемане":["Peace of mind and security with every rental","Ruhe und Sicherheit bei jeder Miete"],
 "Ясна цена":["Clear price","Klarer Preis"],
 "Знаете точната цена още преди да наемете. Без скрити такси и неприятни изненади.":["You know the exact price before you rent. No hidden fees and no unpleasant surprises.","Sie kennen den genauen Preis schon vor der Miete. Ohne versteckte Gebühren und unangenehme Überraschungen."],
