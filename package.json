@@ -9,6 +9,7 @@
     "fflate": "^0.8.3"
   },
   "devDependencies": {
+    "@netlify/edge-functions": "^4.0.2",
     "@netlify/functions": "^4.0.0",
     "drizzle-kit": "^1.0.0-beta.22"
   }

@@ -1,0 +1,80 @@
+# Английската и немската версия: същата страница на отделни адреси (заглавията се задават от edge функцията lang-pages).
+[[redirects]]
+  from = "/en"
+  to = "/en/"
+  status = 301
+
+[[redirects]]
+  from = "/de"
+  to = "/de/"
+  status = 301
+
+[[redirects]]
+  from = "/en/"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/de/"
+  to = "/index.html"
+  status = 200
+
+# Един адрес за сайта – без дублиране на rentacarptb.netlify.app в Google.
+[[redirects]]
+  from = "https://rentacarptb.netlify.app/*"
+  to = "https://rentacar-ptb.com/:splat"
+  status = 301
+  force = true
+
+# Изходният код и шаблонът на договора не са част от сайта – не се публикуват.
+[[redirects]]
+  from = "/contract/*"
+  to = "/404"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/db/*"
+  to = "/404"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/netlify/*"
+  to = "/404"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/node_modules/*"
+  to = "/404"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/package.json"
+  to = "/404"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/package-lock.json"
+  to = "/404"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/drizzle.config.ts"
+  to = "/404"
+  status = 404
+  force = true
+
+[[headers]]
+  for = "/images/*"
+  [headers.values]
+    Cache-Control = "public, max-age=604800"
+
+[[headers]]
+  for = "/api/*"
+  [headers.values]
+    X-Robots-Tag = "noindex"
