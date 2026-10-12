@@ -4,62 +4,24 @@ import { and, eq, gte, lte, ne } from "drizzle-orm";
 import { db } from "../../db/index.js";
 import { bookings } from "../../db/schema.js";
 import { buildContract, contractFileName, kmRate, parseContract, type ContractData } from "../../contract/index.js";
+import { lifecycleMail } from "../../mail/customer.js";
+import { btn, esc, mailFooter, mailRow, OWNER_EMAIL, PHONE, sendMail, wrapMail, type Attachment } from "../../mail/index.js";
 
 // Резервации с потвърждение от фирмата.
-// POST /api/bookings                 – записва заявката и праща имейл до фирмата с бутони „Потвърди“ / „Откажи“
+// POST /api/bookings                 – записва заявката, праща имейл до фирмата с бутони „Потвърди“ / „Откажи“ и потвърждение до клиента, че заявката е получена
 // GET  /api/bookings/:id?t=…         – статус на заявката за страницата „Благодарим“ на клиента
 // GET  /api/bookings/:id/manage?key=… – страница за фирмата с данните и бутоните (линкът е само в имейла)
 // POST /api/bookings/:id/manage?key=… – потвърждава или отказва и праща имейл до клиента; поправя километрите в договора
 // GET  /api/bookings/:id/contract?key=… – попълненият договор за наем (.docx), линкът е само в имейла и на страницата за фирмата
-const OWNER_EMAIL = process.env.BOOKING_OWNER_EMAIL || "rentaptb_stroi@abv.bg";
-const SENDER_EMAIL = process.env.BREVO_SENDER_EMAIL || OWNER_EMAIL;
-const SENDER_NAME = "Rent a Car PTB";
-const PHONE = "+359877748693";
+// Напомнянията преди получаване/връщане и молбата за отзив се пращат от функцията customer-emails.
 const ID_RE = /^[a-f0-9]{32}$/;
 const TOKEN_RE = /^[a-f0-9]{64}$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const CAR_RE = /^[a-z0-9-]{1,40}$/;
+const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 const rnd = (n: number) => Array.from({ length: n }, () => crypto.randomUUID().replace(/-/g, "")).join("");
-const esc = (s: string) =>
-  String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 const str = (v: unknown, max = 300) => (typeof v === "string" ? v.trim().slice(0, max) : "");
-
-// Текстова версия на писмото – пощенските услуги (Gmail, Abv и др.) гледат по-благосклонно на писма, които имат и HTML, и текст
-const toText = (html: string) =>
-  html
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<\/(p|tr|div|pre|h\d)>/gi, "\n")
-    .replace(/<a [^>]*href="([^"]+)"[^>]*>([^<]*)<\/a>/gi, "$2: $1")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'")
-    .replace(/[ \t]+/g, " ")
-    .replace(/ *\n */g, "\n")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-
-type Attachment = { name: string; content: string }; // content – base64
-async function sendMail(to: string, toName: string, subject: string, html: string, replyTo?: string, attachment?: Attachment[], lang = "bg", preheader = "") {
-  const key = process.env.BREVO_API_KEY;
-  if (!key) throw new Error("BREVO_API_KEY is not set");
-  const r = await fetch("https://api.brevo.com/v3/smtp/email", {
-    method: "POST",
-    headers: { "api-key": key, "Content-Type": "application/json", Accept: "application/json" },
-    body: JSON.stringify({
-      sender: { name: SENDER_NAME, email: SENDER_EMAIL },
-      to: [{ email: to, name: toName || to }],
-      ...(replyTo ? { replyTo: { email: replyTo } } : {}),
-      subject,
-      // Пълен HTML документ с език и кратък текст за прегледа в пощата – писмата изглеждат като лична кореспонденция, не като бюлетин
-      htmlContent: `<!doctype html><html lang="${lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(subject)}</title></head><body style="margin:0;padding:16px;background:#fff">${preheader ? `<div style="display:none;max-height:0;overflow:hidden">${esc(preheader)}</div>` : ""}${html}</body></html>`,
-      textContent: toText(html),
-      // Транзакционно писмо (отговор на заявка на клиента) – уникална референция, за да не се групира с други писма в една нишка
-      headers: { "X-Entity-Ref-ID": crypto.randomUUID(), "X-Auto-Response-Suppress": "OOF, AutoReply" },
-      ...(attachment?.length ? { attachment } : {}),
-    }),
-  });
-  if (!r.ok) throw new Error(`Brevo error ${r.status}: ${await r.text()}`);
-}
 
 const DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 const contracts = () => getStore("contracts");
@@ -72,11 +34,6 @@ async function saveContract(id: string, data: ContractData) {
   await contracts().setJSON(contractDataKey(id), data);
   return file;
 }
-
-const btn = (href: string, label: string, bg: string, fg = "#fff") =>
-  `<a href="${esc(href)}" style="display:inline-block;background:${bg};color:${fg};padding:14px 26px;border-radius:999px;font-weight:700;text-decoration:none;margin:4px 8px 4px 0">${esc(label)}</a>`;
-const wrapMail = (body: string) =>
-  `<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.5;color:#0f1b2d;max-width:600px">${body}</div>`;
 
 type Booking = typeof bookings.$inferSelect;
 
@@ -148,8 +105,7 @@ const CUSTOMER: Record<string, Record<string, string>> = {
 function customerMail(b: Booking) {
   const t = CUSTOMER[b.lang] || CUSTOMER.bg;
   const ok = b.status === "confirmed";
-  const row = (k: string, v: string) =>
-    v ? `<tr><td style="padding:4px 14px 4px 0;color:#5b6577">${esc(k)}</td><td style="padding:4px 0"><b>${esc(v)}</b></td></tr>` : "";
+  const row = mailRow;
   const html = wrapMail(
     `<p>${esc(t.hi.replace("{name}", b.name))}</p>` +
       `<p style="font-size:18px"><b>${esc(ok ? t.ok : t.no)}</b></p>` +
@@ -157,7 +113,7 @@ function customerMail(b: Booking) {
       `<table style="border-collapse:collapse;margin:14px 0">${row(t.car, b.car)}${row(t.pickup, b.pickup)}${row(t.dropoff, b.dropoff)}${ok ? row(t.total, b.total) + row(t.deposit, "100 €") + row(t.pay, t[b.payment] || "") : ""}</table>` +
       (ok && t[b.payment] ? `<p>${esc(b.payment === "cash" ? t.cashInfo : t.bankInfo)}</p>` : "") +
       `<p>${esc(t.q.replace("{phone}", PHONE))}</p>` +
-      `<p style="color:#5b6577;font-size:13px;border-top:1px solid #e6e9ef;padding-top:12px">${esc(t.why)}<br>Рента ПТБ Строй ЕООД · гр. Пловдив, бул. Дунав 10 · ${PHONE} · <a href="https://rentacar-ptb.com" style="color:#5b6577">rentacar-ptb.com</a></p>`,
+      mailFooter(t.why),
   );
   const ref = b.id.slice(0, 6).toUpperCase();
   return { subject: `${ok ? t.okSubj : t.noSubj} (№ ${ref})`, html, preheader: `${ok ? t.ok : t.no} ${b.car}, ${b.pickup}` };
@@ -248,6 +204,8 @@ export default async (req: Request, context: Context) => {
       carId: CAR_RE.test(str(body.carId, 40)) ? str(body.carId, 40) : "",
       startDate: DATE_RE.test(str(body.startDate, 10)) ? str(body.startDate, 10) : null,
       endDate: DATE_RE.test(str(body.endDate, 10)) ? str(body.endDate, 10) : null,
+      startTime: TIME_RE.test(str(body.startTime ?? body.contract?.t1, 5)) ? str(body.startTime ?? body.contract?.t1, 5) : "",
+      endTime: TIME_RE.test(str(body.endTime ?? body.contract?.t2, 5)) ? str(body.endTime ?? body.contract?.t2, 5) : "",
       payment: ["bank", "bankp", "cash"].includes(body.payment) ? body.payment : "",
       invoice: ["bank", "bankp"].includes(body.payment) ? str(body.invoice, 1000) : "",
     };
@@ -260,7 +218,7 @@ export default async (req: Request, context: Context) => {
       return Response.json({ error: "busy" }, { status: 409 });
     }
     const row = { id: rnd(1), viewToken: rnd(2), adminToken: rnd(2), ...b };
-    await db.insert(bookings).values(row);
+    const [saved] = await db.insert(bookings).values(row).returning();
 
     const manage = `${url.origin}/api/bookings/${row.id}/manage?key=${row.adminToken}`;
     // Попълненият договор за наем се пази на сървъра (линк в имейла) и се прикача към имейла.
@@ -302,6 +260,13 @@ export default async (req: Request, context: Context) => {
       // Причината от Brevo (без ключа) – показва се в резервния имейл до фирмата, за да се види какво да се поправи
       const detail = String((e as Error)?.message || e).replace(/xkeysib-[\w-]+/g, "***").slice(0, 400);
       return Response.json({ error: "Email could not be sent", detail }, { status: 502 });
+    }
+    // Потвърждение до клиента, че заявката е получена – ако не стигне, заявката остава валидна
+    try {
+      const got = lifecycleMail("received", saved);
+      await sendMail(b.email, b.name, got.subject, got.html, OWNER_EMAIL, undefined, b.lang, got.preheader);
+    } catch (e) {
+      console.error("Request-received email to the customer failed", e);
     }
     return Response.json({ id: row.id, token: row.viewToken, status: "pending" }, { status: 201 });
   }

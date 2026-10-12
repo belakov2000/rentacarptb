@@ -16,6 +16,9 @@ export const bookings = pgTable("bookings", {
   carId: text("car_id").notNull().default(""),
   startDate: date("start_date"),
   endDate: date("end_date"),
+  // Час на получаване / връщане (HH:MM, местно време) – по него се пращат напомнянията до клиента
+  startTime: text("start_time").notNull().default(""),
+  endTime: text("end_time").notNull().default(""),
   pickup: text().notNull(),
   dropoff: text().notNull(),
   total: text().notNull().default(""),
@@ -24,4 +27,10 @@ export const bookings = pgTable("bookings", {
   invoice: text().notNull().default(""), // данни за фактурата, ако клиентът я е поискал
   createdAt: timestamp("created_at").defaultNow().notNull(),
   decidedAt: timestamp("decided_at"),
+  // Кога е изпратено всяко от автоматичните писма до клиента (празно – още не е)
+  pickupReminderAt: timestamp("pickup_reminder_at"),
+  handoverInfoAt: timestamp("handover_info_at"),
+  returnReminderAt: timestamp("return_reminder_at"),
+  returnSoonAt: timestamp("return_soon_at"),
+  reviewRequestAt: timestamp("review_request_at"),
 });
