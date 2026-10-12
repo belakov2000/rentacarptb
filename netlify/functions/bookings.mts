@@ -1,12 +1,14 @@
-import { getStore } from "@netlify/blobs";
 import type { Config, Context } from "@netlify/functions";
-import { and, eq, gte, lte, ne } from "drizzle-orm";
+import { and, eq, gte, lte, ne, sql } from "drizzle-orm";
 import { db } from "../../db/index.js";
-import { bookings } from "../../db/schema.js";
+import { bookingEvents, bookings } from "../../db/schema.js";
+import { parseTotalCents, totalReviewOf } from "../../db/money.js";
 import { addDays, endTimeOf, minutes, overlaps, startTimeOf } from "../../db/slots.js";
-import { buildContract, contractFileName, kmRate, parseContract, type ContractData } from "../../contract/index.js";
-import { lifecycleMail } from "../../mail/customer.js";
-import { btn, esc, mailFooter, mailRow, OWNER_EMAIL, PHONE, sendMail, wrapMail, type Attachment } from "../../mail/index.js";
+import { kmRate, parseContract, type ContractData } from "../../contract/index.js";
+import { btn, esc, OWNER_EMAIL, wrapMail } from "../../mail/index.js";
+import { contractDataKey, contracts, saveContract } from "../../server/contracts.js";
+import { queueEmail } from "../../server/email.js";
+import { decisionKey, ownerNewKey, receivedKey, saveOwnerOutbox, sendCustomerReceived, sendDecision, sendOwnerNew } from "../../server/notify.js";
 
 // Резервации с потвърждение от фирмата.
 // POST /api/bookings                 – записва заявката, праща имейл до фирмата с бутони „Потвърди“ / „Откажи“ и потвърждение до клиента, че заявката е получена
@@ -15,6 +17,8 @@ import { btn, esc, mailFooter, mailRow, OWNER_EMAIL, PHONE, sendMail, wrapMail, 
 // POST /api/bookings/:id/manage?key=… – потвърждава или отказва и праща имейл до клиента; поправя километрите в договора
 // GET  /api/bookings/:id/contract?key=… – попълненият договор за наем (.docx), линкът е само в имейла и на страницата за фирмата
 // Напомнянията преди получаване/връщане и молбата за отзив се пращат от функцията customer-emails.
+// Имейлите се записват в email_log преди изпращането; неуспешните се опитват отново от функцията email-retry.
+// Потвърждаването е в транзакция със заключване на автомобила – две конфликтни резервации не могат да бъдат потвърдени едновременно.
 const ID_RE = /^[a-f0-9]{32}$/;
 const TOKEN_RE = /^[a-f0-9]{64}$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -25,25 +29,22 @@ const rnd = (n: number) => Array.from({ length: n }, () => crypto.randomUUID().r
 const str = (v: unknown, max = 300) => (typeof v === "string" ? v.trim().slice(0, max) : "");
 
 const DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-const contracts = () => getStore("contracts");
+const REQUEST_KEY_RE = /^[\w-]{8,100}$/;
+const DUPLICATE_WINDOW_MS = 10 * 60_000;
 const contractLink = (origin: string, b: { id: string; adminToken: string }) => `${origin}/api/bookings/${b.id}/contract?key=${b.adminToken}`;
-// Данните на договора се пазят до файла, за да може договорът да се генерира отново (напр. с поправени километри)
-const contractDataKey = (id: string) => `${id}.json`;
-async function saveContract(id: string, data: ContractData) {
-  const file = buildContract(data);
-  await contracts().set(id, new Blob([new Uint8Array(file)]), { metadata: { name: contractFileName(data) } });
-  await contracts().setJSON(contractDataKey(id), data);
-  return file;
-}
 
 type Booking = typeof bookings.$inferSelect;
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+// Транзакционно заключване (освобождава се автоматично в края на транзакцията). Ключът е текст, затова съществува
+// за всеки автомобил – и за такъв, който още няма ред в таблицата cars.
+const lock = (q: Tx, key: string) => q.execute(sql`select pg_advisory_xact_lock(hashtextextended(${key}, 0))`);
 
 // Потвърдена резервация за същия автомобил, която се застъпва с периода [start startTime, end endTime].
 // Между връщане и следващо получаване трябва да има поне BUFFER_MIN минути (напр. върнат в 12:00 → свободен от 13:00).
-async function findConflict(carId: string, start: string, end: string, startTime = "", endTime = "", exceptId = "") {
+async function findConflict(carId: string, start: string, end: string, startTime = "", endTime = "", exceptId = "", q: Pick<typeof db, "select"> = db) {
   if (!carId || !start || !end) return null;
   // По дати търсим с един ден резерва – буферът може да мине през полунощ
-  const rows = await db
+  const rows = await q
     .select({
       id: bookings.id,
       name: bookings.name,
@@ -73,69 +74,6 @@ async function findConflict(carId: string, start: string, end: string, startTime
       overlaps(a, z, minutes(r.startDate, startTimeOf(r.startTime, r.pickup)), minutes(r.endDate, endTimeOf(r.endTime, r.dropoff))),
   );
   return c ? { id: c.id, name: c.name, pickup: c.pickup, dropoff: c.dropoff } : null;
-}
-
-// ===== Имейл до клиента след решението на фирмата =====
-const CUSTOMER: Record<string, Record<string, string>> = {
-  bg: {
-    okSubj: "Резервацията ви е потвърдена – Rent a Car PTB",
-    noSubj: "Резервацията ви не може да бъде потвърдена – Rent a Car PTB",
-    hi: "Здравейте, {name}!",
-    ok: "Радваме се да потвърдим вашата резервация. Очакваме ви!",
-    no: "За съжаление не можем да потвърдим вашата резервация за избрания период.",
-    note: "Съобщение от нас:",
-    car: "Автомобил", pickup: "Получаване", dropoff: "Връщане", total: "Общо за услугите", deposit: "Гаранционен депозит",
-    q: "Въпроси? Обадете ни се на {phone} или отговорете на този имейл.",
-    pay: "Плащане", bank: "По банков път срещу фактура (фирма)", bankp: "По банков път срещу фактура (физическо лице)", cash: "В брой на място при получаване (с касов бон)",
-    bankInfo: "Ще ви изпратим фактура с банковите ни данни за плащане.",
-    cashInfo: "Плащането е в брой при получаване на автомобила – ще ви издадем касов бон.",
-    why: "Получавате това писмо, защото направихте заявка за наем на автомобил на rentacar-ptb.com.",
-  },
-  en: {
-    okSubj: "Your booking is confirmed – Rent a Car PTB",
-    noSubj: "Your booking could not be confirmed – Rent a Car PTB",
-    hi: "Hello {name},",
-    ok: "We are happy to confirm your booking. See you soon!",
-    no: "Unfortunately we cannot confirm your booking for the selected period.",
-    note: "Message from us:",
-    car: "Car", pickup: "Pick-up", dropoff: "Return", total: "Total for services", deposit: "Security deposit",
-    q: "Questions? Call us on {phone} or reply to this email.",
-    pay: "Payment", bank: "Bank transfer against invoice (company)", bankp: "Bank transfer against invoice (private person)", cash: "Cash on pick-up (with fiscal receipt)",
-    bankInfo: "We will send you an invoice with our bank details for payment.",
-    cashInfo: "Payment is in cash when you pick up the car – you will receive a fiscal receipt.",
-    why: "You are receiving this email because you requested a car rental on rentacar-ptb.com.",
-  },
-  de: {
-    okSubj: "Ihre Buchung ist bestätigt – Rent a Car PTB",
-    noSubj: "Ihre Buchung konnte nicht bestätigt werden – Rent a Car PTB",
-    hi: "Hallo {name},",
-    ok: "Wir freuen uns, Ihre Buchung zu bestätigen. Bis bald!",
-    no: "Leider können wir Ihre Buchung für den gewählten Zeitraum nicht bestätigen.",
-    note: "Nachricht von uns:",
-    car: "Fahrzeug", pickup: "Abholung", dropoff: "Rückgabe", total: "Gesamt für Leistungen", deposit: "Kaution",
-    q: "Fragen? Rufen Sie uns an unter {phone} oder antworten Sie auf diese E-Mail.",
-    pay: "Zahlung", bank: "Banküberweisung gegen Rechnung (Firma)", bankp: "Banküberweisung gegen Rechnung (Privatperson)", cash: "Bar bei Abholung (mit Kassenbon)",
-    bankInfo: "Wir senden Ihnen eine Rechnung mit unseren Bankdaten zur Zahlung.",
-    cashInfo: "Die Zahlung erfolgt bar bei Abholung des Fahrzeugs – Sie erhalten einen Kassenbon.",
-    why: "Sie erhalten diese E-Mail, weil Sie auf rentacar-ptb.com einen Mietwagen angefragt haben.",
-  },
-};
-
-function customerMail(b: Booking) {
-  const t = CUSTOMER[b.lang] || CUSTOMER.bg;
-  const ok = b.status === "confirmed";
-  const row = mailRow;
-  const html = wrapMail(
-    `<p>${esc(t.hi.replace("{name}", b.name))}</p>` +
-      `<p style="font-size:18px"><b>${esc(ok ? t.ok : t.no)}</b></p>` +
-      (b.note ? `<p>${esc(t.note)}<br>${esc(b.note).replace(/\n/g, "<br>")}</p>` : "") +
-      `<table style="border-collapse:collapse;margin:14px 0">${row(t.car, b.car)}${row(t.pickup, b.pickup)}${row(t.dropoff, b.dropoff)}${ok ? row(t.total, b.total) + row(t.deposit, "100 €") + row(t.pay, t[b.payment] || "") : ""}</table>` +
-      (ok && t[b.payment] ? `<p>${esc(b.payment === "cash" ? t.cashInfo : t.bankInfo)}</p>` : "") +
-      `<p>${esc(t.q.replace("{phone}", PHONE))}</p>` +
-      mailFooter(t.why),
-  );
-  const ref = b.id.slice(0, 6).toUpperCase();
-  return { subject: `${ok ? t.okSubj : t.noSubj} (№ ${ref})`, html, preheader: `${ok ? t.ok : t.no} ${b.car}, ${b.pickup}` };
 }
 
 // ===== Страница за фирмата =====
@@ -236,58 +174,82 @@ export default async (req: Request, context: Context) => {
     if (await findConflict(b.carId, b.startDate || "", b.endDate || "", b.startTime, b.endTime)) {
       return Response.json({ error: "busy" }, { status: 409 });
     }
-    const row = { id: rnd(1), viewToken: rnd(2), adminToken: rnd(2), ...b };
-    const [saved] = await db.insert(bookings).values(row).returning();
+    const requestKey = REQUEST_KEY_RE.test(str(body.requestKey, 100)) ? str(body.requestKey, 100) : null;
+    const row = { id: rnd(1), viewToken: rnd(2), adminToken: rnd(2), ...b, requestKey, totalCents: parseTotalCents(b.total), totalReview: totalReviewOf(b.total) };
 
-    const manage = `${url.origin}/api/bookings/${row.id}/manage?key=${row.adminToken}`;
+    // Повторно или едновременно изпращане на същата заявка връща вече записаната резервация – без втора резервация и без нови имейли.
+    // 1) същият requestKey (уникален индекс в базата); 2) за по-стари страници без ключ – същият клиент, автомобил и период в последните 10 минути.
+    const fingerprint = [b.email.toLowerCase(), b.carId, b.startDate, b.startTime, b.endDate, b.endTime].join("|");
+    const { saved, duplicate } = await db.transaction(async (tx) => {
+      await lock(tx, "booking-request:" + fingerprint);
+      if (requestKey) await lock(tx, "booking-request-key:" + requestKey);
+      const [byKey] = requestKey ? await tx.select().from(bookings).where(eq(bookings.requestKey, requestKey)) : [];
+      if (byKey) return { saved: byKey, duplicate: true };
+      const [same] =
+        b.startDate && b.endDate
+          ? await tx
+              .select()
+              .from(bookings)
+              .where(
+                and(
+                  sql`lower(${bookings.email}) = ${b.email.toLowerCase()}`,
+                  eq(bookings.carId, b.carId),
+                  eq(bookings.startDate, b.startDate),
+                  eq(bookings.endDate, b.endDate),
+                  eq(bookings.startTime, b.startTime),
+                  eq(bookings.endTime, b.endTime),
+                  eq(bookings.status, "pending"),
+                  gte(bookings.createdAt, new Date(Date.now() - DUPLICATE_WINDOW_MS)),
+                ),
+              )
+              .limit(1)
+          : [];
+      if (same) return { saved: same, duplicate: true };
+      const [ins] = await tx.insert(bookings).values(row).returning();
+      // Състоянието на известията се записва заедно с резервацията – ако функцията прекъсне, email-retry ги изпраща
+      await queueEmail(tx, "owner-new", ownerNewKey(ins.id), ins.id, OWNER_EMAIL);
+      await queueEmail(tx, "customer-received", receivedKey(ins.id), ins.id, ins.email);
+      await tx.insert(bookingEvents).values({ bookingId: ins.id, actor: "customer", action: "booking.created", details: {} });
+      return { saved: ins, duplicate: false };
+    });
+    if (duplicate) {
+      if (saved.email.toLowerCase() !== b.email.toLowerCase()) return Response.json({ error: "Invalid request" }, { status: 400 });
+      return Response.json({ id: saved.id, token: saved.viewToken, status: saved.status, duplicate: true }, { status: 200 });
+    }
+
+    const manage = `${url.origin}/api/bookings/${saved.id}/manage?key=${saved.adminToken}`;
     // Попълненият договор за наем се пази на сървъра (линк в имейла) и се прикача към имейла.
     // Ако не може да се генерира, заявката пак се изпраща.
-    let contract: Attachment[] = [];
+    let hasContract = false;
     try {
       const data = parseContract(body.contract, b.name, b.carId);
       if (!data) console.error("Contract data missing in the booking request");
-      else {
-        const file = await saveContract(row.id, data);
-        contract = [{ name: contractFileName(data), content: Buffer.from(file).toString("base64") }];
-      }
+      else hasContract = !!(await saveContract(saved.id, data, "customer", "Заявка от сайта"));
     } catch (e) {
-      console.error("Contract could not be generated", e);
+      console.error("Contract could not be generated", (e as Error)?.message);
     }
     const ownerMail = (attached: boolean) =>
       wrapMail(
         `<p style="font-size:17px"><b>Нова заявка за наем от сайта.</b> Потвърдете или откажете – клиентът ще получи имейл и ще види решението на сайта.</p>` +
           `<p>${btn(manage, "Потвърди резервацията", "#1a8f4c")}${btn(manage, "Откажи", "#c0392b")}</p>` +
-          (contract.length
+          (hasContract
             ? `<p>📄 <b>Договорът за наем е попълнен</b> с данните на клиента и автомобила – готов за печат.${attached ? " Прикачен е към този имейл." : ""}</p>` +
-              `<p>${btn(contractLink(url.origin, row), "Изтегли договора за наем", "#0f1b2d")}</p>`
+              `<p>${btn(contractLink(url.origin, saved), "Изтегли договора за наем", "#0f1b2d")}</p>`
             : `<p>Договорът за наем не можа да бъде попълнен автоматично за тази заявка.</p>`) +
           `<pre style="white-space:pre-wrap;font-family:Arial,sans-serif;background:#f3f5f9;padding:16px;border-radius:12px">${esc(message).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1">$1</a>')}</pre>`,
       );
     const subject = `Нова заявка за наем: ${b.car} – ${b.name}`;
+    // Резервацията остава записана и при неуспешен имейл: писмото се пази за повторен опит, а сайтът праща и резервното известие
+    let notified = false;
     try {
-      try {
-        await sendMail(OWNER_EMAIL, "Rent a Car PTB", subject, ownerMail(contract.length > 0), b.email, contract);
-      } catch (e) {
-        if (!contract.length) throw e;
-        // Ако пощата откаже прикачения файл, изпращаме писмото без него – договорът остава достъпен от линка
-        console.error("Email with the contract attached failed, sending without the attachment", e);
-        await sendMail(OWNER_EMAIL, "Rent a Car PTB", subject, ownerMail(false), b.email);
-      }
+      await saveOwnerOutbox(saved.id, { subject, html: ownerMail(true), htmlNoAttachment: ownerMail(false), replyTo: b.email });
+      notified = (await sendOwnerNew(saved.id))?.result === "sent";
     } catch (e) {
-      console.error(e);
-      await db.delete(bookings).where(eq(bookings.id, row.id));
-      // Причината от Brevo (без ключа) – показва се в резервния имейл до фирмата, за да се види какво да се поправи
-      const detail = String((e as Error)?.message || e).replace(/xkeysib-[\w-]+/g, "***").slice(0, 400);
-      return Response.json({ error: "Email could not be sent", detail }, { status: 502 });
+      console.error("Owner email failed, it will be retried", (e as Error)?.message);
     }
-    // Потвърждение до клиента, че заявката е получена – ако не стигне, заявката остава валидна
-    try {
-      const got = lifecycleMail("received", saved);
-      await sendMail(b.email, b.name, got.subject, got.html, OWNER_EMAIL, undefined, b.lang, got.preheader);
-    } catch (e) {
-      console.error("Request-received email to the customer failed", e);
-    }
-    return Response.json({ id: row.id, token: row.viewToken, status: "pending" }, { status: 201 });
+    // Потвърждение до клиента, че заявката е получена – ако не стигне, се опитва отново по-късно; заявката остава валидна
+    await sendCustomerReceived(saved).catch((e) => console.error("Request-received email failed, it will be retried", (e as Error)?.message));
+    return Response.json({ id: saved.id, token: saved.viewToken, status: "pending", ...(notified ? {} : { notify: "failed" }) }, { status: 201 });
   }
 
   if (!ID_RE.test(id)) return new Response("Not found", { status: 404 });
@@ -352,7 +314,7 @@ export default async (req: Request, context: Context) => {
       ret: cd.ret ? { ...cd.ret, km: km("kmRet"), rate: kmRate(Number(form?.get("kmRetRate") ?? cd.ret.rate)) } : null,
     };
     try {
-      await saveContract(id, next);
+      await saveContract(id, next, "owner-link", "Поправка на километрите");
     } catch (e) {
       console.error("Contract could not be regenerated", e);
       return managePage(b, url.origin, "Договорът не можа да бъде обновен. Опитайте отново.", conflict, cd);
@@ -364,19 +326,35 @@ export default async (req: Request, context: Context) => {
   if (b.status !== "pending") return managePage(b, url.origin, "Тази резервация вече е обработена.", null, cd);
 
   const note = typeof form?.get("note") === "string" ? String(form!.get("note")).trim().slice(0, 1000) : "";
-  const [updated] = await db
-    .update(bookings)
-    .set({ status: action === "confirm" ? "confirmed" : "rejected", note, decidedAt: new Date() })
-    .where(and(eq(bookings.id, id), eq(bookings.status, "pending")))
-    .returning();
+  // Заключване на автомобила и повторна проверка за застъпване вътре в транзакцията: втора едновременна заявка изчаква
+  // първата да приключи и вижда нейното потвърждение
+  const out = await db.transaction(async (tx) => {
+    if (action === "confirm") {
+      await lock(tx, "car:" + b.carId);
+      const c = await findConflict(b.carId, b.startDate || "", b.endDate || "", b.startTime, b.endTime, b.id, tx);
+      if (c) return { conflict: c, updated: null };
+    }
+    const [u] = await tx
+      .update(bookings)
+      .set({ status: action === "confirm" ? "confirmed" : "rejected", note, decidedAt: new Date(), updatedAt: new Date() })
+      .where(and(eq(bookings.id, id), eq(bookings.status, "pending")))
+      .returning();
+    if (u) {
+      await queueEmail(tx, "customer-decision", decisionKey(u.id), u.id, u.email);
+      await tx.insert(bookingEvents).values({ bookingId: u.id, actor: "owner-link", action: action === "confirm" ? "booking.confirm" : "booking.reject", details: {} });
+    }
+    return { conflict: null, updated: u ?? null };
+  });
+  if (out.conflict) return managePage(b, url.origin, "Резервацията не е потвърдена – датите вече са заети.", out.conflict, cd);
+  const updated = out.updated;
   if (!updated) return managePage(b, url.origin, "Тази резервация вече е обработена.", null, cd);
 
-  const mail = customerMail(updated);
-  try {
-    await sendMail(updated.email, updated.name, mail.subject, mail.html, OWNER_EMAIL, undefined, updated.lang, mail.preheader);
-  } catch (e) {
-    console.error(e);
-    return managePage(updated, url.origin, `Решението е записано и клиентът го вижда на сайта, но имейлът до ${updated.email} не беше изпратен. Моля, свържете се с клиента.`, null, cd);
+  const sent = await sendDecision(updated).catch((e) => ({ result: "failed" as const, error: String((e as Error)?.message) }));
+  if (sent.result === "uncertain") {
+    return managePage(updated, url.origin, `Решението е записано и клиентът го вижда на сайта. Връзката с пощенската услуга прекъсна и не е сигурно дали имейлът до ${updated.email} е изпратен – няма да бъде изпратен повторно автоматично; при нужда се свържете с клиента.`, null, cd);
+  }
+  if (sent.result !== "sent") {
+    return managePage(updated, url.origin, `Решението е записано и клиентът го вижда на сайта, но имейлът до ${updated.email} не беше изпратен. Ще опитаме отново автоматично; при нужда се свържете с клиента.`, null, cd);
   }
   return managePage(
     updated,

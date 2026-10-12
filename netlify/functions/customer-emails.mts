@@ -3,7 +3,8 @@ import { and, eq, gte, isNull, lte } from "drizzle-orm";
 import { db } from "../../db/index.js";
 import { bookings } from "../../db/schema.js";
 import { lifecycleMail, type CustomerMailKind } from "../../mail/customer.js";
-import { OWNER_EMAIL, sendMail } from "../../mail/index.js";
+import { OWNER_EMAIL } from "../../mail/index.js";
+import { sendLogged } from "../../server/email.js";
 
 // На всеки 15 минути праща автоматичните писма до клиентите с потвърдени резервации:
 // напомняне 24 ч. преди получаване, инструкции за предаването 3 ч. преди него,
@@ -67,10 +68,13 @@ export default async () => {
         .returning({ id: bookings.id });
       if (!claimed || p.skip || now >= p.until) continue;
       const mail = lifecycleMail(kind, b);
-      try {
-        await sendMail(b.email, b.name, mail.subject, mail.html, OWNER_EMAIL, undefined, b.lang, mail.preheader);
-      } catch (e) {
-        console.error(`Customer email "${kind}" for booking ${b.id} failed`, e);
+      // Записва се в email_log; писмо, което вече е изпратено, не се праща втори път
+      const r = await sendLogged(kind, `${kind}:${b.id}`, b.id, {
+        to: b.email, toName: b.name, subject: mail.subject, html: mail.html, replyTo: OWNER_EMAIL, lang: b.lang, preheader: mail.preheader,
+      }).catch((e) => ({ result: "failed" as const, error: String((e as Error)?.message) }));
+      // При несигурен резултат (uncertain) писмото не се праща отново – клиентът може вече да го е получил
+      if (r.result === "failed") {
+        console.error(`Customer email "${kind}" for booking ${b.id} failed: ${r.error}`);
         // Опитваме отново при следващото изпълнение
         await db.update(bookings).set({ [col]: null }).where(eq(bookings.id, b.id));
       }

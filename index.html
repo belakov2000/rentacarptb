@@ -2,6 +2,7 @@
 <html lang="bg">
 <head>
 <meta charset="utf-8">
+<script>/* Покана / нова парола за администраторския панел */if(/(invite|recovery)_token=/.test(location.hash))location.replace("/admin/"+location.hash)</script>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <!--seo-->
 <title>Коли под наем в Пловдив от 15 € на ден | Рента ПТБ Строй</title>
@@ -1513,29 +1514,39 @@ R.pay?`\nПЛАЩАНЕ: ${PAY[R.pay]}`:"",invText(R)?"ДАННИ ЗА ФАКТ�
 "\nШОФЬОРСКА КНИЖКА",`Номер: ${R.dln||"-"}`,`Имена: ${R.dlname||"-"}`,`Дата на издаване: ${R.dld?bf(R.dld):"-"}`,`Издадена от: ${R.dlp||"-"}`,
 R.note?`\nЗабележка: ${R.note}`:"",`\nЕзик на сайта: ${LANG.toUpperCase()}`].filter(Boolean).join("\n")}
 // Всички данни на клиента и резервацията като отделни полета в имейла
-function mailFields(R,c){const q=c&&hasD()?quote(c,R):null,ok=q&&!q.err,place=(n,a)=>R["m"+n]==="addr"?a+" "+R["a"+n]:BASE;
-return{"Автомобил":c?c.name:"не е избран",
-"Получаване":R.d1?bf(R.d1,R.t1):"не е избрано","Място на получаване":R.d1?place(1,"доставка до"):"-",
-"Връщане":R.d2?bf(R.d2,R.t2):"не е избрано","Място на връщане":R.d2?place(2,"вземане от"):"-",
-"Брой дни":ok?q.d:"-","Цена на ден":ok?fmt(q.r):"-","Наем на автомобила":ok?fmt(q.base):"-",
-"Детско столче":R.d1?(R.seat?"да, "+seatN(R)+" бр.":"не"):"-","Пътуване в чужбина":R.d1?abrText(R):"-","Общо за услугите":ok?fmt(q.tot)+(q.pend.length?" (без "+q.pend.join(" и ")+")":""):"-","Депозит":fmt(DEPOSIT),
-"Имена":R.name,"Гражданство":R.cit||"-","Телефон":R.phone,"Имейл":R.mail,
-"Вид документ":R.idt==="pass"?"паспорт":"лична карта","Номер на документа":R.idn||"-","ЕГН":R.egn||"-",
-"Документ – дата на издаване":R.idd?bf(R.idd):"-","Документ – издаден от":R.idp||"-","Град":R.city||"-","Адрес":R.addr||"-",
-"Шофьорска книжка – номер":R.dln||"-","Шофьорска книжка – имена":R.dlname||"-","Шофьорска книжка – дата на издаване":R.dld?bf(R.dld):"-","Шофьорска книжка – издадена от":R.dlp||"-",
-"Начин на плащане":PAY[R.pay]||"-","Данни за фактура":invText(R)||"-",
-"Допълнителна информация":R.note||"-","Език на сайта":LANG.toUpperCase()}}
-// Изпраща заявката към сървър (ако е зададен BOOKING_ENDPOINT). Връща "sent" или "err".
-async function sendReq(links){const R=S;links=links||{};
-try{const c=CARS.find(x=>x.id===R.car);const r=await fetch(BOOKING_ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({access_key:WEB3FORMS_KEY,subject:"Нова заявка за наем"+(c?": "+c.name:"")+" – "+R.name,from_name:"Rent a Car PTB – сайт",replyto:R.mail,message:"ВНИМАНИЕ: Имейлът с бутоните „Потвърди“ / „Откажи“ не беше изпратен (проблем с Brevo). Свържете се с клиента по телефона или имейла."+(R.berr?"\nПричина: "+R.berr:"")+"\n\n"+buildText()+(Object.keys(links).length?"\n\nСНИМКИ НА ДОКУМЕНТИТЕ\n"+Object.entries(links).map(([l,u])=>l+": "+u).join("\n"):""),name:R.name,phone:R.phone,email:R.mail,...mailFields(R,c),...links})});
-const j=await r.json().catch(()=>({}));if(!r.ok||j.success===false)throw 0;return"sent"}catch(e){return"err"}}
+/* fallback-notice:start */
+// Резервно известие до фирмата през Web3Forms (външна услуга). Изпраща САМО изрично изброените полета:
+// номер на заявката (ако е записана), автомобил, период, вид на мястото (офис / адрес – без самия адрес), сума и
+// данни за връзка с клиента. Никога: ЕГН, номера на документи и книжка, адреси, снимки или връзки към тях, договор.
+function fallbackNotice(d){const t=(v,n)=>String(v==null?"":v).replace(/[\r\n\t]+/g," ").trim().slice(0,n||120)||"-",
+ref=/^[A-F0-9]{6}$/.test(d.ref||"")?d.ref:"",place=m=>m==="addr"?"до/от адрес на клиента – уточнете по телефона":"в офиса",
+mail=/^[^\s@<>"]+@[^\s@<>"]+\.[^\s@<>"]+$/.test(d.email||"")?String(d.email).slice(0,200):"";
+const L=ref?["Заявка № "+ref+" е записана в системата. Имейлът с бутоните „Потвърди“ / „Откажи“ и договора не беше изпратен веднага и се изпраща отново автоматично."]
+:["ВНИМАНИЕ: сайтът не получи потвърждение, че заявката е записана в системата (сървърът не отговори). Свържете се с клиента, за да я приемете. Ако по-късно пристигне и имейл с бутоните за същата заявка, това е същата заявка."];
+L.push("","Автомобил: "+t(d.car),"Получаване: "+t(d.from,40)+" ("+place(d.m1)+")","Връщане: "+t(d.to,40)+" ("+place(d.m2)+")","Общо за услугите: "+t(d.total,80),"",
+"Клиент: "+t(d.name),"Телефон: "+t(d.phone,40));if(!ref)L.push("Имейл: "+(mail||"-"));
+L.push("","Лични документи, ЕГН, адреси и снимки не се изпращат по този път.");
+return{subject:ref?"Нова заявка № "+ref+" – имейлът с бутоните ще пристигне по-късно":"Нова заявка (без потвърден запис): "+t(d.car)+" – "+t(d.name,60),
+from_name:"Rent a Car PTB – сайт",...(mail&&!ref?{replyto:mail}:{}),message:L.join("\n")}}
+/* fallback-notice:end */
+function noticeData(R){const c=CARS.find(x=>x.id===R.car),q=c&&hasD()?quote(c,R):null;
+return{ref:(R.bid||"").slice(0,6).toUpperCase(),car:c?c.name:"",from:R.d1?bf(R.d1,R.t1):"",to:R.d2?bf(R.d2,R.t2):"",m1:R.m1,m2:R.m2,
+total:q&&!q.err?fmt(q.tot)+(q.pend.length?" (без "+q.pend.join(" и ")+")":""):"",name:R.name,phone:R.phone,email:R.mail}}
+const postNotice=async d=>{const r=await fetch(BOOKING_ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({access_key:WEB3FORMS_KEY,...fallbackNotice(d)})});
+const j=await r.json().catch(()=>({}));if(!r.ok||j.success===false)throw 0};
+// Заявката е записана на сървъра, но имейлът до фирмата ще бъде изпратен по-късно – кратко известие с номера на заявката
+async function sendAlert(){try{await postNotice(noticeData(S))}catch(e){}}
+// Сървърът не е записал заявката – известие само с данните за връзка; връща "sent" или "err"
+async function sendReq(){try{await postNotice({...noticeData(S),ref:""});return"sent"}catch(e){return"err"}}
 // Записва заявката на сървъра: фирмата получава имейл с бутони „Потвърди“ / „Откажи“, а клиентът вижда статуса тук.
+// requestKey е един и същ при повторно изпращане на същата заявка – сървърът не създава втора резервация.
+// "unnotified": заявката е записана, но имейлът до фирмата ще бъде изпратен по-късно – затова се праща и резервното известие (Web3Forms).
 const BOOKINGS_ENDPOINT="/api/bookings";
 async function sendBooking(links){const R=S,c=CARS.find(x=>x.id===R.car),q=c&&hasD()?quote(c,R):null,place=(n,a)=>R["m"+n]==="addr"?a+" "+R["a"+n]:BASE;
-S.berr="";try{const r=await fetch(BOOKINGS_ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:R.name,email:R.mail,phone:R.phone,lang:LANG,car:c?c.name:"",carId:c?c.id:"",startDate:R.d1,endDate:R.d2,startTime:R.t1||"",endTime:R.t2||"",payment:R.pay,invoice:invText(R),
+S.berr="";if(!S.rk){S.rk=crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2);store.set(S)}try{const r=await fetch(BOOKINGS_ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({requestKey:S.rk,name:R.name,email:R.mail,phone:R.phone,lang:LANG,car:c?c.name:"",carId:c?c.id:"",startDate:R.d1,endDate:R.d2,startTime:R.t1||"",endTime:R.t2||"",payment:R.pay,invoice:invText(R),
 pickup:bf(R.d1,R.t1)+", "+place(1,"доставка до"),dropoff:bf(R.d2,R.t2)+", "+place(2,"вземане от"),total:q&&!q.err?fmt(q.tot)+(q.pend.length?" (без "+q.pend.join(" и ")+")":""):"",
 message:buildText()+(Object.keys(links).length?"\n\nСНИМКИ НА ДОКУМЕНТИТЕ\n"+Object.entries(links).map(([l,u])=>l+": "+u).join("\n"):""),contract:contractData(R,q)})});
-const j=await r.json().catch(()=>({}));if(r.status===409)return"busy";if(!r.ok||!j.id){S.berr=j.detail||j.error||("HTTP "+r.status);return false}S.bid=j.id;S.btok=j.token;S.bst=j.status;S.bnote="";return true}catch(e){S.berr="Няма връзка със сървъра";return false}}
+const j=await r.json().catch(()=>({}));if(r.status===409)return"busy";if(!r.ok||!j.id){S.berr=j.detail||j.error||("HTTP "+r.status);return false}S.bid=j.id;S.btok=j.token;S.bst=j.status;S.bnote="";S.rk="";return j.notify==="failed"?"unnotified":true}catch(e){S.berr="Няма връзка със сървъра";return false}}
 // Данни за автоматичното попълване на договора за наем (изпраща се до фирмата като прикачен файл)
 const contractData=(R,q)=>{const ok=q&&!q.err,leg=n=>R["m"+n]==="addr"?{addr:R["a"+n],km:KMS[n],rate:KMS[n]!=null?kmRate(n):null}:null;
 return{citizen:R.cit,idt:R.idt,idn:R.idn,egn:R.egn,idd:R.idd,idp:R.idp,city:R.city,addr:R.addr,dln:R.dln,dld:R.dld,dlp:R.dlp,d1:R.d1,t1:R.t1,d2:R.d2,t2:R.t2,
@@ -1560,7 +1571,7 @@ $("#bk").addEventListener("submit",async e=>{e.preventDefault();$("#b-err").hidd
 const er=formErr();if(er)return fail(er);
 S=Object.assign(S,Object.fromEntries(Object.entries(fields).map(([k,s])=>[k,v(s)])),{idt:idt(),pay:pay(),done:"",bid:"",btok:"",bst:"",bnote:""});store.set(S);
 if(BOOKING_ENDPOINT){const b=$("#bk button[type=submit]"),m=$("#b-msg");sending=b.disabled=true;m.textContent="Изпращаме резервацията…";
-let r="err";try{const links=await uploadPhotos(),sb=await sendBooking(links);r=sb==="busy"?"busy":sb?"sent":await sendReq(links)}catch(x){}
+let r="err";try{const links=await uploadPhotos(),sb=await sendBooking(links);r=sb==="busy"?"busy":sb===true?"sent":sb?(await sendAlert(),"sent"):await sendReq(links)}catch(x){}
 sending=b.disabled=false;m.textContent="";syncSubmit();if(r==="busy"){loadAvail();return fail("Автомобилът вече е резервиран за част от избрания период. Изберете други дати или друг автомобил.")}if(r!=="sent")return fail("Резервацията не беше изпратена. Опитайте отново или се обадете на +359877748693.");S.done="sent"}else S.done="sms";
 store.set(S);location.hash="blagodarim";if(S.done==="sms")sendSms()});
 // ===== Втора страница: данни за резервацията, автомобили и цени =====

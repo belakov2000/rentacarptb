@@ -1,4 +1,4 @@
-import { date, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { date, index, integer, jsonb, pgTable, serial, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 
 // Резервации от сайта. Тук пазим само данните, нужни за потвърждението –
 // документите на клиента се изпращат само в имейла до фирмата.
@@ -33,4 +33,162 @@ export const bookings = pgTable("bookings", {
   returnReminderAt: timestamp("return_reminder_at"),
   returnSoonAt: timestamp("return_soon_at"),
   reviewRequestAt: timestamp("review_request_at"),
+  // Общата сума в евроцентове, изчислена от текста total (той остава непроменен).
+  // total_review != "" – сумата не може да се преобразува еднозначно и трябва да се провери от администратора.
+  totalCents: integer("total_cents"),
+  totalReview: text("total_review").notNull().default(""),
+  adminNote: text("admin_note").notNull().default(""),
+  updatedAt: timestamp("updated_at"),
+  // Ключ от формата: повторно или едновременно изпращане на същата заявка не създава втора резервация
+  requestKey: text("request_key"),
+}, (t) => [
+  uniqueIndex("bookings_request_key_idx").on(t.requestKey),
+  index("bookings_car_dates_idx").on(t.carId, t.startDate, t.endDate),
+  index("bookings_status_idx").on(t.status),
+  index("bookings_created_idx").on(t.createdAt),
+]);
+
+// ===== Административен модул =====
+// Всички суми са цели числа в евроцентове (напр. 829,47 € → 82947).
+
+// Плащания по резервации. Възстановяването е отделен запис с refundOf към оригиналното плащане – нищо не се изтрива.
+export const payments = pgTable(
+  "payments",
+  {
+    id: text().primaryKey(),
+    bookingId: text("booking_id").notNull().references(() => bookings.id),
+    amountCents: integer("amount_cents").notNull(), // винаги положително; посоката се определя от kind
+    currency: text().notNull().default("EUR"),
+    method: text().notNull(), // cash | bank | card | other
+    kind: text().notNull(), // deposit | partial | final | extra | refund | security (гаранционен депозит – не е приход)
+    status: text().notNull().default("expected"), // expected | received | failed | refunded
+    paidAt: timestamp("paid_at"),
+    txnId: text("txn_id").notNull().default(""),
+    note: text().notNull().default(""),
+    refundOf: text("refund_of"),
+    // Ключ от формата в браузъра – повторно изпращане на същата форма не създава второ плащане
+    idempotencyKey: text("idempotency_key").notNull(),
+    createdBy: text("created_by").notNull(),
+    updatedBy: text("updated_by").notNull().default(""),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("payments_idempotency_key_idx").on(t.idempotencyKey),
+    index("payments_booking_idx").on(t.bookingId),
+    index("payments_paid_at_idx").on(t.paidAt),
+  ],
+);
+
+// История на промените по резервациите и на административните действия (само добавяне)
+export const bookingEvents = pgTable(
+  "booking_events",
+  {
+    id: serial().primaryKey(),
+    bookingId: text("booking_id"),
+    at: timestamp().defaultNow().notNull(),
+    actor: text().notNull(), // имейл на администратора, "customer" или "system"
+    action: text().notNull(),
+    details: jsonb().notNull().default({}),
+  },
+  (t) => [index("booking_events_booking_idx").on(t.bookingId, t.at)],
+);
+
+// Автопарк (ключовете съвпадат с тези на сайта и на договора)
+export const cars = pgTable("cars", {
+  id: text().primaryKey(),
+  brand: text().notNull(),
+  model: text().notNull(),
+  reg: text().notNull().default(""),
+  dailyCents: integer("daily_cents"), // базова дневна цена (1–15 дни) – само за справка, цените на сайта са в index.html
+  status: text().notNull().default("active"), // active | inactive
+  sort: integer().notNull().default(0),
+  note: text().notNull().default(""),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Временно недостъпни периоди (ремонт, обслужване); отменените остават в историята
+export const carBlocks = pgTable(
+  "car_blocks",
+  {
+    id: serial().primaryKey(),
+    carId: text("car_id").notNull().references(() => cars.id),
+    startDate: date("start_date").notNull(),
+    startTime: text("start_time").notNull().default("00:00"),
+    endDate: date("end_date").notNull(),
+    endTime: text("end_time").notNull().default("23:59"),
+    reason: text().notNull().default(""),
+    createdBy: text("created_by").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    cancelledAt: timestamp("cancelled_at"),
+  },
+  (t) => [index("car_blocks_car_idx").on(t.carId, t.startDate, t.endDate)],
+);
+
+// Разходи, въведени от администратора
+export const expenses = pgTable(
+  "expenses",
+  {
+    id: serial().primaryKey(),
+    carId: text("car_id").references(() => cars.id),
+    date: date().notNull(),
+    category: text().notNull(), // repair | insurance | service | fuel | tax | other
+    amountCents: integer("amount_cents").notNull(),
+    note: text().notNull().default(""),
+    createdBy: text("created_by").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    deletedAt: timestamp("deleted_at"),
+  },
+  (t) => [index("expenses_date_idx").on(t.date)],
+);
+
+// Лог на изпратените имейли; dedupeKey не позволява едно и също писмо да бъде изпратено два пъти.
+// recipient е маскиран (напр. „te***@example.com“), а error не съдържа ключове и тайни връзки.
+export const emailLog = pgTable(
+  "email_log",
+  {
+    id: serial().primaryKey(),
+    at: timestamp().defaultNow().notNull(),
+    kind: text().notNull(),
+    bookingId: text("booking_id"),
+    recipient: text().notNull(),
+    subject: text().notNull().default(""),
+    status: text().notNull(), // sending | sent | failed
+    error: text().notNull().default(""),
+    dedupeKey: text("dedupe_key"),
+    // Повторни опити: queued → sending → sent | failed (failed се опитва отново до MAX_ATTEMPTS пъти)
+    attempts: integer().notNull().default(0),
+    nextAttemptAt: timestamp("next_attempt_at"),
+    sentAt: timestamp("sent_at"),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("email_log_dedupe_idx").on(t.dedupeKey),
+    index("email_log_at_idx").on(t.at),
+    index("email_log_retry_idx").on(t.status, t.nextAttemptAt),
+  ],
+);
+
+// Версии на договорите – всяка версия е отделен файл в Blobs (contracts), старите не се презаписват
+export const contractVersions = pgTable(
+  "contract_versions",
+  {
+    id: serial().primaryKey(),
+    bookingId: text("booking_id").notNull().references(() => bookings.id),
+    version: integer().notNull(),
+    blobKey: text("blob_key").notNull(),
+    fileName: text("file_name").notNull(),
+    reason: text().notNull().default(""),
+    createdBy: text("created_by").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (t) => [uniqueIndex("contract_versions_booking_version_idx").on(t.bookingId, t.version)],
+);
+
+// Настройки (буфер между наемите, известия, отчети)
+export const settings = pgTable("settings", {
+  key: text().primaryKey(),
+  value: jsonb().notNull(),
+  updatedBy: text("updated_by").notNull().default("system"),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

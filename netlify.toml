@@ -40,6 +40,24 @@
   force = true
 
 [[redirects]]
+  from = "/scripts/*"
+  to = "/404"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/tests/*"
+  to = "/404"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/server/*"
+  to = "/404"
+  status = 404
+  force = true
+
+[[redirects]]
   from = "/mail/*"
   to = "/404"
   status = 404
@@ -74,6 +92,28 @@
   to = "/404"
   status = 404
   force = true
+
+# Административен панел: един файл за всички раздели (/admin/dashboard, /admin/bookings …).
+# Достъпът до данните се проверява на сървъра във всяка функция /api/admin/*.
+[[redirects]]
+  from = "/admin"
+  to = "/admin/"
+  status = 301
+
+[[redirects]]
+  from = "/admin/*"
+  to = "/admin/index.html"
+  status = 200
+
+[[headers]]
+  for = "/admin/*"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
+    Cache-Control = "no-store"
+    X-Frame-Options = "DENY"
+    Referrer-Policy = "no-referrer"
+    X-Content-Type-Options = "nosniff"
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
 
 [[headers]]
   for = "/images/*"

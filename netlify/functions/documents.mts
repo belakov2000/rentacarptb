@@ -1,5 +1,5 @@
-import { getStore } from "@netlify/blobs";
 import type { Config, Context } from "@netlify/functions";
+import { store as blobStore } from "../../server/stores.js";
 
 // Снимки на лична карта / шофьорска книжка от формата за резервация.
 // POST /api/documents          – качва една JPEG снимка, връща { url }
@@ -8,7 +8,8 @@ const MAX_BYTES = 4 * 1024 * 1024;
 const ID_RE = /^[a-f0-9]{64}$/;
 
 export default async (req: Request, context: Context) => {
-  const store = getStore("documents");
+  // Извън продукция – отделно хранилище (виж server/stores.ts)
+  const store = blobStore("documents");
 
   if (req.method === "POST") {
     if ((req.headers.get("content-type") || "").split(";")[0].trim() !== "image/jpeg") {

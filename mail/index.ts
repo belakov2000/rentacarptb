@@ -24,7 +24,12 @@ export type Attachment = { name: string; content: string }; // content – base6
 export async function sendMail(to: string, toName: string, subject: string, html: string, replyTo?: string, attachment?: Attachment[], lang = "bg", preheader = "") {
   const key = process.env.BREVO_API_KEY;
   if (!key) throw new Error("BREVO_API_KEY is not set");
-  const r = await fetch("https://api.brevo.com/v3/smtp/email", {
+  // Мрежова грешка или изтекло време: Brevo може вече да е приел писмото, без отговорът да стигне до нас.
+  // Такава грешка се отбелязва с uncertain = true – server/email.ts не я повтаря като обикновена грешка (риск от дублиране).
+  let r: Response;
+  try {
+    r = await fetch("https://api.brevo.com/v3/smtp/email", {
+    signal: AbortSignal.timeout(20_000),
     method: "POST",
     headers: { "api-key": key, "Content-Type": "application/json", Accept: "application/json" },
     body: JSON.stringify({
@@ -40,6 +45,10 @@ export async function sendMail(to: string, toName: string, subject: string, html
       ...(attachment?.length ? { attachment } : {}),
     }),
   });
+  } catch (e) {
+    throw Object.assign(new Error(`Brevo network error: ${(e as Error)?.name || ""} ${(e as Error)?.message || e}`), { uncertain: true });
+  }
+  // Отговор с код за грешка – Brevo не е приел писмото
   if (!r.ok) throw new Error(`Brevo error ${r.status}: ${await r.text()}`);
 }
 
