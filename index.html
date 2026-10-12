@@ -1418,7 +1418,7 @@ const fmt=n=>{const s=(Math.round(n*100)/100).toFixed(2).replace(".",",");return
 const rate=(c,d)=>c.tiers[d>30?2:d>15?1:0];
 // ===== Помощни функции =====
 const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
-function span(a,t1,b,t2){if(!a||!b)return 0;t1=t1||"00:00";t2=t2||t1;const ms=new Date(b+"T"+t2)-new Date(a+"T"+t1);return ms<0?-1:Math.max(1,Math.ceil(ms/864e5-1e-9))}
+function span(a,t1,b,t2){if(!a||!b)return 0;t1=t1||"00:00";t2=t2||t1;const ms=Date.parse(b+"T"+t2+"Z")-Date.parse(a+"T"+t1+"Z");return ms<0?-1:Math.max(1,Math.ceil(ms/864e5-1e-9))}
 const bf=(d,t)=>d.split("-").reverse().join(".")+(t?" "+t:"");
 const busy=(c,a,b)=>BOOKED[c.id].some(([s,e])=>a<=e&&b>=s);
 const busyList=c=>{const l=BOOKED[c.id].filter(([,e])=>e>=new Date().toISOString().slice(0,10)).sort((a,b)=>a[0]<b[0]?-1:1);return l.length?`<div class="cbusy">Заето: ${l.map(([a,b])=>a===b?bf(a):bf(a)+" – "+bf(b)).join(", ")}</div>`:""};
