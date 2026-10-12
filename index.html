@@ -260,6 +260,7 @@ legend{font-weight:800;font-size:1.08rem;padding:0;margin-bottom:10px}
 .cal-g button:hover:not(:disabled){outline:2px solid var(--navy)}
 .cal-g button.past{background:transparent;color:#b5bcc8;cursor:default}
 .cal-g button.bk{background:#e5534b;color:#fff;cursor:not-allowed;text-decoration:line-through}
+.cal-g button.pt{background:linear-gradient(135deg,#f6c4c1 50%,var(--soft) 50%)}
 .cal-g button.sel{background:var(--navy);color:#fff}.cal-g button.in{background:#c9d4e6}
 .cal-g button.td{box-shadow:inset 0 0 0 2px var(--acc)}
 .cal-lg{display:flex;flex-wrap:wrap;gap:16px;margin:14px 0 0;font-size:.85rem;color:var(--muted);font-weight:600}.cal-lg i{display:inline-block;width:14px;height:14px;border-radius:4px;vertical-align:-2px;margin-right:6px}
@@ -1297,6 +1298,7 @@ const I18N={
 "В брой на място с касов бон":["Cash on site with fiscal receipt", "Bar vor Ort mit Kassenbon"],
 "Плащане":["Payment", "Zahlung"],
 "Заето":["Booked", "Belegt"],
+"Частично свободно":["Partly available", "Teilweise frei"],
 "Свободно":["Available", "Frei"],
 "Вашите дати":["Your dates", "Ihre Daten"],
 "Изберете дата на връщане.":["Now choose the return date.", "Wählen Sie jetzt das Rückgabedatum."],
@@ -1351,6 +1353,9 @@ const I18N_RULES=[
 [/^Свободни дати – /,"Available dates – ","Freie Termine – "],
 [/^Заето: /,"Booked: ","Belegt: "],
 [/ – заето$/," – booked"," – belegt"],
+[/ – частично заето$/," – partly booked"," – teilweise belegt"],
+[/\. Свободно отново от /,". Available again from ",". Wieder frei ab "],
+[/ \((\d+) час след връщането\)/," ($1 hour after return)"," ($1 Stunde nach der Rückgabe)"],
 [/ под наем в Пловдив/g," for rent in Plovdiv"," zur Miete in Plowdiw"],
 [/^Черен /,"Black ","Schwarz "],[/^Бял /,"White ","Weiß "],[/^Син /,"Blue ","Blau "],
 [/ \/ ден за автомобила/g," / day for the car"," / Tag für das Fahrzeug"],
@@ -1396,7 +1401,7 @@ const BASE="гр. Пловдив, бул. Дунав 10",KM_RATE=0.7,SEAT=3,DEPO
 const ABROAD=[["gr","Гърция",100],["tr","Турция",130],["ro","Румъния",110],["rs","Сърбия",110],["mk","Северна Македония",110],["hu","Унгария",130],["al","Албания",130],["at","Австрия",150],["de","Германия",180],["es","Испания",190],["it","Италия",190]];
 const abrSel=R=>R.abr?ABROAD.filter(([k])=>(R.ctry||[]).includes(k)):[];
 // Наличност: добавяйте потвърдени резервации като ["2026-06-01","2026-06-05"] (включително).
-const BOOKED={passat:[],golf:[],punto:[],ka:[],ibiza:[]};
+const BOOKED={passat:[],golf:[],punto:[],ka:[],ibiza:[]};let BUF=60;
 const IMG={passat:"/images/cars/passat.jpg?v=20261012b",golf:"/images/cars/golf.jpg?v=20261012",punto:"/images/cars/punto.jpg?v=20261012b",ka:"/images/cars/ka.jpg?v=20261012b",ibiza:"/images/cars/ibiza.jpg?v=20261012b"};
 const T25=[25,23,20],T20=[20,18,15];
 const CARS=[
@@ -1420,9 +1425,18 @@ const rate=(c,d)=>c.tiers[d>30?2:d>15?1:0];
 const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
 function span(a,t1,b,t2){if(!a||!b)return 0;t1=t1||"00:00";t2=t2||t1;const ms=Date.parse(b+"T"+t2+"Z")-Date.parse(a+"T"+t1+"Z");return ms<0?-1:Math.max(1,Math.ceil(ms/864e5-1e-9))}
 const bf=(d,t)=>d.split("-").reverse().join(".")+(t?" "+t:"");
-const busy=(c,a,b)=>BOOKED[c.id].some(([s,e])=>a<=e&&b>=s);
-const busyList=c=>{const l=BOOKED[c.id].filter(([,e])=>e>=new Date().toISOString().slice(0,10)).sort((a,b)=>a[0]<b[0]?-1:1);return l.length?`<div class="cbusy">Заето: ${l.map(([a,b])=>a===b?bf(a):bf(a)+" – "+bf(b)).join(", ")}</div>`:""};
-const isFree=c=>{const t=new Date().toISOString().slice(0,10);return!BOOKED[c.id].some(([s,e])=>s<=t&&t<=e)};
+// Заетост по дата и час: всеки период е [дата, дата, час на получаване, час на връщане].
+// Между връщане и следващо получаване трябва да има BUF минути (напр. върнат в 12:00 → свободен от 13:00).
+const mn=(d,t)=>Date.parse(d+"T"+t+":00Z")/6e4,mnD=m=>new Date(m*6e4).toISOString().slice(0,10),mnT=m=>new Date(m*6e4).toISOString().slice(11,16);
+const iv=([s,e,st,et])=>[mn(s,st||"00:00"),mn(e,et||"23:59")];
+const clash=(c,A,Z)=>BOOKED[c.id].find(b=>{const[S,E]=iv(b);return A<E+BUF&&S<Z+BUF});
+const busy=(c,a,b,ta,tb)=>!!clash(c,mn(a,ta||"00:00"),mn(b,tb||"23:59"));
+const busyList=c=>{const l=BOOKED[c.id].filter(([,e])=>e>=new Date().toISOString().slice(0,10)).sort((a,b)=>a[0]+a[2]<b[0]+b[2]?-1:1);return l.length?`<div class="cbusy">Заето: ${l.map(([a,b,st,et])=>bf(a,st)+" – "+bf(b,et)).join(", ")}</div>`:""};
+const nowMn=()=>{const n=new Date();return Date.UTC(n.getFullYear(),n.getMonth(),n.getDate(),n.getHours(),n.getMinutes())/6e4};
+const isFree=c=>{const m=nowMn();return!BOOKED[c.id].some(b=>{const[S,E]=iv(b);return S-BUF<m&&m<E+BUF})};
+// Най-ранният свободен час за получаване / най-късният за връщане в избрания ден (или същият час, ако няма такъв)
+function fitStart(c,ds,t){let m=mn(ds,t);for(let k=0;k<=BOOKED[c.id].length;k++)BOOKED[c.id].forEach(b=>{const[S,E]=iv(b);if(m>S-BUF&&m<E+BUF)m=E+BUF});return mnD(m)===ds?mnT(m):t}
+function fitEnd(c,ds,t){let m=mn(ds,t);for(let k=0;k<=BOOKED[c.id].length;k++)BOOKED[c.id].forEach(b=>{const[S,E]=iv(b);if(m>S-BUF&&m<E+BUF)m=S-BUF});return mnD(m)===ds?mnT(m):t}
 const store={get(){try{return JSON.parse(sessionStorage.getItem("req")||"null")}catch(e){return null}},set(v){try{sessionStorage.setItem("req",JSON.stringify(v))}catch(e){}}};
 // ===== Състояние: данни от началната форма + избор на втората страница =====
 let S=store.get()||{};
@@ -1433,7 +1447,7 @@ const hasC=()=>!!(S.name&&S.phone&&S.mail),hasD=()=>!!(S.d1&&S.d2);
 const seatN=R=>R.seat?(+R.seatN===2?2:1):0;
 function quote(c,R){
 const d=span(R.d1,R.t1,R.d2,R.t2);
-if(!d)return{err:"dates"};if(d<0)return{err:"order"};if(busy(c,R.d1,R.d2))return{err:"busy"};
+if(!d)return{err:"dates"};if(d<0)return{err:"order"};{const b=clash(c,mn(R.d1,R.t1||"00:00"),mn(R.d2,R.t2||"23:59"));if(b)return{err:"busy",b}}
 const r=rate(c,d);let tot=r*d;const pend=[],rows=[["Период",`${d} ${d>1?"дни":"ден"}`,`${bf(R.d1,R.t1)} → ${bf(R.d2,R.t2)}`],["Цена",fmt(r*d),`${d} × ${fmt(r)} / ден`]];
 [[1,"Доставка","доставката"],[2,"Връщане от адрес","връщането от адрес"]].forEach(([n,t,w])=>{if(R["m"+n]!=="addr")return;const k=KMS[n];
 if(k!=null){const kr=kmRate(n),p=k*kr;tot+=p;rows.push([t,fmt(p),`${String(k).replace(".",",")} км × ${rateTxt(kr)}`])}
@@ -1587,7 +1601,7 @@ if(!c){el.hidden=true;$("#details").hidden=true;return}
 const q=hasD()?quote(c,S):null;let body,ok=false;
 if(!q||q.err==="dates")body='<p class="pend">Изберете дати на получаване и връщане по-горе, за да видите цената.</p>';
 else if(q.err==="order")body='<div class="alert">Датата на връщане трябва да е след датата на получаване.</div>';
-else if(q.err==="busy")body='<div class="alert">Автомобилът не е наличен за избрания период. Изберете друг автомобил или променете датите.</div>';
+else if(q.err==="busy")body='<div class="alert">Автомобилът не е наличен за избрания период. Изберете друг автомобил или променете датите.</div>'+busyHint(q.b);
 else{ok=true;body=q.rows.map(([a,b,s])=>`<div class="srow"><span>${a}${s?`<small>${s}</small>`:""}</span><b>${b}</b></div>`).join("")+`<div class="stot"><span>Общо за услугите${q.pend.length?" (без "+q.pend.join(" и ")+")":""}</span><b>${fmt(q.tot)}</b></div>${q.pend.length?`<p class="pend">${ROUTING_ENDPOINT?"Разстоянието по пътен маршрут се изчислява.":"Разстоянието по пътен маршрут ще бъде изчислено от нас при потвърждение на заявката. Таксата е 1,00 € / км в Пловдив и района и 0,70 € / км извън него и се добавя към сумата."}</p>`:""}<p class="pend" style="color:#c5d0e0">${q.d>2?"Пробег: неограничен.":"Пробег: до 250 км на ден, над лимита 0,10 € за км."}</p><div class="sdep"><strong><span>Гаранционен депозит</span><span>${fmt(DEPOSIT)}</span></strong>Не е част от цената на наема. Депозитът се връща при връщане на автомобила съгласно условията.</div>`}
 $("#details").hidden=!ok;syncSubmit();
 el.hidden=false;
@@ -1596,26 +1610,29 @@ el.innerHTML=`<img src="${IMG[c.id]}" alt="${c.name}"><div><h3>Избрахте 
 // Червените дни са заети от потвърдени резервации. С клик се избира дата на получаване, а след това – на връщане.
 let calOff=0,calStep=0;
 const ymd=(y,m,d)=>`${y}-${String(m+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
-const dayBusy=(c,ds)=>BOOKED[c.id].some(([s,e])=>s<=ds&&ds<=e);
+// Изцяло зает ден (с буфера) – не може да се избере; частично зает – може, но само в свободните часове
+const dayBusy=(c,ds)=>BOOKED[c.id].some(b=>{const[S,E]=iv(b);return S-BUF<=mn(ds,"00:00")&&mn(ds,"23:59")<E+BUF});
+const dayPart=(c,ds)=>BOOKED[c.id].some(b=>{const[S,E]=iv(b);return S-BUF<=mn(ds,"23:59")&&mn(ds,"00:00")<E+BUF});
+const busyHint=b=>{if(!b)return"";const[S,E]=iv(b);return`<p class="pend">Заето: ${bf(b[0],b[2])} – ${bf(b[1],b[3])}. Свободно отново от ${bf(mnD(E+BUF),mnT(E+BUF))} (${BUF/60} час след връщането).</p>`};
 function renderCal(){const el=$("#cal"),c=CARS.find(x=>x.id===S.car);if(!c){el.hidden=true;return}el.hidden=false;
 const loc=LANG==="bg"?"bg-BG":LANG==="de"?"de-DE":"en-GB",now=new Date(),wd=[...Array(7)].map((_,i)=>new Date(2024,0,1+i).toLocaleDateString(loc,{weekday:"short"}));
 const month=k=>{const d=new Date(now.getFullYear(),now.getMonth()+k,1),y=d.getFullYear(),m=d.getMonth(),n=new Date(y,m+1,0).getDate(),pad=(d.getDay()+6)%7;let h="";
 for(let i=0;i<pad;i++)h+="<span></span>";
-for(let i=1;i<=n;i++){const ds=ymd(y,m,i),past=ds<today,bk=!past&&dayBusy(c,ds),sel=ds===S.d1||ds===S.d2,inr=S.d1&&S.d2&&ds>S.d1&&ds<S.d2;
-h+=`<button type="button" data-day="${ds}" class="${past?"past":bk?"bk":sel?"sel":inr?"in":""}${ds===today?" td":""}"${past||bk?" disabled":""} aria-label="${bf(ds)}${bk?" – заето":""}">${i}</button>`}
+for(let i=1;i<=n;i++){const ds=ymd(y,m,i),past=ds<today,bk=!past&&dayBusy(c,ds),pt=!past&&!bk&&dayPart(c,ds),sel=ds===S.d1||ds===S.d2,inr=S.d1&&S.d2&&ds>S.d1&&ds<S.d2;
+h+=`<button type="button" data-day="${ds}" class="${past?"past":bk?"bk":sel?"sel":inr?"in":pt?"pt":""}${ds===today?" td":""}"${past||bk?" disabled":""} aria-label="${bf(ds)}${bk?" – заето":pt?" – частично заето":""}">${i}</button>`}
 return`<div class="cal-m"><h4>${d.toLocaleDateString(loc,{month:"long",year:"numeric"})}</h4><div class="cal-g">${wd.map(w=>`<span class="wd">${w}</span>`).join("")}${h}</div></div>`};
 el.innerHTML=`<div class="cal-top"><h3>Свободни дати – ${c.name}</h3><div class="cal-nav"><button type="button" data-cal="-1" aria-label="Предишен месец"${calOff?"":" disabled"}>‹</button><button type="button" data-cal="1" aria-label="Следващ месец"${calOff<10?"":" disabled"}>›</button></div></div>
 <div class="cal-ms">${month(calOff)}${month(calOff+1)}</div>
-<div class="cal-lg"><span><i style="background:#e5534b"></i>Заето</span><span><i style="background:var(--soft);border:1px solid var(--line)"></i>Свободно</span><span><i style="background:var(--navy)"></i>Вашите дати</span></div>
+<div class="cal-lg"><span><i style="background:#e5534b"></i>Заето</span><span><i style="background:linear-gradient(135deg,#f6c4c1 50%,var(--soft) 50%);border:1px solid var(--line)"></i>Частично свободно</span><span><i style="background:var(--soft);border:1px solid var(--line)"></i>Свободно</span><span><i style="background:var(--navy)"></i>Вашите дати</span></div>
 <p class="cal-msg" id="cal-msg" role="status">${calStep?"Изберете дата на връщане.":""}</p>`}
 $("#cal").addEventListener("click",e=>{const n=e.target.closest("[data-cal]");if(n){calOff=Math.max(0,Math.min(10,calOff+ +n.dataset.cal));renderCal();return}
 const b=e.target.closest("[data-day]");if(!b||b.disabled)return;const ds=b.dataset.day,c=CARS.find(x=>x.id===S.car);
-if(calStep&&S.d1&&ds>=S.d1){if(busy(c,S.d1,ds)){calStep=0;renderCal();$("#cal-msg").textContent="В избрания период има заети дни. Изберете други дати.";return}$("#b-d2").value=ds;calStep=0}
-else{$("#b-d1").value=$("#b-d2").value=ds;$("#b-d2").min=ds;calStep=1}
+if(calStep&&S.d1&&ds>=S.d1){const t2=fitEnd(c,ds,S.t2||"12:00");if(busy(c,S.d1,ds,S.t1,t2)){calStep=0;renderCal();$("#cal-msg").textContent="В избрания период има заети дни. Изберете други дати.";return}$("#b-d2").value=ds;$("#b-t2").value=t2;calStep=0}
+else{const t1=fitStart(c,ds,S.t1||"12:00");$("#b-d1").value=$("#b-d2").value=ds;$("#b-t1").value=$("#b-t2").value=t1;$("#b-d2").min=ds;calStep=1}
 planChanged()});
 document.addEventListener("click",e=>{if(e.target.closest("[data-lang]")&&cur==="avtomobili")renderCal()});
 // Заетите периоди идват от сървъра (потвърдените резервации)
-function loadAvail(){return fetch("/api/availability",{cache:"no-store"}).then(r=>r.ok?r.json():Promise.reject()).then(j=>{Object.keys(BOOKED).forEach(k=>{BOOKED[k]=Array.isArray(j[k])?j[k]:[]});if(cur==="avtomobili"){renderCars();renderPick()}}).catch(()=>{})}
+function loadAvail(){return fetch("/api/availability",{cache:"no-store"}).then(r=>r.ok?r.json():Promise.reject()).then(j=>{const cars=j.cars||j;if(j.buffer>=0)BUF=j.buffer;Object.keys(BOOKED).forEach(k=>{BOOKED[k]=Array.isArray(cars[k])?cars[k]:[]});if(cur==="avtomobili"){renderCars();renderPick()}}).catch(()=>{})}
 function setupCars(){
 $("#cars-h").textContent="В момента свободни автомобили";
 $("#cars-p").textContent="Изберете автомобил. След това въвеждате дата и час за получаване и връщане и виждате цената за вашия период.";

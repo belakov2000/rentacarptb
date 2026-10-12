@@ -3,6 +3,7 @@ import type { Config, Context } from "@netlify/functions";
 import { and, eq, gte, lte, ne } from "drizzle-orm";
 import { db } from "../../db/index.js";
 import { bookings } from "../../db/schema.js";
+import { addDays, endTimeOf, minutes, overlaps, startTimeOf } from "../../db/slots.js";
 import { buildContract, contractFileName, kmRate, parseContract, type ContractData } from "../../contract/index.js";
 import { lifecycleMail } from "../../mail/customer.js";
 import { btn, esc, mailFooter, mailRow, OWNER_EMAIL, PHONE, sendMail, wrapMail, type Attachment } from "../../mail/index.js";
@@ -37,23 +38,41 @@ async function saveContract(id: string, data: ContractData) {
 
 type Booking = typeof bookings.$inferSelect;
 
-// Потвърдена резервация за същия автомобил, която се застъпва с периода [start, end]
-async function findConflict(carId: string, start: string, end: string, exceptId = "") {
+// Потвърдена резервация за същия автомобил, която се застъпва с периода [start startTime, end endTime].
+// Между връщане и следващо получаване трябва да има поне BUFFER_MIN минути (напр. върнат в 12:00 → свободен от 13:00).
+async function findConflict(carId: string, start: string, end: string, startTime = "", endTime = "", exceptId = "") {
   if (!carId || !start || !end) return null;
-  const [c] = await db
-    .select({ id: bookings.id, name: bookings.name, pickup: bookings.pickup, dropoff: bookings.dropoff })
+  // По дати търсим с един ден резерва – буферът може да мине през полунощ
+  const rows = await db
+    .select({
+      id: bookings.id,
+      name: bookings.name,
+      pickup: bookings.pickup,
+      dropoff: bookings.dropoff,
+      startDate: bookings.startDate,
+      endDate: bookings.endDate,
+      startTime: bookings.startTime,
+      endTime: bookings.endTime,
+    })
     .from(bookings)
     .where(
       and(
         eq(bookings.carId, carId),
         eq(bookings.status, "confirmed"),
-        lte(bookings.startDate, end),
-        gte(bookings.endDate, start),
+        lte(bookings.startDate, addDays(end, 1)),
+        gte(bookings.endDate, addDays(start, -1)),
         ...(exceptId ? [ne(bookings.id, exceptId)] : []),
       ),
-    )
-    .limit(1);
-  return c || null;
+    );
+  const a = minutes(start, startTimeOf(startTime));
+  const z = minutes(end, endTimeOf(endTime));
+  const c = rows.find(
+    (r) =>
+      r.startDate &&
+      r.endDate &&
+      overlaps(a, z, minutes(r.startDate, startTimeOf(r.startTime, r.pickup)), minutes(r.endDate, endTimeOf(r.endTime, r.dropoff))),
+  );
+  return c ? { id: c.id, name: c.name, pickup: c.pickup, dropoff: c.dropoff } : null;
 }
 
 // ===== Имейл до клиента след решението на фирмата =====
@@ -214,7 +233,7 @@ export default async (req: Request, context: Context) => {
     if (!b.name || !/^\S+@\S+\.\S+$/.test(b.email) || !b.phone || !b.car || !b.pickup || !b.dropoff || !message) {
       return Response.json({ error: "Missing fields" }, { status: 400 });
     }
-    if (await findConflict(b.carId, b.startDate || "", b.endDate || "")) {
+    if (await findConflict(b.carId, b.startDate || "", b.endDate || "", b.startTime, b.endTime)) {
       return Response.json({ error: "busy" }, { status: 409 });
     }
     const row = { id: rnd(1), viewToken: rnd(2), adminToken: rnd(2), ...b };
@@ -313,7 +332,7 @@ export default async (req: Request, context: Context) => {
   if (!b) return page("Не е намерена", "<h1>Резервацията не е намерена</h1>", 404);
 
   // GET само показва страницата – решението става с бутон (POST), за да не се задейства от предварителни прегледи на линкове
-  const conflict = b.status === "pending" ? await findConflict(b.carId, b.startDate || "", b.endDate || "", b.id) : null;
+  const conflict = b.status === "pending" ? await findConflict(b.carId, b.startDate || "", b.endDate || "", b.startTime, b.endTime, b.id) : null;
   const cd = ((await contracts().get(contractDataKey(id), { type: "json" }).catch(() => null)) as ContractData | null) || null;
   if (req.method !== "POST") return managePage(b, url.origin, "", conflict, cd);
 
