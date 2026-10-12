@@ -14,7 +14,8 @@ const CARS: Record<string, { model: string; reg: string; vin: string; fuel: stri
 };
 const LANDLORD = "Теодор Петков Белаков";
 const OFFICE = "гр. Пловдив, бул. „Дунав“ №10";
-const KM_RATE = 0.7;
+// Цена на км за доставка / връщане от адрес: 1,00 EUR в Пловдив и района (вкл. летище Пловдив и Асеновград), 0,70 EUR извън него
+const KM_RATE = 0.7, KM_RATES = [1, 0.7];
 const BLANK = "____________________";
 
 // ===== Суми и числа с думи =====
@@ -62,7 +63,7 @@ function timeText(t: string) {
 const kmText = (k: number) => String(k).replace(".", ",");
 
 // ===== Входни данни от формата =====
-type Leg = { addr: string; km: number | null } | null;
+type Leg = { addr: string; km: number | null; rate?: number } | null;
 export type ContractData = {
   name: string; carId: string; citizen: string;
   idt: string; idn: string; egn: string; idd: string; idp: string; city: string; addr: string;
@@ -75,7 +76,9 @@ export type ContractData = {
 const s = (v: unknown, max = 200) => (typeof v === "string" ? v.trim().slice(0, max) : "");
 const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) && v >= 0 && v < 1e6 ? v : null);
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/, TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
-const leg = (v: any): Leg => (v && typeof v === "object" && s(v.addr) ? { addr: s(v.addr), km: num(v.km) } : null);
+// По-старите заявки нямат rate – за тях остава 0,70 EUR/км
+export const kmRate = (v: unknown) => (KM_RATES.includes(v as number) ? (v as number) : KM_RATE);
+const leg = (v: any): Leg => (v && typeof v === "object" && s(v.addr) ? { addr: s(v.addr), km: num(v.km), rate: kmRate(v.rate) } : null);
 
 export function parseContract(c: any, name: string, carId: string): ContractData | null {
   if (!c || typeof c !== "object") return null;
@@ -105,11 +108,12 @@ function values(d: ContractData): Record<string, string> {
     : null;
   const legVals = (l: Leg) => {
     if (!l) return { addr: "—", fee: money(0), km: "", place: OFFICE };
-    const fee = l.km != null ? l.km * KM_RATE : null;
+    const rate = kmRate(l.rate);
+    const fee = l.km != null ? l.km * rate : null;
     return {
       addr: l.addr,
       fee: fee != null ? money(fee) : `${BLANK} EUR`,
-      km: l.km != null ? ` (${kmText(l.km)} км по пътен маршрут × 0,70 EUR/км)` : "",
+      km: l.km != null ? ` (${kmText(l.km)} км по пътен маршрут × ${rate.toFixed(2).replace(".", ",")} EUR/км)` : "",
       place: l.addr,
     };
   };
