@@ -72,7 +72,8 @@
 [[headers]]
   for = "/images/*"
   [headers.values]
-    Cache-Control = "public, max-age=604800"
+    # Браузърът проверява дали снимката е сменена, иначе ползва запазеното копие.
+    Cache-Control = "public, max-age=0, must-revalidate"
 
 [[headers]]
   for = "/api/*"
