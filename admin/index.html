@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="bg">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Администрация – Rent a Car PTB</title>
+<link rel="icon" href="/images/favicon.png">
+<style>
+:root{--acc:#ffb703;--ink:#1b2433;--line:#dde2ea;--muted:#5b6678;--navy:#0f1b2d;--navy2:#18283f;--soft:#eef1f5;--ok:#1a8f4c;--bad:#c0392b}
+*{box-sizing:border-box}body{margin:0;font-family:Manrope,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:var(--ink);background:var(--soft)}
+button,input{font:inherit}a{color:inherit}
+.login{min-height:100vh;display:grid;place-items:center;padding:20px}
+.card{background:#fff;border-radius:22px;padding:26px;box-shadow:0 10px 30px rgba(15,27,45,.08);width:100%;max-width:420px}
+.card h1{margin:0 0 6px;font-size:1.4rem}.card p{color:var(--muted);margin:0 0 16px}
+label{display:block;font-weight:700;font-size:.88rem;margin:14px 0 6px}
+input{width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:#fff}
+input:focus{outline:2px solid var(--acc);border-color:transparent}
+.btn{display:inline-block;border:0;border-radius:999px;padding:12px 22px;font-weight:800;cursor:pointer;background:var(--navy);color:#fff}
+.btn.acc{background:var(--acc);color:var(--navy)}.btn.ghost{background:transparent;color:var(--navy);border:1.5px solid var(--line)}
+.btn.wide{width:100%;margin-top:18px}.btn:disabled{opacity:.6;cursor:wait}
+.msg{margin-top:14px;padding:10px 14px;border-radius:12px;font-size:.92rem}.msg.err{background:#fde2e0;color:#8a1f17}.msg.ok{background:#d9f5e3;color:#11643a}
+.link{background:none;border:0;color:var(--muted);text-decoration:underline;cursor:pointer;margin-top:14px;padding:0}
+.app{display:grid;grid-template-columns:250px 1fr;min-height:100vh}
+nav{background:var(--navy);color:#fff;padding:20px 14px;position:sticky;top:0;height:100vh;overflow:auto}
+nav .brand{display:flex;align-items:center;gap:10px;font-weight:800;margin:0 8px 22px}nav .brand img{width:34px;height:34px}
+nav a{display:flex;gap:10px;align-items:center;padding:11px 12px;border-radius:12px;text-decoration:none;color:#c9d2e0;font-weight:700;font-size:.95rem}
+nav a:hover{background:var(--navy2);color:#fff}nav a.on{background:var(--acc);color:var(--navy)}
+nav .who{margin:22px 8px 0;font-size:.82rem;color:#9aa6b8;word-break:break-all}
+main{padding:26px;min-width:0}
+header{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:18px}header h2{margin:0;font-size:1.5rem}
+.panel{background:#fff;border-radius:18px;padding:20px;margin-bottom:16px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}
+.stat{background:var(--soft);border-radius:14px;padding:14px}.stat small{color:var(--muted);display:block}.stat b{font-size:1.4rem}
+table{width:100%;border-collapse:collapse;font-size:.92rem}th,td{text-align:left;padding:9px 8px;border-bottom:1px solid var(--line)}th{color:var(--muted);font-weight:700}
+.tag{display:inline-block;padding:3px 10px;border-radius:999px;font-weight:800;font-size:.8rem}.tag.ok{background:#d9f5e3;color:#11643a}.tag.bad{background:#fde2e0;color:#9b1c13}
+.soon{color:var(--muted)}.warn{background:#fff4cc;color:#6b4e00;border-radius:14px;padding:12px 16px;margin-bottom:14px;font-weight:700}.warn.bad{background:#fde2e0;color:#8a1f17}.menu-btn{display:none}
+@media(max-width:860px){.app{grid-template-columns:1fr}nav{position:fixed;inset:0 30% 0 0;z-index:5;transform:translateX(-105%);transition:transform .2s;height:100%}nav.open{transform:none}.menu-btn{display:inline-block}main{padding:16px}}
+@media print{nav,.menu-btn,header .btn{display:none}.app{display:block}main{padding:0}.panel{break-inside:avoid}}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+"use strict";
+// Административен панел. Всички данни идват от /api/admin/* – сървърът проверява входа и ролята "admin" при всяка заявка.
+const $=s=>document.querySelector(s);
+const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
+const ID="/.netlify/identity";
+async function api(path,opt={}){const r=await fetch(path,{credentials:"same-origin",cache:"no-store",...opt,headers:{"Content-Type":"application/json",...(opt.headers||{})}});
+if(r.status===401){showLogin("Сесията изтече – влезте отново.");throw new Error("unauthorized")}
+const j=await r.json().catch(()=>({}));if(!r.ok)throw Object.assign(new Error(j.error||("HTTP "+r.status)),{status:r.status});return j}
+
+const SECTIONS=[["dashboard","Начално табло"],["bookings","Резервации"],["cars","Автомобили"],["calendar","Календар"],["payments","Плащания"],["reports","Финансови отчети"],["customers","Клиенти"],["contracts","Договори и документи"],["settings","Настройки и автоматизации"]];
+let ME=null;
+
+// ===== Вход, покана и нова парола =====
+function authCard(inner){$("#root").innerHTML=`<div class="login"><form class="card" id="f" autocomplete="on"><img src="/images/logo.png" alt="Rent a Car PTB" style="height:44px;margin-bottom:12px">${inner}<div id="m"></div></form></div>`}
+const say=(t,ok)=>{$("#m").innerHTML=t?`<div class="msg ${ok?"ok":"err"}">${esc(t)}</div>`:""};
+function showLogin(note){
+authCard(`<h1>Вход за администратори</h1><p>Само за поканени потребители с администраторски права.</p>
+<label for="e">Имейл</label><input id="e" type="email" autocomplete="username" required>
+<label for="p">Парола</label><input id="p" type="password" autocomplete="current-password" required>
+<button class="btn wide">Вход</button><button type="button" class="link" id="fg">Забравена парола</button>`);
+if(note)say(note);
+$("#fg").onclick=showForgot;
+$("#f").onsubmit=async e=>{e.preventDefault();const b=e.submitter;b.disabled=true;say("");
+try{const r=await fetch("/api/admin/login",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:$("#e").value,password:$("#p").value})});
+const j=await r.json().catch(()=>({}));
+if(r.ok){ME=j;return start()}
+say({credentials:"Грешен имейл или парола.",forbidden:"Този потребител няма администраторски права.",locked:"Твърде много неуспешни опити. Опитайте след 15 минути.",unavailable:"Входът временно не е достъпен (Netlify Identity)."}[j.error]||"Входът не беше успешен.")}
+catch(_){say("Няма връзка със сървъра.")}b.disabled=false}}
+function showForgot(){authCard(`<h1>Нова парола</h1><p>Ще получите имейл с връзка за смяна на паролата.</p><label for="e">Имейл</label><input id="e" type="email" required><button class="btn wide">Изпрати връзка</button><button type="button" class="link" id="bk">Назад към входа</button>`);
+$("#bk").onclick=()=>showLogin();
+$("#f").onsubmit=async e=>{e.preventDefault();await fetch(ID+"/recover",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:$("#e").value})}).catch(()=>{});say("Ако имейлът съществува, ще получите връзка.",true)}}
+// Поканата и смяната на паролата пристигат с токен в адреса (#invite_token=… / #recovery_token=…)
+function showSetPassword(kind,token){
+authCard(`<h1>${kind==="invite"?"Приемане на поканата":"Задаване на нова парола"}</h1><p>Изберете парола с поне 10 знака.</p>
+<label for="p">Парола</label><input id="p" type="password" autocomplete="new-password" minlength="10" required>
+<label for="p2">Повторете паролата</label><input id="p2" type="password" autocomplete="new-password" minlength="10" required><button class="btn wide">Запази</button>`);
+$("#f").onsubmit=async e=>{e.preventDefault();const p=$("#p").value;if(p!==$("#p2").value)return say("Паролите не съвпадат.");if(p.length<10)return say("Паролата трябва да е поне 10 знака.");
+try{let r;if(kind==="invite")r=await fetch(ID+"/verify",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({type:"signup",token,password:p})});
+else{const v=await fetch(ID+"/verify",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({type:"recovery",token})});const j=await v.json();if(!v.ok||!j.access_token)throw 0;
+r=await fetch(ID+"/user",{method:"PUT",headers:{"Content-Type":"application/json",Authorization:"Bearer "+j.access_token},body:JSON.stringify({password:p})})}
+if(!r.ok)throw 0;history.replaceState(null,"",location.pathname);showLogin();say("Паролата е запазена – влезте с имейла и новата парола.",true)}
+catch(_){history.replaceState(null,"",location.pathname);say("Връзката е невалидна или изтекла. Поискайте нова.")}}}
+
+// ===== Панел =====
+function start(){const sec=location.pathname.split("/")[2]||"dashboard";
+$("#root").innerHTML=`<div class="app"><nav id="nav"><div class="brand"><img src="/images/logo-mark.png" alt="">Rent a Car PTB</div>
+${SECTIONS.map(([k,t])=>`<a href="/admin/${k}" data-k="${k}">${esc(t)}</a>`).join("")}<a href="/admin/backups" data-k="backups">Резервни копия</a><a href="/admin/emails" data-k="emails">Имейли</a>
+<div class="who">${esc(ME.email)}<br><button class="link" id="out" style="color:#c9d2e0">Изход</button></div></nav><main><div id="alerts"></div><div id="main"></div></main></div>`;
+$("#nav").onclick=e=>{const a=e.target.closest("a[data-k]");if(!a)return;e.preventDefault();history.pushState(null,"",a.href);route()};
+$("#out").onclick=async()=>{await fetch("/api/admin/logout",{method:"POST",credentials:"same-origin"}).catch(()=>{});ME=null;showLogin("Излязохте от панела.")};
+route();alerts()}
+// Предупреждения на всяка страница: тестова среда и неуспешно / остаряло резервно копие
+async function alerts(){let h=ME.production?"":`<div class="warn">Тестова среда (${esc(ME.env)}): отделна база и отделни хранилища за файлове – промените тук не засягат реалния сайт.</div>`;
+try{const {status}=await api("/api/admin/backups?status");if(status&&status.warning)h+=`<div class="warn bad">⚠ ${esc(status.warning)} <a href="/admin/backups" data-k="backups">Резервни копия →</a></div>`}catch(_){}
+try{const {counts}=await api("/api/admin/emails");const u=counts.unknown||0,f=counts.failed||0;if(u||f)h+=`<div class="warn bad">⚠ Имейли: ${u?`${u} с неясен резултат`:""}${u&&f?", ":""}${f?`${f} неуспешни`:""}. <a href="/admin/emails" data-k="emails">Имейли →</a></div>`}catch(_){}
+const el=$("#alerts");if(el){el.innerHTML=h;el.onclick=e=>{const a=e.target.closest("a[data-k]");if(!a)return;e.preventDefault();history.pushState(null,"",a.href);route()}}}
+window.onpopstate=()=>ME&&route();
+function route(){const k=location.pathname.split("/")[2]||"dashboard";$("#nav").classList.remove("open");
+document.querySelectorAll("nav a[data-k]").forEach(a=>a.classList.toggle("on",a.dataset.k===k));
+const title=(SECTIONS.find(s=>s[0]===k)||[k,k==="emails"?"Имейли – изискват внимание":"Резервни копия"])[1];
+$("#main").innerHTML=`<header><div><button class="btn ghost menu-btn" onclick="document.getElementById('nav').classList.add('open')">☰ Меню</button><h2>${esc(title)}</h2></div></header><div id="view"></div>`;
+(VIEWS[k]||soon)()}
+function soon(){$("#view").innerHTML=`<div class="panel soon">Този раздел е в процес на изграждане. Данните се показват само от реалната база – тук няма примерни стойности.</div>`}
+const VIEWS={backups,emails};
+const EMAIL_STATUS={sent:["Изпратено","ok"],failed:["Неуспешно – ще се опита отново","bad"],unknown:["Неясен резултат – провери ръчно","bad"],queued:["Чака изпращане",""],sending:["Изпраща се",""]};
+const EMAIL_KIND={"owner-new":"До фирмата: нова заявка","customer-received":"До клиента: получена заявка","customer-decision":"До клиента: решение"};
+async function emails(){const v=$("#view");v.innerHTML=`<div class="panel">Зарежда се…</div>`;
+try{const {counts,rows}=await api("/api/admin/emails");
+v.innerHTML=`<div class="panel"><p>„Неясен резултат“: връзката с пощенската услуга е прекъснала след изпращането – писмото може да е доставено или не. Писмата до клиенти с такъв резултат <b>не се изпращат повторно автоматично</b> – свържете се с клиента при нужда. Известията до фирмата се повтарят с отбелязано „[Повторно известие]“ в темата.</p>
+<p>${Object.entries(counts).map(([k,n])=>`<span class="tag ${(EMAIL_STATUS[k]||[])[1]||""}">${esc((EMAIL_STATUS[k]||[k])[0])}: ${n}</span>`).join(" ")}</p></div>
+<div class="panel">${rows.length?`<table><tr><th>Кога</th><th>Писмо</th><th>До</th><th>Състояние</th><th>Опити</th><th>Грешка</th></tr>${rows.map(r=>`<tr><td>${esc(new Date(r.at).toLocaleString("bg-BG"))}</td><td>${esc(EMAIL_KIND[r.kind]||r.kind)}<br><small>№ ${esc((r.bookingId||"").slice(0,6).toUpperCase())}</small></td><td>${esc(r.recipient)}</td><td><span class="tag ${(EMAIL_STATUS[r.status]||[])[1]||""}">${esc((EMAIL_STATUS[r.status]||[r.status])[0])}</span></td><td>${r.attempts}</td><td>${esc(r.error)}</td></tr>`).join("")}</table>`:"Няма писма, които изискват внимание."}</div>`}
+catch(e){if(e.message!=="unauthorized")v.innerHTML=`<div class="panel msg err">Неуспешно зареждане (${esc(e.message)}).</div>`}}
+async function backups(){const v=$("#view");v.innerHTML=`<div class="panel">Проверява се последното копие…</div>`;
+try{const {snapshots,check,status}=await api("/api/admin/backups");
+v.innerHTML=`${status&&status.warning?`<div class="warn bad">⚠ ${esc(status.warning)}${status.lastErrorAt?" ("+esc(new Date(status.lastErrorAt).toLocaleString("bg-BG"))+")":""}</div>`:""}
+<div class="panel"><p>Последно успешно копие: <b>${status&&status.lastSuccessAt?esc(new Date(status.lastSuccessAt).toLocaleString("bg-BG")):"няма"}</b>${status&&status.pendingFiles?` · ${status.pendingFiles} файла чакат копиране при следващото изпълнение`:""}</p></div>
+<div class="panel"><p><span class="tag ${check.ok?"ok":"bad"}">${check.ok?"Копието е цяло и може да бъде възстановено":"Има проблем"}</span></p>
+${check.problems&&check.problems.length?`<ul>${check.problems.map(p=>`<li>${esc(p)}</li>`).join("")}</ul>`:""}
+<p>Последно копие на базата: <b>${esc(check.snapshot||"няма")}</b>${check.createdAt?" ("+esc(new Date(check.createdAt).toLocaleString("bg-BG"))+")":""}</p>
+<button class="btn acc" id="run">Направи копие сега</button></div>
+${check.tables?`<div class="panel"><h3>База данни</h3><table><tr><th>Таблица</th><th>Редове в копието</th><th>Редове сега</th><th>Липсват в базата (биха се възстановили)</th></tr>${Object.entries(check.tables).map(([n,t])=>`<tr><td>${esc(n)}</td><td>${t.inBackup}</td><td>${t.live}</td><td>${t.missingInLive}</td></tr>`).join("")}</table></div>`:""}
+${check.files?`<div class="panel"><h3>Договори и документи</h3><table><tr><th>Хранилище</th><th>Файлове</th><th>С копие</th><th>Без копие (ще се копират)</th><th>Проверени байт по байт</th></tr>${Object.entries(check.files).map(([n,f])=>`<tr><td>${esc(n)}</td><td>${f.source}</td><td>${f.backedUp}</td><td>${f.missing}</td><td>${f.checked}${f.mismatched?` (${f.mismatched} разлики)`:""}</td></tr>`).join("")}</table></div>`:""}
+<div class="panel"><h3>Копия на базата (последните 35 дни)</h3>${snapshots.length?`<ul>${snapshots.map(s=>`<li>${esc(s)}</li>`).join("")}</ul>`:"Няма копия."}</div>`;
+$("#run").onclick=async e=>{e.target.disabled=true;e.target.textContent="Копира се…";try{await api("/api/admin/backups",{method:"POST"});backups();alerts()}catch(err){e.target.disabled=false;e.target.textContent="Неуспешно – опитайте отново";alerts()}}}
+catch(e){if(e.message!=="unauthorized")v.innerHTML=`<div class="panel msg err">Проверката не беше успешна (${esc(e.message)}).</div>`}}
+
+// ===== Начало =====
+(async()=>{const h=new URLSearchParams(location.hash.slice(1));
+if(h.get("invite_token"))return showSetPassword("invite",h.get("invite_token"));
+if(h.get("recovery_token"))return showSetPassword("recovery",h.get("recovery_token"));
+try{const r=await fetch("/api/admin/me",{credentials:"same-origin",cache:"no-store"});if(r.ok){ME=await r.json();return start()}
+showLogin(r.status===403?"Този потребител няма администраторски права.":"")}catch(_){showLogin("Няма връзка със сървъра.")}})();
+</script>
+</body>
+</html>

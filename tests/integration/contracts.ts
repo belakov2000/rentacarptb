@@ -1,0 +1,61 @@
+// Договори: генериране, последователни версии, запазване на старите версии и проверка на съдържанието.
+import { eq } from "drizzle-orm";
+import { strFromU8, unzipSync } from "fflate";
+import { bookingBody, check, contractData, finish, freshDb, O, setContext, schema, sha } from "./harness.ts";
+import { getStore, stores } from "./stubs/blobs.ts";
+import { listContractVersions, saveContract } from "../../server/contracts.ts";
+import { parseContract } from "../../contract/index.ts";
+import bookingsFn from "../../netlify/functions/bookings.mts";
+
+setContext("deploy-preview");
+const t = await freshDb("contracts");
+t.use();
+const S = () => stores.get("deploypreview-contracts")!;
+const xml = (d: Uint8Array) => strFromU8(unzipSync(d)["word/document.xml"]);
+const call = (url: string, init: RequestInit = {}, id = "") => bookingsFn(new Request(url, init), { params: id ? { id } : {} } as any);
+
+// 1. Генериране при нова заявка
+const r = await call(`${O}/api/bookings`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(bookingBody("Contract", "2028-09-01", "10:00", "2028-09-03", "10:00", { requestKey: "contract-0001", contract: contractData("2028-09-01", "10:00", "2028-09-03", "10:00") })) });
+const { id } = await r.json();
+const [b] = await t.db.select().from(schema.bookings).where(eq(schema.bookings.id, id));
+let v = await listContractVersions(id);
+const cur1 = S().get(id)!.data;
+check("Генериране: версия 1 и текущ файл", v.length === 1 && v[0].version === 1 && v[0].createdBy === "customer" && sha(S().get(v[0].blobKey)!.data) === sha(cur1), v.map((x) => x.blobKey.split("/").pop()).join(","));
+check("Съдържание: име, рег. № на Passat, период и 5 км за доставка", xml(cur1).includes("ТЕСТ Contract") && xml(cur1).includes("РВ8991XE") && xml(cur1).includes("01.09.2028") && xml(cur1).includes("5 км"), "");
+const dl = await call(`${O}/api/bookings/${id}/contract?key=${b.adminToken}`, {}, id);
+check("Изтегляне по стария линк дава текущата версия", dl.status === 200 && sha(new Uint8Array(await dl.arrayBuffer())) === sha(cur1), `HTTP ${dl.status}`);
+
+// 2. Последователни версии (поправка на км ×3)
+for (const km of ["12", "27,5", "40"]) await call(`${O}/api/bookings/${id}/manage?key=${b.adminToken}`, { method: "POST", body: new URLSearchParams({ action: "km", kmDel: km, kmDelRate: "1" }) }, id);
+v = await listContractVersions(id);
+const files = v.map((x) => S().get(x.blobKey)!.data);
+check("4 последователни версии с номера 1–4 и отделни файлове", v.map((x) => x.version).join() === "1,2,3,4" && new Set(v.map((x) => x.blobKey)).size === 4 && new Set(files.map(sha)).size === 4, "");
+check("Всяка версия съдържа своите километри", xml(files[0]).includes("5 км") && xml(files[1]).includes("12 км") && xml(files[2]).includes("27,5 км") && xml(files[3]).includes("40 км"), "5 → 12 → 27,5 → 40 км");
+check("Версия 1 е запазена байт по байт", sha(files[0]) === sha(cur1), "");
+check("Текущият файл е последната версия", sha(S().get(id)!.data) === sha(files[3]) && S().get(id)!.metadata.version === 4, "");
+const ev = (await t.q("select count(*)::int n from booking_events where booking_id=$1 and action='contract.version'", [id])).rows[0].n;
+check("Всяка версия е записана в историята", ev === 4 && v.slice(1).every((x) => x.createdBy === "owner-link" && x.reason === "Поправка на километрите"), `събития: ${ev}`);
+
+// 3. Възстановяване на предишна версия (като нова версия – историята не се губи)
+const old = parseContract({ ...contractData("2028-09-01", "10:00", "2028-09-03", "10:00"), del: { addr: "тест", km: 12, rate: 1 } }, "ТЕСТ Contract", "passat")!;
+const restored = await saveContract(id, old, "test-admin", "Възстановяване на версия 2");
+v = await listContractVersions(id);
+check("Възстановяване на версия 2 създава версия 5 със същото съдържание", restored.version === 5 && xml(S().get(id)!.data) === xml(files[1]) && v.length === 5, "word/document.xml на v5 = v2");
+
+// 4. Договор отпреди версиите (само текущ файл) – запазва се като версия 1
+const r2 = await call(`${O}/api/bookings`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(bookingBody("Legacy", "2028-10-01", "10:00", "2028-10-03", "10:00", { requestKey: "contract-legacy" })) });
+const id2 = (await r2.json()).id;
+const legacy = new Uint8Array(cur1);
+await getStore("deploypreview-contracts").set(id2, legacy, { metadata: { name: "Dogovor-old.docx" } });
+await getStore("deploypreview-contracts").setJSON(`${id2}.json`, { ...contractData("2028-10-01", "10:00", "2028-10-03", "10:00"), name: "ТЕСТ Legacy", carId: "passat", city: "", addr: "", idp: "", idd: "", dln: "", dld: "", dlp: "" });
+const [b2] = await t.db.select().from(schema.bookings).where(eq(schema.bookings.id, id2));
+await call(`${O}/api/bookings/${id2}/manage?key=${b2.adminToken}`, { method: "POST", body: new URLSearchParams({ action: "km", kmDel: "8", kmDelRate: "1" }) }, id2);
+const v2 = await listContractVersions(id2);
+check("Стар договор: оригиналът е запазен като версия 1, промяната е версия 2", v2.length === 2 && sha(S().get(v2[0].blobKey)!.data) === sha(legacy) && v2[0].createdBy === "system" && xml(S().get(v2[1].blobKey)!.data).includes("8 км"), "");
+
+// 5. Едновременни промени – без загубени или дублирани версии
+await Promise.all([1, 2, 3, 4, 5].map((k) => saveContract(id2, { ...old, name: "ТЕСТ Legacy", del: { addr: "тест", km: k, rate: 1 } }, "test", "едновременно")));
+const v3 = await listContractVersions(id2);
+check("5 едновременни промени → версии 3–7 без пропуски и дубликати", v3.map((x) => x.version).join() === "1,2,3,4,5,6,7" && new Set(v3.map((x) => x.blobKey)).size === 7, v3.map((x) => x.version).join());
+check("Нито един файл на версия не е презаписан", v3.every((x) => S().has(x.blobKey)) && sha(S().get(v2[0].blobKey)!.data) === sha(legacy), "");
+await finish();
