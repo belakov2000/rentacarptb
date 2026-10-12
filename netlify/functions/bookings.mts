@@ -3,7 +3,7 @@ import type { Config, Context } from "@netlify/functions";
 import { and, eq, gte, lte, ne } from "drizzle-orm";
 import { db } from "../../db/index.js";
 import { bookings } from "../../db/schema.js";
-import { buildContract, contractFileName, parseContract, type ContractData } from "../../contract/index.js";
+import { buildContract, contractFileName, kmRate, parseContract, type ContractData } from "../../contract/index.js";
 
 // Резервации с потвърждение от фирмата.
 // POST /api/bookings                 – записва заявката и праща имейл до фирмата с бутони „Потвърди“ / „Откажи“
@@ -171,7 +171,7 @@ function page(title: string, body: string, status = 200) {
 .kv div{display:flex;justify-content:space-between;gap:14px;padding:8px 0;border-bottom:1px solid #e6e9ef}.kv span{color:#5b6577}.badge{display:inline-block;padding:6px 14px;border-radius:999px;font-weight:700;margin-bottom:12px}
 .pending{background:#fff4cc}.confirmed{background:#d9f5e3;color:#11643a}.rejected{background:#fde2e0;color:#9b1c13}
 button{font:inherit;font-weight:700;border:0;border-radius:999px;padding:14px 22px;cursor:pointer;width:100%;margin-top:10px}.ok{background:#1a8f4c;color:#fff}.no{background:#c0392b;color:#fff}
-textarea,input{width:100%;box-sizing:border-box;font:inherit;padding:10px;border:1px solid #cdd3dd;border-radius:12px;min-height:70px}label{display:block;font-weight:700;margin:16px 0 6px;font-size:.9rem}</style></head>
+textarea,input{width:100%;box-sizing:border-box;font:inherit;padding:10px;border:1px solid #cdd3dd;border-radius:12px;min-height:70px}select{width:100%;box-sizing:border-box;font:inherit;padding:10px;border:1px solid #cdd3dd;border-radius:12px;margin-top:8px;background:#fff}label{display:block;font-weight:700;margin:16px 0 6px;font-size:.9rem}</style></head>
 <body><main>${body}</main></body></html>`,
     {
       status,
@@ -197,9 +197,13 @@ function kmForm(cd: ContractData | null) {
   const legs = cd ? ([["kmDel", "Доставка до", cd.del], ["kmRet", "Връщане от", cd.ret]] as const).filter(([, , l]) => l) : [];
   if (!legs.length) return "";
   const fields = legs
-    .map(([n, label, l]) => `<label for="${n}">${esc(label)}: ${esc(l!.addr)}</label><input id="${n}" name="${n}" inputmode="decimal" placeholder="км" value="${l!.km != null ? String(l!.km).replace(".", ",") : ""}">`)
+    .map(([n, label, l]) => {
+      const r = kmRate(l!.rate);
+      const opt = (v: number, t: string) => `<option value="${v}"${r === v ? " selected" : ""}>${t}</option>`;
+      return `<label for="${n}">${esc(label)}: ${esc(l!.addr)}</label><input id="${n}" name="${n}" inputmode="decimal" placeholder="км" value="${l!.km != null ? String(l!.km).replace(".", ",") : ""}"><select name="${n}Rate" aria-label="Цена на км">${opt(1, "1,00 EUR/км – Пловдив и района")}${opt(0.7, "0,70 EUR/км – извън Пловдив и района")}</select>`;
+    })
     .join("");
-  return `<form method="post" style="margin-top:22px;padding-top:6px;border-top:1px solid #e6e9ef"><p style="margin:10px 0 0"><b>Километри в договора</b> (по пътен маршрут от бул. Дунав 10, 0,70 EUR/км). Ако разстоянието в Google Maps е различно, въведете го тук – договорът се попълва наново.</p>${fields}<button class="ok" style="background:#0f1b2d" name="action" value="km">Запази километрите и обнови договора</button></form>`;
+  return `<form method="post" style="margin-top:22px;padding-top:6px;border-top:1px solid #e6e9ef"><p style="margin:10px 0 0"><b>Километри в договора</b> (по пътен маршрут от бул. Дунав 10; 1,00 EUR/км в Пловдив, околните села, летище Пловдив и Асеновград, 0,70 EUR/км извън тях). Ако разстоянието в Google Maps или зоната са различни, поправете ги тук – договорът се попълва наново.</p>${fields}<button class="ok" style="background:#0f1b2d" name="action" value="km">Запази километрите и обнови договора</button></form>`;
 }
 
 function managePage(b: Booking, origin: string, msg = "", conflict: { name: string; pickup: string; dropoff: string } | null = null, cd: ContractData | null = null) {
@@ -360,8 +364,8 @@ export default async (req: Request, context: Context) => {
     };
     const next: ContractData = {
       ...cd,
-      del: cd.del ? { ...cd.del, km: km("kmDel") } : null,
-      ret: cd.ret ? { ...cd.ret, km: km("kmRet") } : null,
+      del: cd.del ? { ...cd.del, km: km("kmDel"), rate: kmRate(Number(form?.get("kmDelRate") ?? cd.del.rate)) } : null,
+      ret: cd.ret ? { ...cd.ret, km: km("kmRet"), rate: kmRate(Number(form?.get("kmRetRate") ?? cd.ret.rate)) } : null,
     };
     try {
       await saveContract(id, next);
