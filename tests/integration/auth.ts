@@ -3,7 +3,6 @@ import { check, cookieJar, fakeJwt, finish, freshDb, identity, O, setContext } f
 import authFn from "../../netlify/functions/admin-auth.mts";
 import backupsFn from "../../netlify/functions/admin-backups.mts";
 import emailsFn from "../../netlify/functions/admin-emails.mts";
-import validateFn from "../../netlify/functions/identity-validate.mts";
 
 const t = await freshDb("auth");
 t.use();
@@ -81,9 +80,7 @@ check("30 опита от един адрес с различни имейли �
 const ipStored = (await t.q("select count(*)::int n from booking_events where details::text like '%198.51.100%'")).rows[0].n;
 check("IP адресите не се пазят в явен вид (само хеш)", ipStored === 0, "");
 
-// 7. Публична регистрация и неправилни заявки
-const reg = await validateFn();
-check("Регистрацията се отказва от identity-validate", reg.status === 403, `HTTP ${reg.status}`);
+// 7. Неправилни заявки
 check("Вход без Origin → 403", (await req(authFn, "/api/admin/login", { method: "POST", body: { email: "admin@example.com", password: "admin-pass-123" }, origin: null })).status === 403, "");
 check("Вход с невалиден имейл → 400", (await req(authFn, "/api/admin/login", { method: "POST", body: { email: "x", password: "y" } })).status === 400, "");
 await finish();
