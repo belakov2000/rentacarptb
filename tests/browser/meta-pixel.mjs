@@ -27,6 +27,8 @@ async function session({ consent, storageFails = false, path = "/", booking = "o
   await ctx.route("https://connect.facebook.net/**", (r) => { const u = r.request().url(); meta.push({ url: u, kind: "script" }); return /\/fbevents\.js$/.test(new URL(u).pathname) ? r.fulfill({ contentType: "application/javascript", body: SDK }) : r.fulfill({ status: 204, body: "" }); });
   await ctx.route(/^https:\/\/([\w-]+\.)*facebook\.com\//, (r) => { const q = r.request(); meta.push({ url: q.url(), body: q.postData() || "", referer: q.headers().referer || "", kind: "event" }); return r.fulfill({ contentType: "image/gif", body: GIF }); });
   await ctx.route((u) => !u.href.startsWith(B) && !/facebook\.(net|com)/.test(u.hostname), (r) => { const u = r.request().url(); if (/web3forms/.test(u)) { w3.push(u); return r.fulfill({ json: { success: true } }); } other.push(u); return r.fulfill({ status: 204, body: "" }); });
+  // Панелът на Netlify в Deploy Preview (Netlify Drawer) закрива футъра и не е част от сайта.
+  await ctx.route(B + "/.netlify/scripts/cdp*", (r) => r.fulfill({ contentType: "application/javascript", body: "" }));
   await ctx.route(B + "/api/**", async (r) => {
     const u = new URL(r.request().url()), m = r.request().method();
     if (u.pathname === "/api/availability") return r.fulfill({ json: { cars: {}, buffer: 0 } });
