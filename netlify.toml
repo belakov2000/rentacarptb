@@ -125,3 +125,14 @@
   for = "/api/*"
   [headers.values]
     X-Robots-Tag = "noindex"
+
+# Meta Pixel: отделна страница, която сайтът вгражда в sandbox iframe само след съгласие за маркетингови бисквитки.
+# CSP sandbox я изолира (отделен произход) дори ако бъде отворена директно.
+[[headers]]
+  for = "/meta-pixel/*"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
+    Cache-Control = "no-store"
+    Referrer-Policy = "no-referrer"
+    X-Content-Type-Options = "nosniff"
+    Content-Security-Policy = "sandbox allow-scripts; default-src 'none'; script-src 'unsafe-inline' https://connect.facebook.net; img-src https://www.facebook.com; connect-src https://www.facebook.com https://connect.facebook.net; frame-ancestors 'self'; base-uri 'none'; form-action 'none'"

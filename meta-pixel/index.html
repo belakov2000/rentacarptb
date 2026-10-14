@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="bg">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex,nofollow">
+<meta name="referrer" content="no-referrer">
+<title>Meta Pixel</title>
+<script>
+// Meta Pixel – изолиран в sandbox iframe (без allow-same-origin), който сайтът зарежда само след съгласие за маркетингови бисквитки.
+// Тук няма съдържание от сайта: SDK-то не вижда формата за резервация, адреса на страницата, документи и лични данни.
+// Приема само съобщението {meta:"lead"} от родителската страница; не се предават параметри, адреси или данни.
+(function(){
+var ID="1089565650382038";
+if(window.parent===window)return; // само вграден в сайта
+// В sandbox няма достъп до хранилището на браузъра – SDK-то получава временно хранилище в паметта (нищо не се запазва).
+["localStorage","sessionStorage"].forEach(function(k){try{window[k].length}catch(e){var m={};try{Object.defineProperty(window,k,{configurable:true,value:{getItem:function(x){return x in m?m[x]:null},setItem:function(x,v){m[x]=String(v)},removeItem:function(x){delete m[x]},clear:function(){m={}},key:function(i){return Object.keys(m)[i]||null},get length(){return Object.keys(m).length}}})}catch(e){}}});
+!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version="2.0";n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,"script","https://connect.facebook.net/en_US/fbevents.js");
+// Без отдалечената конфигурация на пиксела: няма автоматично разпознаване на събития (бутони, microdata) и автоматично разширено съпоставяне.
+fbq.disableConfigLoading=true;
+fbq.disablePushState=true;
+fbq("set","autoConfig",false,ID);
+fbq("init",ID);
+fbq("track","PageView");
+addEventListener("message",function(e){if(e.source!==window.parent||!e.data||e.data.meta!=="lead")return;fbq("track","Lead")});
+})();
+</script>
+</head>
+<body></body>
+</html>
