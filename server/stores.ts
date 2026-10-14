@@ -5,7 +5,7 @@ import { getStore } from "@netlify/blobs";
 // ползва отделни хранилища с префикс (напр. „deploypreview-contracts“). Продукционните файлове не се четат и не се променят.
 // Средата идва от Netlify на сървъра (context.deploy.context), а не от адреса, заглавки или браузъра.
 // При неизвестна среда се избира изолирано хранилище – по-безопасно е да липсва файл, отколкото да се промени продукционен.
-export type StoreName = "contracts" | "documents" | "backups" | "mail-outbox";
+export type StoreName = "contracts" | "documents" | "backups" | "mail-outbox" | "ghl-test";
 
 export function deployContext(): string {
   const c = (globalThis as any).Netlify?.context?.deploy?.context;
