@@ -7,14 +7,16 @@
 //    (по изключение overwriteSeeded заменя началните редове в cars и settings, създадени от миграцията);
 //  • файловете се записват само ако ключът липсва в целевото хранилище; съществуващ файл не се презаписва;
 //  • след запис всеки ред и всеки файл се сравнява с копието (подробен отчет).
-export const RESTORE_ORDER = ["cars", "settings", "bookings", "payments", "booking_events", "car_blocks", "expenses", "email_log", "contract_versions"] as const;
+export const RESTORE_ORDER = ["cars", "settings", "bookings", "payments", "booking_events", "car_blocks", "expenses", "email_log", "contract_versions", "ad_spend"] as const;
 type Table = (typeof RESTORE_ORDER)[number];
 const PK: Record<Table, string> = {
   cars: "id", settings: "key", bookings: "id", payments: "id", booking_events: "id",
-  car_blocks: "id", expenses: "id", email_log: "id", contract_versions: "id",
+  car_blocks: "id", expenses: "id", email_log: "id", contract_versions: "id", ad_spend: "id",
 };
 const SEEDED = new Set<Table>(["cars", "settings"]);
-const SERIAL = ["booking_events", "car_blocks", "expenses", "email_log", "contract_versions"];
+// Таблици, добавени по-късно: в по-старите копия липсват и се приемат за празни
+const ADDED_LATER = new Set<Table>(["ad_spend"]);
+const SERIAL = ["booking_events", "car_blocks", "expenses", "email_log", "contract_versions", "ad_spend"];
 // Външни ключове: таблица.колона → таблица
 const FK: [Table, string, Table][] = [
   ["payments", "booking_id", "bookings"], ["contract_versions", "booking_id", "bookings"],
@@ -44,7 +46,7 @@ export async function planRestore(text: string, expectedSha: string | undefined,
   if (!snap || problems.length) return { ok: false, problems, snapshot: snap, tables, differentKeys };
 
   for (const t of RESTORE_ORDER) {
-    const rows = snap.tables[t];
+    const rows = snap.tables[t] ?? (ADDED_LATER.has(t) ? [] : undefined);
     if (!Array.isArray(rows)) { problems.push(`Таблица ${t} липсва в копието.`); continue; }
     const cols = (await q(`select column_name from information_schema.columns where table_schema='public' and table_name=$1`, [t])).rows.map((r) => r.column_name);
     if (!cols.length) { problems.push(`Таблица ${t} липсва в целевата база (приложете първо миграциите).`); continue; }

@@ -12,6 +12,7 @@ import { contractDataKey, contracts, saveContract } from "../../server/contracts
 import { maskEmail, queueEmail } from "../../server/email.js";
 import { langOf, langSwitch, localize, type Lang } from "../../server/manage-i18n.js";
 import { act, allowed, linkExpired, pickupAt, REASON_BG, REASONS, STATUS_LABEL, type Action } from "../../server/booking-actions.js";
+import { parseAttribution } from "../../server/attribution.js";
 import { decisionKey, ownerNewKey, receivedKey, saveOwnerOutbox, sendCustomerReceived, sendDecision, sendOwnerNew } from "../../server/notify.js";
 
 // Резервации с потвърждение от фирмата.
@@ -252,7 +253,9 @@ async function handle(req: Request, context: Context) {
       return Response.json({ error: "busy" }, { status: 409 });
     }
     const requestKey = REQUEST_KEY_RE.test(str(body.requestKey, 100)) ? str(body.requestKey, 100) : null;
-    const row = { id: rnd(1), viewToken: rnd(2), adminToken: rnd(2), ...b, requestKey, totalCents: parseTotalCents(b.total), totalReview: totalReviewOf(b.total) };
+    // Рекламен източник (UTM) – само проверени стойности от едно посещение; при невалиден или липсващ – без източник (server/attribution.ts)
+    const utm = parseAttribution(body.attribution);
+    const row = { id: rnd(1), viewToken: rnd(2), adminToken: rnd(2), ...b, requestKey, totalCents: parseTotalCents(b.total), totalReview: totalReviewOf(b.total), ...utm };
 
     // Повторно или едновременно изпращане на същата заявка връща вече записаната резервация – без втора резервация и без нови имейли.
     // 1) същият requestKey (уникален индекс в базата); 2) за по-стари страници без ключ – същият клиент, автомобил и период в последните 10 минути.
@@ -286,7 +289,7 @@ async function handle(req: Request, context: Context) {
       // Състоянието на известията се записва заедно с резервацията – ако функцията прекъсне, email-retry ги изпраща
       await queueEmail(tx, "owner-new", ownerNewKey(ins.id), ins.id, OWNER_EMAIL);
       await queueEmail(tx, "customer-received", receivedKey(ins.id), ins.id, ins.email);
-      await tx.insert(bookingEvents).values({ bookingId: ins.id, actor: "customer", action: "booking.created", details: {} });
+      await tx.insert(bookingEvents).values({ bookingId: ins.id, actor: "customer", action: "booking.created", details: utm ? { utm: true } : {} });
       return { saved: ins, duplicate: false };
     });
     if (duplicate) {
