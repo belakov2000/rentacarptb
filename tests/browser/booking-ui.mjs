@@ -26,14 +26,14 @@ const TRACK = () => {
   window.__live = () => window.__streams.flatMap((s) => s.getTracks()).filter((t) => t.readyState === "live").length;
 };
 
-async function session({ viewport = { width: 1280, height: 900 }, init = TRACK, mobile = false, consent = false, booking = "ok", origin = B, promoDemo } = {}) {
+async function session({ viewport = { width: 1280, height: 900 }, init = TRACK, mobile = false, consent = false, booking = "ok", origin = B } = {}) {
   const ctx = await browser.newContext({ viewport, isMobile: mobile, hasTouch: mobile, locale: "bg-BG", permissions: ["camera"] });
   const meta = [], w3 = [], posted = [];
   await ctx.route(/facebook\.(net|com)/, (r) => { meta.push({ url: r.request().url(), body: r.request().postData() || "" }); return r.fulfill({ status: 204, body: "" }); });
   await ctx.route("https://api.web3forms.com/**", (r) => { w3.push(r.request().postData()); return r.fulfill({ json: { success: true } }); });
   await ctx.route((u) => !u.href.startsWith(origin) && !/facebook|web3forms/.test(u.hostname), (r) => r.fulfill({ status: 204, body: "" }));
   if (origin !== B) await ctx.route(origin + "/**", async (r) => { const u = new URL(r.request().url()); const res = await r.fetch({ url: B + u.pathname + u.search }); return r.fulfill({ response: res }); });
-  await ctx.route("**/api/availability", (r) => r.fulfill({ json: { cars: {}, buffer: 60, ...(promoDemo === undefined ? {} : { promoDemo }) } }));
+  await ctx.route("**/api/availability", (r) => r.fulfill({ json: { cars: {}, buffer: 60 } }));
   await ctx.route("**/api/documents", (r) => { posted.push("doc"); return r.fulfill({ json: { url: "/api/documents/" + SECRET.doc + posted.length } }); });
   await ctx.route("**/api/bookings", (r) => { posted.push(r.request().postDataJSON()); return booking === "hours" ? r.fulfill({ status: 400, json: { error: "hours" } }) : r.fulfill({ status: 201, json: { id: "c".repeat(32), token: "d".repeat(64), status: "pending" } }); });
   if (init) await ctx.addInitScript(init);
@@ -54,9 +54,9 @@ async function fill(page) {
 }
 const upload = (page, ids) => Promise.all(ids.map((id) => page.setInputFiles("#" + id, { name: "test.png", mimeType: "image/png", buffer: PNG })));
 
-// ===== 1. Badge „−20%“ =====
+// ===== 1. Badge „−20%“ (PROMO.on – публично) =====
 for (const [label, vp, mobile] of [["компютър", { width: 1280, height: 900 }, false], ["телефон", { width: 375, height: 740 }, true]]) {
-  const { ctx, page, errors } = await session({ viewport: vp, mobile });
+  const { ctx, page, errors } = await session({ viewport: vp, mobile, origin: "https://rentacar-ptb.com" });
   const r = await page.evaluate(() => {
     const cards = [...document.querySelectorAll("#car-grid .vcard")];
     const box = (e) => e.getBoundingClientRect();
@@ -69,35 +69,33 @@ for (const [label, vp, mobile] of [["компютър", { width: 1280, height: 9
     const h2 = cards.map((c) => c.getBoundingClientRect().height);
     document.querySelectorAll(".promo").forEach((p) => (p.style.display = ""));
     const note = document.querySelector("#promo-note");
-    return { n: cards.length, b, same: h1.every((h, i) => Math.abs(h - h2[i]) < 0.5), note: !note.hidden && note.textContent, overflow: document.documentElement.scrollWidth > innerWidth + 1, demo: PROMO_DEMO, on: PROMO.on };
+    const prices = cards.map((c) => c.textContent);
+    return { n: cards.length, b, same: h1.every((h, i) => Math.abs(h - h2[i]) < 0.5), note: !note.hidden && note.textContent, small: note.querySelectorAll("small").length, overflow: document.documentElement.scrollWidth > innerWidth + 1, on: PROMO.on, strike: document.querySelectorAll("#car-grid s, #car-grid del").length, tiers: CARS.map((c) => c.tiers.join("/")).join(" ") };
   });
-  check(`1. ${label}: badge „−20%“ на всеки автомобил (демонстрация)`, r.n === 5 && r.b.every((x) => x && x.text === "−20%"), `карти: ${r.n}, demo=${r.demo}, PROMO.on=${r.on}`);
+  check(`1. ${label}: badge „−20%“ на всеки автомобил (публично)`, r.on === true && r.n === 5 && r.b.every((x) => x && x.text === "−20%"), `карти: ${r.n}, PROMO.on=${r.on}`);
   check(`1. ${label}: в долния десен ъгъл на снимката с отстояние, малък, без застъпване`, r.b.every((x) => x && x.inside && x.small && x.clear), "");
   check(`1. ${label}: червен фон, бял текст, без анимация, ≥ 12px`, r.b.every((x) => x && x.bg === "rgb(198, 40, 40)" && x.color === "rgb(255, 255, 255)" && x.anim === "none" && x.font >= 12), r.b[0] && `${r.b[0].bg} / ${r.b[0].color} / ${r.b[0].font}px`);
   check(`1. ${label}: размерът на картите не се променя`, r.same, "");
-  check(`1. ${label}: надпис над списъка с ясна демо-бележка, без хоризонтален скрол`, /Промоционални цени −20%/.test(r.note || "") && /Демонстрация/.test(r.note || "") && !r.overflow, r.note);
+  check(`1. ${label}: надпис без демо-бележка, без зачертани цени, без хоризонтален скрол`, r.note === "Промоционални цени −20%" && r.small === 0 && r.strike === 0 && !r.overflow, r.note);
+  check(`1. ${label}: цените не са променени`, r.tiers === "20/18/15 20/18/15 25/23/20 25/23/20 25/23/20", r.tiers);
   check(`1. ${label}: без JS грешки`, errors.length === 0, errors.join("; "));
+  // След филтриране – badge на всяка видима карта, на същото място
+  const f = [];
+  for (const [sel, v] of [["#f-price", "20"], ["#f-fuel", "Дизел"], ["#f-type", "Комби"]]) {
+    await page.selectOption(sel, v);
+    f.push(await page.evaluate(() => { const cs = [...document.querySelectorAll(".vcard")]; return [cs.length, cs.filter((c) => { const p = c.querySelector(".promo"); if (!p) return false; const a = p.getBoundingClientRect(), v = c.querySelector(".vimg").getBoundingClientRect(); return v.bottom - a.bottom >= 6 && v.bottom - a.bottom < 20 && v.right - a.right >= 6 && v.right - a.right < 20; }).length]; }));
+    if (sel === "#f-price") await page.screenshot({ path: `/tmp/booking-ui-cars-filter-${mobile ? "mobile" : "desktop"}.png`, fullPage: true });
+    await page.selectOption(sel, "");
+  }
+  check(`1. ${label}: badge на всяка карта и след филтриране`, f.every(([n, k]) => n > 0 && n === k), f.map((x) => x.join("/")).join(", "));
   await page.screenshot({ path: `/tmp/booking-ui-cars-${mobile ? "mobile" : "desktop"}.png` });
   await ctx.close();
 }
-// Средата идва от сървъра (/api/availability → promoDemo), не от шаблон в адреса: Preview на агента (agent-…--)
+// Изключване: PROMO.on = false скрива badge-а и надписа навсякъде
 {
-  const { ctx, page } = await session({ origin: "https://agent-0123456789abcdef01234567--rentacarptb.netlify.app", promoDemo: true });
-  await page.waitForFunction(() => document.querySelectorAll(".promo").length === 5);
-  const n0 = await page.evaluate(() => document.querySelectorAll(".promo").length);
-  await page.selectOption("#f-price", "20");
-  const n1 = await page.evaluate(() => [document.querySelectorAll(".vcard").length, [...document.querySelectorAll(".vcard .promo")].filter((p) => { const a = p.getBoundingClientRect(), v = p.closest(".vimg").getBoundingClientRect(); return v.bottom - a.bottom >= 6 && v.bottom - a.bottom < 20 && v.right - a.right >= 6 && v.right - a.right < 20; }).length]);
-  await page.selectOption("#f-price", "");
-  await page.evaluate(() => { Object.assign(S, { car: "ka", d1: "2029-04-02", t1: "10:00", d2: "2029-04-03", t2: "10:00", m1: "store", m2: "store" }); writePlan(); $("#plan").hidden = false; planChanged(); });
-  const n2 = await page.evaluate(() => [document.querySelectorAll(".vcard").length, document.querySelectorAll(".vcard .promo").length, !$("#promo-note").hidden, document.querySelectorAll("#promo-note small").length]);
-  check("1. agent-…--rentacarptb.netlify.app (среда от сървъра): badge на всяка карта, и след филтър и повторно рендериране", n0 === 5 && n1[0] === n1[1] && n1[0] > 0 && n2[0] === 5 && n2[1] === 5 && n2[2] && n2[3] === 1, `начало ${n0}, филтър ${n1.join("/")}, след избор ${n2.join("/")}`);
-  await ctx.close();
-}
-// Публичният адрес: badge и надпис не се показват, докато PROMO.on е false
-{
-  const { ctx, page } = await session({ origin: "https://rentacar-ptb.com", promoDemo: false });
-  const r = await page.evaluate(() => ({ badges: document.querySelectorAll(".promo").length, note: !document.querySelector("#promo-note").hidden, host: location.hostname }));
-  check("1. rentacar-ptb.com: без badge и надпис (промоцията е изключена)", r.badges === 0 && !r.note, `${r.host}: badges=${r.badges}`);
+  const { ctx, page } = await session();
+  const r = await page.evaluate(() => { PROMO.on = false; renderCars(); return { badges: document.querySelectorAll(".promo").length, note: !$("#promo-note").hidden }; });
+  check("1. PROMO.on = false: без badge и надпис", r.badges === 0 && !r.note, `badges=${r.badges}`);
   await ctx.close();
 }
 // Превод на надписа
@@ -236,7 +234,7 @@ for (const [label, vp, mobile] of [["компютър", { width: 1280, height: 9
 {
   const ctx = await browser.newContext({ viewport: { width: 375, height: 667 }, isMobile: true, hasTouch: true, permissions: ["camera"] });
   await ctx.route(/facebook/, (r) => r.fulfill({ status: 204, body: "" }));
-  await ctx.route("**/api/availability", (r) => r.fulfill({ json: { cars: {}, buffer: 60, promoDemo: true } }));
+  await ctx.route("**/api/availability", (r) => r.fulfill({ json: { cars: {}, buffer: 60 } }));
   // Външна страница с друг произход вгражда сайта без allow="camera" (както app.netlify.com). Двата адреса са https и се
   // обслужват от теста; сайтът идва от B (локален сървър или Deploy Preview).
   const PARENT = "https://app.example.test/", SITE = /localhost|127\.0\.0\.1/.test(B) ? "https://site.example.test" : B;
