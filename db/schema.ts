@@ -6,7 +6,7 @@ export const bookings = pgTable("bookings", {
   id: text().primaryKey(),
   viewToken: text("view_token").notNull(),
   adminToken: text("admin_token").notNull(),
-  status: text().notNull().default("pending"), // pending | confirmed | rejected
+  status: text().notNull().default("pending"), // pending | confirmed | rejected | cancelled (отменена след потвърждение) | no_show (клиентът не се яви)
   name: text().notNull(),
   email: text().notNull(),
   phone: text().notNull(),
@@ -41,6 +41,15 @@ export const bookings = pgTable("bookings", {
   updatedAt: timestamp("updated_at"),
   // Ключ от формата: повторно или едновременно изпращане на същата заявка не създава втора резервация
   requestKey: text("request_key"),
+  // Действително предаване на автомобила (отбелязва се от собственика). След него отмяна и неявяване не са възможни.
+  handedOverAt: timestamp("handed_over_at"),
+  handedOverBy: text("handed_over_by").notNull().default(""),
+  // Отмяна / неявяване на потвърдена резервация: кога, кой (имейл на администратора или „owner-link“), причина и вътрешна бележка
+  // closeReason: customer (клиентът се отказа) | owner (отмяна от собственика) | other | no_show. closeNote не се изпраща на клиента.
+  closedAt: timestamp("closed_at"),
+  closedBy: text("closed_by").notNull().default(""),
+  closeReason: text("close_reason").notNull().default(""),
+  closeNote: text("close_note").notNull().default(""),
 }, (t) => [
   uniqueIndex("bookings_request_key_idx").on(t.requestKey),
   index("bookings_car_dates_idx").on(t.carId, t.startDate, t.endDate),

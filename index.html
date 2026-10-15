@@ -462,6 +462,43 @@ button.btn-ghost{background:transparent}
 #bk .phin{padding:10px;background:var(--soft)}
 #bk .phprev{display:block;margin-top:8px;width:100%;max-height:160px;object-fit:contain;border-radius:12px;background:var(--soft)}
 #bk .phprev[hidden]{display:none}
+/* Промоция „−20%“: в долния десен ъгъл на снимката (горе вляво е „Свободен“ / „Зает“), без промяна на размера на картата */
+.promo{position:absolute;bottom:12px;right:12px;z-index:2;background:#c62828;color:#fff;font-weight:800;font-size:.85rem;line-height:1.2;letter-spacing:.02em;border-radius:6px;padding:4px 9px;box-shadow:0 2px 6px rgba(0,0,0,.18);pointer-events:none}
+.promo-note{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin:0 0 16px;font-weight:800;color:#b71c1c}
+.promo-note[hidden]{display:none}
+.promo-note small{font-weight:700;font-size:.78rem;color:var(--ink);background:#fff7dc;border:1px dashed #d9a400;border-radius:6px;padding:3px 8px}
+.hours-hint{display:block;margin-top:6px;font-size:.82rem;color:var(--muted)}
+/* Снимки на документите: камера в сайта или качване на файл */
+#bk .doc-tip{display:block;clear:both;background:var(--soft);border-radius:12px;padding:10px 14px;font-size:.84rem;line-height:1.45;color:var(--ink);margin:0 0 4px}
+#bk .phl{font-size:.85rem;font-weight:700;display:block;margin-bottom:6px}
+#bk .phbtn{position:relative;display:flex;flex-wrap:wrap;gap:8px}
+#bk .phin{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;padding:0;min-height:0;border:0}
+#bk .upb{display:inline-flex;align-items:center;justify-content:center;flex:1 1 140px;min-height:44px;margin:0;padding:8px 14px;border:1.5px solid var(--line);border-radius:12px;background:#fff;color:var(--navy);font:inherit;font-size:.88rem;font-weight:800;cursor:pointer;text-align:center}
+#bk .upb:hover{border-color:var(--navy)}
+#bk .camb{background:var(--navy);border-color:var(--navy);color:#fff}
+#bk .phin:focus-visible+.upb,#bk .upb:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+#bk .phmsg{margin:6px 0 0;font-size:.82rem;font-weight:700;color:#8a1f17}
+#bk .phmsg:empty{display:none}
+/* Диалогът се побира във видимата част (без браузърните ленти и safe-area) и се превърта; бутоните остават видими долу */
+.cam{border:0;padding:0;margin:auto;width:min(calc(100vw - 16px),720px);max-width:calc(100vw - 16px);max-height:calc(100vh - 16px);max-height:calc(100dvh - 16px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px));overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;background:var(--navy);color:#fff;border-radius:18px}
+.cam::backdrop{background:rgba(5,10,20,.82)}
+.cam-box{padding:16px max(16px,env(safe-area-inset-right,0px)) 0 max(16px,env(safe-area-inset-left,0px));display:grid;gap:10px}
+.cam-live{display:grid;gap:10px}.cam-live[hidden]{display:none}
+.cam-code{margin:0;font-size:.75rem;color:#9fb0c8}.cam-code[hidden]{display:none}
+.cam h3{font-size:1.05rem;font-weight:800;margin:0}
+.cam-tip{margin:0;font-weight:700;color:var(--acc)}
+.cam-note{margin:0;font-size:.8rem;color:#c5d0e0}
+/* Рамката е в процент от кадъра: сцената има точно пропорциите на видеото, а видеото не се изрязва (object-fit: contain) */
+.cam-stage{position:relative;justify-self:center;width:min(100%,calc(46vh * var(--ar,1.333)));width:min(100%,calc(46dvh * var(--ar,1.333)));aspect-ratio:var(--ar,1.333);background:#000;border-radius:12px;overflow:hidden}
+.cam-stage video,.cam-stage img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:block}
+.cam-stage img[hidden],.cam-stage video[hidden]{display:none}
+.cam-frame{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);border:3px solid var(--acc);border-radius:10px;box-shadow:0 0 0 100vmax rgba(0,0,0,.38);pointer-events:none}
+.cam-frame[hidden]{display:none}
+.cam-msg{margin:0;font-size:.9rem;min-height:1.2em}
+.cam-msg.err{background:#fff1f0;color:#8a1f17;border-radius:10px;padding:10px 12px;font-weight:700}
+.cam-act{position:sticky;bottom:0;display:flex;flex-wrap:wrap;gap:8px;background:var(--navy);padding:10px 0 max(16px,env(safe-area-inset-bottom,0px))}
+.cam-act .btn{flex:1 1 140px}
+.cam-act .btn[hidden]{display:none}
 #details{padding:0 0 72px}
 </style>
 <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"AutoRental","@id":"https://rentacar-ptb.com/#business","name":"Рента ПТБ Строй ЕООД","legalName":"РЕНТА ПТБ СТРОЙ ЕООД","description":"Коли под наем в Пловдив с доставка до Летище Пловдив и до адрес в цяла България.","url":"https://rentacar-ptb.com/","logo":"https://rentacar-ptb.com/images/logo.png","image":"https://rentacar-ptb.com/images/og-image.jpg","telephone":"+359877748693","email":"rentaptb_stroi@abv.bg","identifier":{"@type":"PropertyValue","propertyID":"ЕИК","value":"208817102"},"address":{"@type":"PostalAddress","streetAddress":"бул. Дунав 10","addressLocality":"Пловдив","postalCode":"4027","addressCountry":"BG"},"hasMap":"https://maps.app.goo.gl/3Z6hxjwnggn99cNu7","areaServed":[{"@type":"City","name":"Пловдив"},{"@type":"Country","name":"България"},{"@type":"Airport","name":"Летище Пловдив","iataCode":"PDV"}],"priceRange":"15–25 € на ден","currenciesAccepted":"EUR","paymentAccepted":"В брой, банков превод","knowsLanguage":["bg","en","de"]},{"@type":"WebSite","@id":"https://rentacar-ptb.com/#website","url":"https://rentacar-ptb.com/","name":"Рента ПТБ Строй – коли под наем в Пловдив","inLanguage":["bg","en","de"],"publisher":{"@id":"https://rentacar-ptb.com/#business"}}]}</script>
@@ -846,6 +883,7 @@ button.btn-ghost{background:transparent}
 <div><label for="f-fuel">Гориво</label><select id="f-fuel"><option value="">Всички</option></select></div>
 <div><label for="f-gear">Скоростна кутия</label><select id="f-gear"><option value="">Всички</option></select></div>
 </div>
+<p class="promo-note" id="promo-note" hidden><span>Промоционални цени −20%</span></p>
 <div class="car-grid" id="car-grid" aria-live="polite"></div>
 </div>
 </section>
@@ -855,13 +893,15 @@ button.btn-ghost{background:transparent}
 <div class="cal" id="cal" hidden></div>
 <div class="plan plancard">
 <fieldset><legend>1. Получаване</legend>
-<div class="row"><div><label for="b-d1">Дата на получаване</label><input id="b-d1" type="date" required></div><div><label for="b-t1">Час на получаване</label><input id="b-t1" type="time" required></div></div>
+<div class="row"><div><label for="b-d1">Дата на получаване</label><input id="b-d1" type="date" required></div><div><label for="b-t1">Час на получаване</label><input id="b-t1" type="time" required aria-describedby="b-t1-h"></div></div>
+<small class="hours-hint" id="b-t1-h">Работно време за получаване и връщане: пн–пт 08:00–20:00, сб–нд 09:00–19:00.</small>
 <label class="opt"><input type="radio" name="m1" value="store" checked><span>Вземане от нашия адрес — гр. Пловдив, бул. Дунав 10</span></label>
 <label class="opt"><input type="radio" name="m1" value="addr"><span>Доставка до адрес</span></label>
 <div class="addr" id="a1" hidden><label for="b-a1">Адрес за доставка</label><input id="b-a1" autocomplete="street-address" placeholder="Град, улица, номер"></div>
 </fieldset>
 <fieldset><legend>2. Връщане</legend>
-<div class="row"><div><label for="b-d2">Дата на връщане</label><input id="b-d2" type="date" required></div><div><label for="b-t2">Час на връщане</label><input id="b-t2" type="time" required></div></div>
+<div class="row"><div><label for="b-d2">Дата на връщане</label><input id="b-d2" type="date" required></div><div><label for="b-t2">Час на връщане</label><input id="b-t2" type="time" required aria-describedby="b-t2-h"></div></div>
+<small class="hours-hint" id="b-t2-h">Работно време за получаване и връщане: пн–пт 08:00–20:00, сб–нд 09:00–19:00.</small>
 <label class="opt"><input type="radio" name="m2" value="store" checked><span>Връщане на нашия адрес — гр. Пловдив, бул. Дунав 10</span></label>
 <label class="opt"><input type="radio" name="m2" value="addr"><span>Връщане от адрес</span></label>
 <div class="addr" id="a2" hidden><label for="b-a2">Адрес за вземане на автомобила</label><input id="b-a2" placeholder="Град, улица, номер"></div>
@@ -894,13 +934,14 @@ button.btn-ghost{background:transparent}
 <div class="row"><div><label for="b-idn">Номер на документа</label><input id="b-idn" autocomplete="off" required></div><div><label for="b-egn">ЕГН</label><input id="b-egn" inputmode="numeric" autocomplete="off" maxlength="20" required></div></div>
 <div class="row"><div><label for="b-idd">Дата на издаване</label><input id="b-idd" type="date" required></div><div><label for="b-idp">Издаден от / къде</label><input id="b-idp" placeholder="напр. МВР Пловдив" required></div></div>
 <div class="row"><div><label for="b-city">Град</label><input id="b-city" autocomplete="address-level2" required></div><div><label for="b-addr">Адрес</label><input id="b-addr" autocomplete="street-address" placeholder="Улица, номер, вход, апартамент" required></div></div>
-<div class="row"><div><label for="p-idf">Снимка – лицева страна</label><input id="p-idf" class="phin" type="file" accept="image/*" required><img class="phprev" id="p-idf-v" alt="" hidden></div><div><label for="p-idb">Снимка – гръб</label><input id="p-idb" class="phin" type="file" accept="image/*" required><img class="phprev" id="p-idb-v" alt="" hidden></div></div>
-<small class="hint">Снимайте документа ясно, без отблясъци, така че всички данни да се четат.</small>
+<p class="doc-tip">Поставете документа върху равна повърхност при добро осветление. Снимайте го целия, така че всички краища и данни да се виждат ясно. Избягвайте размазване, отблясъци и закриване с пръсти. Проверете четливостта преди изпращане.</p>
+<div class="row"><div><span class="phl" id="p-idf-t">Снимка – лицева страна</span><div class="phbtn"><button type="button" class="upb camb" data-cam="p-idf" aria-describedby="p-idf-t">Снимай с камерата</button><input id="p-idf" class="phin" type="file" accept="image/*" required aria-labelledby="p-idf-t p-idf-u"><label class="upb" id="p-idf-u" for="p-idf">Качи снимка/файл</label></div><p class="phmsg" id="p-idf-m" role="status"></p><img class="phprev" id="p-idf-v" alt="" hidden></div><div><span class="phl" id="p-idb-t">Снимка – гръб</span><div class="phbtn"><button type="button" class="upb camb" data-cam="p-idb" aria-describedby="p-idb-t">Снимай с камерата</button><input id="p-idb" class="phin" type="file" accept="image/*" required aria-labelledby="p-idb-t p-idb-u"><label class="upb" id="p-idb-u" for="p-idb">Качи снимка/файл</label></div><p class="phmsg" id="p-idb-m" role="status"></p><img class="phprev" id="p-idb-v" alt="" hidden></div></div>
 </fieldset>
 <fieldset class="fbox"><legend><span class="fn">3</span>Шофьорска книжка</legend>
 <div class="row"><div><label for="b-dln">Номер на книжката</label><input id="b-dln" autocomplete="off" required></div><div><label for="b-dlname">Имена</label><input id="b-dlname" autocomplete="off" required><small class="hint">Попълват се автоматично от личната карта.</small></div></div>
 <div class="row"><div><label for="b-dld">Дата на издаване</label><input id="b-dld" type="date" required></div><div><label for="b-dlp">Издадена от / къде</label><input id="b-dlp" placeholder="напр. МВР Пловдив" required></div></div>
-<div class="row"><div><label for="p-dlf">Снимка – лицева страна</label><input id="p-dlf" class="phin" type="file" accept="image/*" required><img class="phprev" id="p-dlf-v" alt="" hidden></div><div><label for="p-dlb">Снимка – гръб</label><input id="p-dlb" class="phin" type="file" accept="image/*" required><img class="phprev" id="p-dlb-v" alt="" hidden></div></div>
+<p class="doc-tip">Поставете документа върху равна повърхност при добро осветление. Снимайте го целия, така че всички краища и данни да се виждат ясно. Избягвайте размазване, отблясъци и закриване с пръсти. Проверете четливостта преди изпращане.</p>
+<div class="row"><div><span class="phl" id="p-dlf-t">Снимка – лицева страна</span><div class="phbtn"><button type="button" class="upb camb" data-cam="p-dlf" aria-describedby="p-dlf-t">Снимай с камерата</button><input id="p-dlf" class="phin" type="file" accept="image/*" required aria-labelledby="p-dlf-t p-dlf-u"><label class="upb" id="p-dlf-u" for="p-dlf">Качи снимка/файл</label></div><p class="phmsg" id="p-dlf-m" role="status"></p><img class="phprev" id="p-dlf-v" alt="" hidden></div><div><span class="phl" id="p-dlb-t">Снимка – гръб</span><div class="phbtn"><button type="button" class="upb camb" data-cam="p-dlb" aria-describedby="p-dlb-t">Снимай с камерата</button><input id="p-dlb" class="phin" type="file" accept="image/*" required aria-labelledby="p-dlb-t p-dlb-u"><label class="upb" id="p-dlb-u" for="p-dlb">Качи снимка/файл</label></div><p class="phmsg" id="p-dlb-m" role="status"></p><img class="phprev" id="p-dlb-v" alt="" hidden></div></div>
 </fieldset>
 <fieldset class="fbox"><legend><span class="fn">4</span>Начин на плащане</legend>
 <div class="paybox">
@@ -937,6 +978,27 @@ button.btn-ghost{background:transparent}
 </div>
 </section>
 </div>
+<dialog class="cam" id="cam" aria-labelledby="cam-h">
+<div class="cam-box">
+<h3 id="cam-h">Снимка на документа</h3>
+<div class="cam-live" id="cam-live">
+<p class="cam-tip" id="cam-tip">Поставете целия документ в рамката</p>
+<div class="cam-stage" id="cam-stage"><video id="cam-v" playsinline muted autoplay aria-label="Изглед от камерата"></video><div class="cam-frame" id="cam-f" aria-hidden="true"></div><img id="cam-img" alt="Преглед на снимката" hidden></div>
+<p class="cam-note">Рамката е само за ориентир. Проверете сами дали всички данни се четат ясно.</p>
+</div>
+<p class="cam-msg" id="cam-msg" role="status" aria-live="polite"></p>
+<p class="cam-code" id="cam-code" hidden><span>Технически код:</span> <code id="cam-code-v"></code></p>
+<div class="cam-act">
+<button class="btn btn-acc" type="button" id="cam-shot">Снимай</button>
+<button class="btn btn-ghost" type="button" id="cam-again" hidden>Снимай отново</button>
+<button class="btn btn-acc" type="button" id="cam-use" hidden>Използвай снимката</button>
+<button class="btn btn-acc" type="button" id="cam-file" hidden>Качи снимка/файл</button>
+<button class="btn btn-ghost" type="button" id="cam-retry" hidden>Опитай отново</button>
+<a class="btn btn-ghost" id="cam-tab" href="/" target="_blank" rel="noopener" hidden>Отвори сайта в нов раздел</a>
+<button class="btn btn-ghost" type="button" id="cam-close">Затвори</button>
+</div>
+</div>
+</dialog>
 </main>
 
 <footer>
@@ -1035,7 +1097,42 @@ const I18N={
 "Лични данни":["Personal details","Persönliche Daten"],
 "Снимка – лицева страна":["Photo – front side","Foto – Vorderseite"],
 "Снимка – гръб":["Photo – back side","Foto – Rückseite"],
-"Снимайте документа ясно, без отблясъци, така че всички данни да се четат.":["Take a clear photo without glare so all details are readable.","Fotografieren Sie das Dokument deutlich und ohne Spiegelungen, damit alle Angaben lesbar sind."],
+"Поставете документа върху равна повърхност при добро осветление. Снимайте го целия, така че всички краища и данни да се виждат ясно. Избягвайте размазване, отблясъци и закриване с пръсти. Проверете четливостта преди изпращане.":["Place the document on a flat surface in good light. Photograph the whole document so that all edges and details are clearly visible. Avoid blur, glare and covering it with your fingers. Check that it is legible before sending.","Legen Sie das Dokument auf eine ebene Fläche bei guter Beleuchtung. Fotografieren Sie es vollständig, sodass alle Ränder und Angaben deutlich sichtbar sind. Vermeiden Sie Unschärfe, Spiegelungen und das Verdecken mit den Fingern. Prüfen Sie vor dem Senden, ob alles lesbar ist."],
+"Снимай с камерата":["Take photo with camera","Mit Kamera fotografieren"],
+"Качи снимка/файл":["Upload photo/file","Foto/Datei hochladen"],
+"Снимка на документа":["Photo of the document","Foto des Dokuments"],
+"Документ за самоличност – лицева страна":["Identity document – front side","Ausweisdokument – Vorderseite"],
+"Документ за самоличност – гръб":["Identity document – back side","Ausweisdokument – Rückseite"],
+"Шофьорска книжка – лицева страна":["Driving licence – front side","Führerschein – Vorderseite"],
+"Шофьорска книжка – гръб":["Driving licence – back side","Führerschein – Rückseite"],
+"Поставете целия документ в рамката":["Place the whole document inside the frame","Legen Sie das ganze Dokument in den Rahmen"],
+"Изглед от камерата":["Camera view","Kameraansicht"],
+"Преглед на снимката":["Photo preview","Fotovorschau"],
+"Рамката е само за ориентир. Проверете сами дали всички данни се четат ясно.":["The frame is only a guide. Please check yourself that all details are clearly legible.","Der Rahmen dient nur zur Orientierung. Prüfen Sie selbst, ob alle Angaben gut lesbar sind."],
+"Снимай":["Take photo","Foto aufnehmen"],
+"Снимай отново":["Retake","Neu aufnehmen"],
+"Използвай снимката":["Use this photo","Foto verwenden"],
+"Затвори":["Close","Schließen"],
+"Включваме камерата…":["Starting the camera…","Kamera wird gestartet…"],
+"Проверете дали целият документ и всички данни се четат ясно.":["Check that the whole document and all details are clearly legible.","Prüfen Sie, ob das ganze Dokument und alle Angaben gut lesbar sind."],
+"Достъпът до камерата е отказан за този сайт. За да го разрешите: в Safari на iPhone докоснете „aA“ в адресната лента → „Настройки на уебсайта“ → „Камера“ → „Разреши“ (или Настройки → Apps → Safari → Камера). В Chrome: иконата вляво от адреса → „Разрешения“ → „Камера“. След това натиснете „Опитай отново“ или използвайте „Качи снимка/файл“.":["Camera access is denied for this site. To allow it: in Safari on iPhone tap “aA” in the address bar → “Website Settings” → “Camera” → “Allow” (or Settings → Apps → Safari → Camera). In Chrome: the icon left of the address → “Permissions” → “Camera”. Then tap “Try again” or use “Upload photo/file”.","Der Kamerazugriff ist für diese Website verweigert. So erlauben Sie ihn: In Safari auf dem iPhone „aA“ in der Adressleiste → „Website-Einstellungen“ → „Kamera“ → „Erlauben“ (oder Einstellungen → Apps → Safari → Kamera). In Chrome: Symbol links neben der Adresse → „Berechtigungen“ → „Kamera“. Tippen Sie danach auf „Erneut versuchen“ oder verwenden Sie „Foto/Datei hochladen“."],
+"Камерата е блокирана от страницата, в която е вграден сайтът (например прегледът в app.netlify.com). Това не е ваш отказ. Отворете сайта директно в нов раздел или използвайте „Качи снимка/файл“.":["The camera is blocked by the page in which this site is embedded (for example the preview in app.netlify.com). You did not deny access. Open the site directly in a new tab or use “Upload photo/file”.","Die Kamera wird von der Seite blockiert, in die diese Website eingebettet ist (z. B. die Vorschau in app.netlify.com). Sie haben den Zugriff nicht verweigert. Öffnen Sie die Website direkt in einem neuen Tab oder verwenden Sie „Foto/Datei hochladen“."],
+"Камерата се използва от друго приложение или не може да бъде включена. Затворете другите приложения с камера и натиснете „Опитай отново“ или използвайте „Качи снимка/файл“.":["The camera is in use by another app or cannot be started. Close other apps using the camera and tap “Try again” or use “Upload photo/file”.","Die Kamera wird von einer anderen App verwendet oder kann nicht gestartet werden. Schließen Sie andere Kamera-Apps und tippen Sie auf „Erneut versuchen“ oder verwenden Sie „Foto/Datei hochladen“."],
+"Камерата не може да бъде включена. Натиснете „Опитай отново“ или използвайте „Качи снимка/файл“.":["The camera could not be started. Tap “Try again” or use “Upload photo/file”.","Die Kamera konnte nicht gestartet werden. Tippen Sie auf „Erneut versuchen“ oder verwenden Sie „Foto/Datei hochladen“."],
+"Опитай отново":["Try again","Erneut versuchen"],
+"Отвори сайта в нов раздел":["Open the site in a new tab","Website in neuem Tab öffnen"],
+"Технически код:":["Technical code:","Technischer Code:"],
+"Не е намерена камера на това устройство. Използвайте „Качи снимка/файл“.":["No camera was found on this device. Use “Upload photo/file”.","Auf diesem Gerät wurde keine Kamera gefunden. Verwenden Sie „Foto/Datei hochladen“."],
+"Този браузър не позволява снимане в сайта. Използвайте „Качи снимка/файл“.":["This browser does not support taking photos on the site. Use “Upload photo/file”.","Dieser Browser unterstützt keine Aufnahmen auf der Website. Verwenden Sie „Foto/Datei hochladen“."],
+"Резервацията е отменена":["The booking has been cancelled","Die Buchung wurde storniert"],
+"Резервацията вече не е активна. За въпроси се обадете на +359877748693.":["The booking is no longer active. For questions call +359877748693.","Die Buchung ist nicht mehr aktiv. Bei Fragen rufen Sie +359877748693 an."],
+"Промоционални цени −20%":["Promotional prices −20%","Aktionspreise −20 %"],
+"Промоционална цена":["Promotional price","Aktionspreis"],
+"Демонстрация – само в Preview, не е активно в публичния сайт":["Demo – Preview only, not active on the public site","Demo – nur in der Vorschau, auf der öffentlichen Website nicht aktiv"],
+"Работно време за получаване и връщане: пн–пт 08:00–20:00, сб–нд 09:00–19:00.":["Pick-up and return hours: Mon–Fri 08:00–20:00, Sat–Sun 09:00–19:00.","Abholung und Rückgabe: Mo–Fr 08:00–20:00, Sa–So 09:00–19:00."],
+"Часът на получаване трябва да е в работното време: пн–пт 08:00–20:00, сб–нд 09:00–19:00.":["The pick-up time must be within opening hours: Mon–Fri 08:00–20:00, Sat–Sun 09:00–19:00.","Die Abholzeit muss innerhalb der Öffnungszeiten liegen: Mo–Fr 08:00–20:00, Sa–So 09:00–19:00."],
+"Часът на връщане трябва да е в работното време: пн–пт 08:00–20:00, сб–нд 09:00–19:00.":["The return time must be within opening hours: Mon–Fri 08:00–20:00, Sat–Sun 09:00–19:00.","Die Rückgabezeit muss innerhalb der Öffnungszeiten liegen: Mo–Fr 08:00–20:00, Sa–So 09:00–19:00."],
+"Часът на получаване или връщане е извън работното време: пн–пт 08:00–20:00, сб–нд 09:00–19:00.":["The pick-up or return time is outside opening hours: Mon–Fri 08:00–20:00, Sat–Sun 09:00–19:00.","Die Abhol- oder Rückgabezeit liegt außerhalb der Öffnungszeiten: Mo–Fr 08:00–20:00, Sa–So 09:00–19:00."],
 "Изпрати резервацията":["Send booking","Buchung senden"],
 "Цената за избрания период е по-горе. Попълнете данните си и приложете снимки на документите, за да изпратите резервацията.":["The price for the selected period is shown above. Fill in your details and attach photos of your documents to send the booking.","Der Preis für den gewählten Zeitraum steht oben. Geben Sie Ihre Daten ein und fügen Sie Fotos Ihrer Dokumente bei, um die Buchung zu senden."],
 "Продължи с данните":["Continue to your details","Weiter zu Ihren Daten"],
@@ -1422,6 +1519,20 @@ const CARS=[
 {id:"ibiza",name:"SEAT Ibiza",color:"Черен",year:2010,engine:"1.6 дизел",fuel:"Дизел",hp:105,body:"Комби",gear:"Ръчна",tiers:T25},
 {id:"golf",name:"Volkswagen Golf 5",color:"Бял",year:2009,engine:"1.9 дизел",fuel:"Дизел",hp:105,body:"Комби",gear:"Ръчна",tiers:T25},
 {id:"passat",name:"Volkswagen Passat",color:"Черен",year:2008,engine:"2.0 дизел",fuel:"Дизел",hp:140,drive:"4x4",body:"Комби",gear:"Ръчна",tiers:T25}];
+// ===== Промоция „−20%“ =====
+// Цените в tiers по-горе са крайните (промоционални) цени – обозначението НЕ ги намалява допълнително и не показва
+// зачертани цени. on:true включва badge-а и надписа в публичния сайт; изключено е, докато не бъдат уточнени
+// предходните реално прилагани цени. Извън продукция се показва само като демонстрация (PROMO_DEMO): средата се
+// определя от сървъра (/api/availability → promoDemo, по средата на Netlify), защото адресите на Preview са различни
+// (deploy-preview-N--…, agent-…--…, вграден преглед в app.netlify.com). Локален сървър без функции – по адреса.
+const PROMO={on:false,cars:["punto","ka","ibiza","golf","passat"]};
+let PROMO_DEMO=!PROMO.on&&/^(localhost|127\.0\.0\.1)$/.test(location.hostname);
+const promoOf=c=>(PROMO.on||PROMO_DEMO)&&PROMO.cars.includes(c.id);
+// ===== Работно време за получаване и връщане (Europe/Sofia) – същото като в db/hours.ts =====
+// Ключ: 0 = неделя … 6 = събота. Граничните часове се приемат (напр. 08:00 и 20:00 в делничен ден).
+const HOURS={0:["09:00","19:00"],1:["08:00","20:00"],2:["08:00","20:00"],3:["08:00","20:00"],4:["08:00","20:00"],5:["08:00","20:00"],6:["09:00","19:00"]};
+const hoursOf=ds=>/^\d{4}-\d{2}-\d{2}$/.test(ds||"")?HOURS[new Date(ds+"T12:00:00Z").getUTCDay()]:null;
+const inHours=(ds,t)=>{const h=hoursOf(ds);return!!h&&/^([01]\d|2[0-3]):[0-5]\d$/.test(t||"")&&t>=h[0]&&t<=h[1]};
 const WHY=[
 ["i-check","Изрядни документи","Всеки автомобил разполага с валидна електронна винетка, валиден технически преглед (ГТП), действаща застраховка „Гражданска отговорност“."],
 ["i-wrench","Надеждни автомобили","Всички автомобили са обслужени и готови за път."],
@@ -1475,7 +1586,7 @@ if(!q||q.err==="dates")pb=sel?'<div class="cprice"><small>Изберете да�
 else if(q.err==="order")pb='<div class="cprice bad"><small>Връщането трябва да е след получаването. <a href="#plan">Променете датите</a>.</small></div>';
 else if(na)pb='<div class="cprice bad"><b>Не е наличен за избрания период.</b><small>Изберете друг автомобил или <a href="#plan">променете датите</a>.</small></div>';
 else pb=`<div class="cprice ok2"><span>${bf(S.d1,S.t1)} → ${bf(S.d2,S.t2)} · ${q.d} ${q.d>1?"дни":"ден"}</span><b>${fmt(q.base)}</b><small>${q.d} × ${fmt(q.r)} / ден за автомобила</small></div>`;
-const badge=na?'<span class="ok no">Зает за периода</span>':isFree(c)?'<span class="ok">Свободен</span>':"";
+const badge=(na?'<span class="ok no">Зает за периода</span>':isFree(c)?'<span class="ok">Свободен</span>':"")+(promoOf(c)?'<span class="promo" title="Промоционална цена">−20%</span>':"");
 const btn=na?'<button class="btn btn-acc" type="button" disabled>Не е наличен</button>':sel?'<button class="btn btn-dark" type="button" disabled>Избран ✓</button>':`<button class="btn btn-acc" type="button" data-pick="${c.id}">Избери автомобила</button>`;
 return`<article class="vcard rv${sel?" sel":""}${na?" na":""}"><div class="vimg">${badge}<img class="bgi" src="${IMG[c.id]}" alt="" aria-hidden="true"><img class="fg" src="${IMG[c.id]}" alt="${alt}" loading="lazy"></div><div class="vbody"><h3>${c.name}</h3>
 <div class="vprice">От <b>${fmt(d)}</b> / ден<small>при наем над 30 дни</small></div>
@@ -1559,7 +1670,7 @@ async function sendBooking(links){const R=S,c=CARS.find(x=>x.id===R.car),q=c&&ha
 S.berr="";if(!S.rk){S.rk=crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2);store.set(S)}try{const r=await fetch(BOOKINGS_ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({requestKey:S.rk,name:R.name,email:R.mail,phone:R.phone,lang:LANG,car:c?c.name:"",carId:c?c.id:"",startDate:R.d1,endDate:R.d2,startTime:R.t1||"",endTime:R.t2||"",payment:R.pay,invoice:invText(R),
 pickup:bf(R.d1,R.t1)+", "+place(1,"доставка до"),dropoff:bf(R.d2,R.t2)+", "+place(2,"вземане от"),total:q&&!q.err?fmt(q.tot)+(q.pend.length?" (без "+q.pend.join(" и ")+")":""):"",
 message:buildText()+(Object.keys(links).length?"\n\nСНИМКИ НА ДОКУМЕНТИТЕ\n"+Object.entries(links).map(([l,u])=>l+": "+u).join("\n"):""),contract:contractData(R,q)})});
-const j=await r.json().catch(()=>({}));if(r.status===409)return"busy";if(!r.ok||!j.id){S.berr=j.detail||j.error||("HTTP "+r.status);return false}S.bid=j.id;S.btok=j.token;S.bst=j.status;S.bnote="";S.rk="";newBid=j.duplicate?"":j.id;return j.notify==="failed"?"unnotified":true}catch(e){S.berr="Няма връзка със сървъра";return false}}
+const j=await r.json().catch(()=>({}));if(r.status===409)return"busy";if(r.status===400&&j.error==="hours")return"hours";if(!r.ok||!j.id){S.berr=j.detail||j.error||("HTTP "+r.status);return false}S.bid=j.id;S.btok=j.token;S.bst=j.status;S.bnote="";S.rk="";newBid=j.duplicate?"":j.id;return j.notify==="failed"?"unnotified":true}catch(e){S.berr="Няма връзка със сървъра";return false}}
 // Данни за автоматичното попълване на договора за наем (изпраща се до фирмата като прикачен файл)
 const contractData=(R,q)=>{const ok=q&&!q.err,leg=n=>R["m"+n]==="addr"?{addr:R["a"+n],km:KMS[n],rate:KMS[n]!=null?kmRate(n):null}:null;
 return{citizen:R.cit,idt:R.idt,idn:R.idn,egn:R.egn,idd:R.idd,idp:R.idp,city:R.city,addr:R.addr,dln:R.dln,dld:R.dld,dlp:R.dlp,d1:R.d1,t1:R.t1,d2:R.d2,t2:R.t2,
@@ -1571,8 +1682,66 @@ const PHOTOS={"p-idf":"Документ за самоличност – лице
 function shrink(f){return new Promise((ok,no)=>{const u=URL.createObjectURL(f),i=new Image();
 i.onload=()=>{const k=Math.min(1,1800/Math.max(i.naturalWidth,i.naturalHeight)),c=document.createElement("canvas");c.width=Math.round(i.naturalWidth*k);c.height=Math.round(i.naturalHeight*k);c.getContext("2d").drawImage(i,0,0,c.width,c.height);URL.revokeObjectURL(u);c.toBlob(b=>b?ok(b):no(),"image/jpeg",.82)};
 i.onerror=()=>{URL.revokeObjectURL(u);no()};i.src=u})}
-Object.keys(PHOTOS).forEach(id=>$("#"+id).addEventListener("change",async e=>{const f=e.target.files[0],pv=$("#"+id+"-v");delete PH[id];pv.hidden=true;syncSubmit();if(!f)return;
-try{const b=await shrink(f);PH[id]=b;pv.src=URL.createObjectURL(b);pv.hidden=false;syncSubmit()}catch(x){e.target.value="";syncSubmit();fail("Снимката не може да бъде прочетена. Моля, изберете снимка във формат JPG или PNG.")}}));
+// Избран файл или снимка от камерата в сайта – еднакво смаляване, преглед и качване
+async function setPhoto(id,f,inp){const pv=$("#"+id+"-v");delete PH[id];pv.hidden=true;$("#"+id+"-m").textContent="";syncSubmit();if(!f)return;
+try{const b=await shrink(f);PH[id]=b;pv.src=URL.createObjectURL(b);pv.hidden=false;syncSubmit()}catch(x){if(inp)inp.value="";syncSubmit();fail("Снимката не може да бъде прочетена. Моля, изберете снимка във формат JPG или PNG.")}}
+Object.keys(PHOTOS).forEach(id=>$("#"+id).addEventListener("change",e=>setPhoto(id,e.target.files[0],e.target)));
+// ===== Камера в сайта с насочваща рамка =====
+// Включва се само след „Снимай с камерата“, предпочита задната камера и спира при затваряне, приемане на снимката,
+// смяна на изгледа или скриване на страницата. Снимката остава в браузъра и минава през setPhoto() – същите ограничения
+// и същото качване (/api/documents) като избран файл; не се праща другаде. Рамката е само ориентир – не проверява четливостта.
+// Заснема се целият кадър, който се вижда: сцената има пропорциите на видеото, видеото не се изрязва, рамката е в % от кадъра.
+// Пропорции на рамката: лична карта и шофьорска книжка – ID-1 (85,6 × 54 мм), паспорт – страница с данни (125 × 88 мм).
+const CAM={id:"",stream:null,blob:null,url:""};
+const camOk=()=>!!(window.isSecureContext&&navigator.mediaDevices&&navigator.mediaDevices.getUserMedia&&window.HTMLDialogElement&&$("#cam").showModal);
+const camAr=id=>/^p-id/.test(id)&&idt()==="pass"?125/88:85.6/54;
+// Видове грешки: denied – посетителят (или настройката на браузъра) е отказал достъп; framed – страницата, в която е
+// вграден сайтът (напр. прегледът в app.netlify.com), не разрешава камера на вградената рамка – това не е отказ на
+// посетителя; busy – камерата е заета; none – няма камера; fail – друго (вкл. видеото не стартира); unsup – няма поддръжка.
+const CAM_ERR={denied:"Достъпът до камерата е отказан за този сайт. За да го разрешите: в Safari на iPhone докоснете „aA“ в адресната лента → „Настройки на уебсайта“ → „Камера“ → „Разреши“ (или Настройки → Apps → Safari → Камера). В Chrome: иконата вляво от адреса → „Разрешения“ → „Камера“. След това натиснете „Опитай отново“ или използвайте „Качи снимка/файл“.",
+framed:"Камерата е блокирана от страницата, в която е вграден сайтът (например прегледът в app.netlify.com). Това не е ваш отказ. Отворете сайта директно в нов раздел или използвайте „Качи снимка/файл“.",
+busy:"Камерата се използва от друго приложение или не може да бъде включена. Затворете другите приложения с камера и натиснете „Опитай отново“ или използвайте „Качи снимка/файл“.",
+none:"Не е намерена камера на това устройство. Използвайте „Качи снимка/файл“.",fail:"Камерата не може да бъде включена. Натиснете „Опитай отново“ или използвайте „Качи снимка/файл“.",unsup:"Този браузър не позволява снимане в сайта. Използвайте „Качи снимка/файл“."};
+const framed=(()=>{try{return window.top!==window.self}catch(e){return true}})();
+// Chrome / Edge съобщават предварително дали вградената рамка има право на камера; Safari – само чрез грешката
+const camPolicyOff=()=>{const p=document.permissionsPolicy||document.featurePolicy;try{return!!(p&&p.allowsFeature&&p.allowsFeature("camera")===false)}catch(e){return false}};
+const camKind=n=>n==="NotAllowedError"||n==="SecurityError"?(framed||n==="SecurityError"?"framed":"denied"):n==="NotReadableError"||n==="AbortError"?"busy":n==="NotFoundError"||n==="OverconstrainedError"?"none":"fail";
+function camStop(){if(CAM.stream){CAM.stream.getTracks().forEach(t=>t.stop());CAM.stream=null}$("#cam-v").srcObject=null}
+function camClear(){if(CAM.url)URL.revokeObjectURL(CAM.url);CAM.url="";CAM.blob=null;$("#cam-img").removeAttribute("src")}
+// st: load – включване, live – изглед от камерата, shot – преглед на снимката, err – грешка
+// При грешка изгледът (черният кадър, рамката и инструкцията) се скрива – остават съобщението и алтернативите
+function camView(st,kind){const shot=st==="shot",err=st==="err";$("#cam-live").hidden=err;$("#cam-tip").hidden=st!=="live";$("#cam-v").hidden=shot;$("#cam-img").hidden=!shot;$("#cam-f").hidden=st!=="live";
+$("#cam-shot").hidden=st!=="live";$("#cam-again").hidden=!shot;$("#cam-use").hidden=!shot;$("#cam-file").hidden=!err;$("#cam-retry").hidden=!err||kind==="framed"||kind==="none";
+const tab=$("#cam-tab");tab.hidden=!(err&&framed);tab.href=location.href;if(!err)$("#cam-code").hidden=true}
+function camFail(kind,code){camStop();camMsg(CAM_ERR[kind],1);$("#cam-code-v").textContent=code||"—";$("#cam-code").hidden=false;camView("err",kind);(framed&&kind==="framed"?$("#cam-tab"):$("#cam-file")).focus()}
+const camMsg=(t,err)=>{const m=$("#cam-msg");m.className="cam-msg"+(err?" err":"");m.textContent=t};
+function camFit(w,h){const ar=camAr(CAM.id),f=$("#cam-f");$("#cam-stage").style.setProperty("--ar",String(w/h));
+let fw=.88*w,fh=fw/ar;if(fh>.88*h){fh=.88*h;fw=fh*ar}f.style.width=fw/w*100+"%";f.style.height=fh/h*100+"%"}
+async function camStart(){camMsg("Включваме камерата…");camView("load");
+if(framed&&camPolicyOff())return camFail("framed","permissions-policy: camera");
+try{const st=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:"environment"},width:{ideal:1920},height:{ideal:1080}}});
+if(!$("#cam").open){st.getTracks().forEach(t=>t.stop());return}
+CAM.stream=st;const v=$("#cam-v");v.muted=true;v.setAttribute("playsinline","");v.srcObject=st;await v.play().catch(()=>{});
+if(!v.videoWidth)await new Promise((ok,no)=>{v.addEventListener("loadedmetadata",ok,{once:true});setTimeout(no,5000)});
+if(!v.videoWidth)throw{name:"video-not-started"};camFit(v.videoWidth,v.videoHeight);camMsg("");camView("live");$("#cam-shot").focus()}
+catch(e){const n=(e&&e.name)||"video-not-started";console.warn("camera:",n,e&&e.message);if($("#cam").open)camFail(camKind(n),n)}}
+function camOpen(id){$("#"+id+"-m").textContent="";if(!camOk()){$("#"+id+"-m").textContent=CAM_ERR.unsup;return}
+CAM.id=id;camClear();$("#cam-h").textContent=PHOTOS[id];$("#cam").showModal();camStart()}
+const camClose=()=>{camStop();camClear();if($("#cam").open)$("#cam").close()};
+$$("[data-cam]").forEach(b=>b.addEventListener("click",()=>camOpen(b.dataset.cam)));
+$("#cam-shot").addEventListener("click",()=>{const v=$("#cam-v"),w=v.videoWidth,h=v.videoHeight;if(!w||!h)return;const c=document.createElement("canvas");c.width=w;c.height=h;c.getContext("2d").drawImage(v,0,0,w,h);
+c.toBlob(b=>{if(!b){camMsg(CAM_ERR.fail,1);return}camStop();CAM.blob=b;CAM.url=URL.createObjectURL(b);$("#cam-img").src=CAM.url;camView("shot");camMsg("Проверете дали целият документ и всички данни се четат ясно.");$("#cam-use").focus()},"image/jpeg",.92)});
+$("#cam-again").addEventListener("click",()=>{camClear();camStart()});
+$("#cam-use").addEventListener("click",()=>{const id=CAM.id,b=CAM.blob;if(!b)return;$("#"+id).value="";camClose();setPhoto(id,b)});
+$("#cam-file").addEventListener("click",()=>{const id=CAM.id;camClose();$("#"+id).click()});
+$("#cam-close").addEventListener("click",camClose);
+$("#cam-retry").addEventListener("click",()=>{camClear();camStart()});
+$("#cam-tab").addEventListener("click",()=>setTimeout(camClose));
+// Затваряне (вкл. с Esc) винаги спира камерата веднага и изтрива непотвърдената снимка
+$("#cam").addEventListener("cancel",e=>{e.preventDefault();camClose()});
+$("#cam").addEventListener("close",()=>{camStop();camClear()});
+addEventListener("hashchange",camClose);addEventListener("pagehide",camClose);
+document.addEventListener("visibilitychange",()=>{if(document.hidden)camClose()});
 async function uploadPhotos(){const out={};for(const[id,l]of Object.entries(PHOTOS)){const r=await fetch(DOCS_ENDPOINT,{method:"POST",headers:{"Content-Type":"image/jpeg"},body:PH[id]});const j=await r.json().catch(()=>({}));if(!r.ok||!j.url)throw 0;out[l]=j.url}return out}
 // Проверка на задължителните полета (без „Допълнително“). Докато има липси, бутонът за изпращане е неактивен.
 const v=i=>$(i).value.trim();
@@ -1584,14 +1753,17 @@ $("#bk").addEventListener("submit",async e=>{e.preventDefault();$("#b-err").hidd
 const er=formErr();if(er)return fail(er);
 S=Object.assign(S,Object.fromEntries(Object.entries(fields).map(([k,s])=>[k,v(s)])),{idt:idt(),pay:pay(),done:"",bid:"",btok:"",bst:"",bnote:""});store.set(S);
 if(BOOKING_ENDPOINT){const b=$("#bk button[type=submit]"),m=$("#b-msg");sending=b.disabled=true;m.textContent="Изпращаме резервацията…";
-let r="err";newBid="";try{const links=await uploadPhotos(),sb=await sendBooking(links);r=sb==="busy"?"busy":sb===true?"sent":sb?(await sendAlert(),"sent"):await sendReq(links)}catch(x){}
-sending=b.disabled=false;m.textContent="";syncSubmit();if(r==="busy"){loadAvail();return fail("Автомобилът вече е резервиран за част от избрания период. Изберете други дати или друг автомобил.")}if(r!=="sent")return fail("Резервацията не беше изпратена. Опитайте отново или се обадете на +359877748693.");S.done="sent";if(newBid&&S.bid===newBid&&window.metaLead)metaLead(newBid)}else S.done="sms";
+let r="err";newBid="";try{const links=await uploadPhotos(),sb=await sendBooking(links);r=sb==="busy"||sb==="hours"?sb:sb===true?"sent":sb?(await sendAlert(),"sent"):await sendReq(links)}catch(x){}
+sending=b.disabled=false;m.textContent="";syncSubmit();if(r==="hours")return fail("Часът на получаване или връщане е извън работното време: пн–пт 08:00–20:00, сб–нд 09:00–19:00.");if(r==="busy"){loadAvail();return fail("Автомобилът вече е резервиран за част от избрания период. Изберете други дати или друг автомобил.")}if(r!=="sent")return fail("Резервацията не беше изпратена. Опитайте отново или се обадете на +359877748693.");S.done="sent";if(newBid&&S.bid===newBid&&window.metaLead)metaLead(newBid)}else S.done="sms";
 store.set(S);location.hash="blagodarim";if(S.done==="sms")sendSms()});
 // ===== Втора страница: данни за резервацията, автомобили и цени =====
-const today=new Date().toISOString().slice(0,10);$("#b-d1").min=$("#b-d2").min=today;
+const today=new Intl.DateTimeFormat("en-CA",{timeZone:"Europe/Sofia",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());$("#b-d1").min=$("#b-d2").min=today;
 const mode=n=>document.querySelector(`input[name=m${n}]:checked`).value;
 const addr=n=>$("#b-a"+n).value.trim();
-const sync=()=>{$("#a1").hidden=mode(1)!=="addr";$("#a2").hidden=mode(2)!=="addr";$("#abr-list").hidden=!$("#b-abr").checked;$("#seat-n").hidden=!$("#b-seat").checked;$("#b-seat-count").value=String(seatN(S))};
+// min / max на часа според деня от седмицата – само помощ в браузъра; проверката е в hoursErr() и на сървъра
+const syncHours=()=>[1,2].forEach(n=>{const h=hoursOf($("#b-d"+n).value),t=$("#b-t"+n);if(h){t.min=h[0];t.max=h[1]}else{t.removeAttribute("min");t.removeAttribute("max")}});
+const hoursErr=()=>S.d1&&S.t1&&!inHours(S.d1,S.t1)?"Часът на получаване трябва да е в работното време: пн–пт 08:00–20:00, сб–нд 09:00–19:00.":S.d2&&S.t2&&!inHours(S.d2,S.t2)?"Часът на връщане трябва да е в работното време: пн–пт 08:00–20:00, сб–нд 09:00–19:00.":"";
+const sync=()=>{syncHours();$("#a1").hidden=mode(1)!=="addr";$("#a2").hidden=mode(2)!=="addr";$("#abr-list").hidden=!$("#b-abr").checked;$("#seat-n").hidden=!$("#b-seat").checked;$("#b-seat-count").value=String(seatN(S))};
 $("#ctry-grid").innerHTML=ABROAD.map(([k,n,f])=>`<label class="opt"><input type="checkbox" value="${k}"><img src="https://flagcdn.com/w80/${k}.png" alt="" width="30" height="20" loading="lazy"><span class="cn">${n}<small>еднократна такса</small></span><b>${fmt(f)}</b></label>`).join("");
 function readPlan(){S.d1=$("#b-d1").value;S.t1=$("#b-t1").value;S.d2=$("#b-d2").value;S.t2=$("#b-t2").value;S.m1=mode(1);S.a1=addr(1);S.m2=mode(2);S.a2=addr(2);S.seat=$("#b-seat").checked;S.seatN=+($("input[name=seatn]:checked")||{}).value||1;S.abr=$("#b-abr").checked;S.ctry=$$("#ctry-grid input:checked").map(e=>e.value);store.set(S)}
 function writePlan(){$("#b-d1").value=S.d1||"";$("#b-d2").value=S.d2||"";$("#b-t1").value=S.t1||"12:00";$("#b-t2").value=S.t2||"12:00";
@@ -1616,14 +1788,16 @@ $("#b-seat-count").addEventListener("change",()=>{const count=+$("#b-seat-count"
 $$("#ctry-grid input").forEach(e=>e.addEventListener("change",()=>planChanged()));
 $$("input[name=m1]").forEach(e=>e.addEventListener("change",()=>planChanged(1)));$$("input[name=m2]").forEach(e=>e.addEventListener("change",()=>planChanged(2)));
 $("#b-a1").addEventListener("input",()=>{S.a1=addr(1);planChanged(1)});$("#b-a2").addEventListener("input",()=>{S.a2=addr(2);planChanged(2)});
-function planErr(){if(!S.d1||!S.t1)return"Моля, изберете дата и час на получаване.";if(!S.d2||!S.t2)return"Моля, изберете дата и час на връщане.";if(span(S.d1,S.t1,S.d2,S.t2)<0)return"Датата на връщане трябва да е след датата на получаване.";if(S.m1==="addr"&&(S.a1||"").length<5)return"Моля, въведете адрес за доставка.";if(S.m2==="addr"&&(S.a2||"").length<5)return"Моля, въведете адрес за връщане.";return""}
+function planErr(){if(!S.d1||!S.t1)return"Моля, изберете дата и час на получаване.";if(!S.d2||!S.t2)return"Моля, изберете дата и час на връщане.";if(span(S.d1,S.t1,S.d2,S.t2)<0)return"Датата на връщане трябва да е след датата на получаване.";{const he=hoursErr();if(he)return he}if(S.m1==="addr"&&(S.a1||"").length<5)return"Моля, въведете адрес за доставка.";if(S.m2==="addr"&&(S.a2||"").length<5)return"Моля, въведете адрес за връщане.";return""}
 function renderCars(){const p=+$("#f-price").value||1e9,t=$("#f-type").value,f=$("#f-fuel").value,g=$("#f-gear").value;
 const l=CARS.filter(c=>c.tiers[0]<=p&&(!t||c.body===t)&&(!f||c.fuel===f)&&(!g||c.gear===g));
+{const pn=$("#promo-note");pn.hidden=!CARS.some(promoOf);if(PROMO_DEMO&&!pn.querySelector("small"))pn.insertAdjacentHTML("beforeend","<small>Демонстрация – само в Preview, не е активно в публичния сайт</small>")}
 $("#car-grid").innerHTML=l.length?l.map(carCard).join(""):'<p class="empty">Няма автомобили по избраните филтри. Променете филтрите или се обадете на +359877748693.</p>';reveal()}
 function renderPick(){const el=$("#pick"),c=CARS.find(x=>x.id===S.car);renderCal();
 if(!c){el.hidden=true;$("#details").hidden=true;return}
 const q=hasD()?quote(c,S):null;let body,ok=false;
 if(!q||q.err==="dates")body='<p class="pend">Изберете дати на получаване и връщане по-горе, за да видите цената.</p>';
+else if(hoursErr())body=`<div class="alert">${hoursErr()}</div>`;
 else if(q.err==="order")body='<div class="alert">Датата на връщане трябва да е след датата на получаване.</div>';
 else if(q.err==="busy")body='<div class="alert">Автомобилът не е наличен за избрания период. Изберете друг автомобил или променете датите.</div>'+busyHint(q.b);
 else{ok=true;body=q.rows.map(([a,b,s])=>`<div class="srow"><span>${a}${s?`<small>${s}</small>`:""}</span><b>${b}</b></div>`).join("")+`<div class="stot"><span>Общо за услугите${q.pend.length?" (без "+q.pend.join(" и ")+")":""}</span><b>${fmt(q.tot)}</b></div>${q.pend.length?`<p class="pend">${ROUTING_ENDPOINT?"Разстоянието по пътен маршрут се изчислява.":"Разстоянието по пътен маршрут ще бъде изчислено от нас при потвърждение на заявката. Таксата е 1,00 € / км в Пловдив и района и 0,70 € / км извън него и се добавя към сумата."}</p>`:""}<p class="pend" style="color:#c5d0e0">${q.d>2?"Пробег: неограничен.":"Пробег: до 250 км на ден, над лимита 0,10 € за км."}</p><div class="sdep"><strong><span>Гаранционен депозит</span><span>${fmt(DEPOSIT)}</span></strong>Не е част от цената на наема. Депозитът се връща при връщане на автомобила съгласно условията.</div>`}
@@ -1656,7 +1830,7 @@ else{const t1=fitStart(c,ds,S.t1||"12:00");$("#b-d1").value=$("#b-d2").value=ds;
 planChanged()});
 document.addEventListener("click",e=>{if(e.target.closest("[data-lang]")&&cur==="avtomobili")renderCal()});
 // Заетите периоди идват от сървъра (потвърдените резервации)
-function loadAvail(){return fetch("/api/availability",{cache:"no-store"}).then(r=>r.ok?r.json():Promise.reject()).then(j=>{const cars=j.cars||j;if(j.buffer>=0)BUF=j.buffer;Object.keys(BOOKED).forEach(k=>{BOOKED[k]=Array.isArray(cars[k])?cars[k]:[]});if(cur==="avtomobili"){renderCars();renderPick()}}).catch(()=>{})}
+function loadAvail(){return fetch("/api/availability",{cache:"no-store"}).then(r=>r.ok?r.json():Promise.reject()).then(j=>{const cars=j.cars||j;if(j.buffer>=0)BUF=j.buffer;if(j.promoDemo===true&&!PROMO.on)PROMO_DEMO=true;Object.keys(BOOKED).forEach(k=>{BOOKED[k]=Array.isArray(cars[k])?cars[k]:[]});if(cur==="avtomobili"){renderCars();renderPick()}}).catch(()=>{})}
 function setupCars(){
 $("#cars-h").textContent="В момента свободни автомобили";
 $("#cars-p").textContent="Изберете автомобил. След това въвеждате дата и час за получаване и връщане и виждате цената за вашия период.";
@@ -1672,12 +1846,12 @@ if(e.target.closest("[data-sms]")){sendSms();return}
 if(e.target.closest("[data-details]")){const m=$("#pick-msg"),er=planErr();
 if(er){m.textContent=er;m.style.color="#ffb4ab";$("#plan").scrollIntoView({behavior:"smooth"});return}
 m.textContent="";$("#details").scrollIntoView({behavior:"smooth",block:"start"})}});
-function renderThanks(){const R=S,c=CARS.find(x=>x.id===R.car),st=R.bid?R.bst:"";
-$("#th-h").textContent=st==="confirmed"?"Резервацията е потвърдена!":st==="rejected"?"Резервацията не е потвърдена":"Благодарим за доверието!";
-$("#th-sub").textContent=st==="confirmed"?"Очакваме ви! Изпратихме ви имейл с потвърждението и данните за резервацията.":st==="rejected"?"За съжаление не можем да потвърдим резервацията за избрания период. Изпратихме ви имейл с подробности. Обадете ни се, за да намерим друг вариант.":st==="pending"?"Вашата заявка е получена успешно и в момента се обработва от нашия екип. Тази страница ще се обнови автоматично, когато потвърдим резервацията, и ще получите имейл.":"Вашата заявка е получена успешно и в момента се обработва от нашия екип. Моля, изчакайте — ще се свържем с Вас възможно най-скоро, в рамките на 1 работен ден.";
+function renderThanks(){const R=S,c=CARS.find(x=>x.id===R.car),st0=R.bid?R.bst:"",off=st0==="cancelled"||st0==="no_show",st=off?"rejected":st0;
+$("#th-h").textContent=off?"Резервацията е отменена":st==="confirmed"?"Резервацията е потвърдена!":st==="rejected"?"Резервацията не е потвърдена":"Благодарим за доверието!";
+$("#th-sub").textContent=off?"Резервацията вече не е активна. За въпроси се обадете на +359877748693.":st==="confirmed"?"Очакваме ви! Изпратихме ви имейл с потвърждението и данните за резервацията.":st==="rejected"?"За съжаление не можем да потвърдим резервацията за избрания период. Изпратихме ви имейл с подробности. Обадете ни се, за да намерим друг вариант.":st==="pending"?"Вашата заявка е получена успешно и в момента се обработва от нашия екип. Тази страница ще се обнови автоматично, когато потвърдим резервацията, и ще получите имейл.":"Вашата заявка е получена успешно и в момента се обработва от нашия екип. Моля, изчакайте — ще се свържем с Вас възможно най-скоро, в рамките на 1 работен ден.";
 $("#th-step").className=st==="confirmed"?"done":"now";$("#th-ic").classList.toggle("no",st==="rejected");
 $("#th-ic").innerHTML=st==="rejected"?'<svg width="34" height="34" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="3" stroke-linecap="round" fill="none"/></svg>':'<svg width="34" height="34" aria-hidden="true"><use href="#i-check"/></svg>';
-$("#th-note").hidden=!(st==="rejected"&&R.bnote);$("#th-note").textContent=R.bnote||"";
+$("#th-note").hidden=!(st0==="rejected"&&R.bnote);$("#th-note").textContent=R.bnote||"";
 $("#th-cta").innerHTML='<a class="btn btn-ghost" href="#home">Към началото</a>';
 $("#th-sum").innerHTML=`<h2>Вашата резервация</h2><div class="kv"><div><span>Име</span><b>${esc(R.name)}</b></div><div><span>Телефон</span><b>${esc(R.phone)}</b></div><div><span>Автомобил</span><b>${c?c.name:""}</b></div><div><span>Получаване</span><b>${bf(R.d1,R.t1)}</b></div><div><span>Връщане</span><b>${bf(R.d2,R.t2)}</b></div>${PAY[R.pay]?`<div><span>Плащане</span><b>${PAY[R.pay]}</b></div>`:""}</div>`}
 // Проверява статуса, докато клиентът е на страницата „Благодарим“

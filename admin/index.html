@@ -19,6 +19,7 @@ input:focus{outline:2px solid var(--acc);border-color:transparent}
 .btn{display:inline-block;border:0;border-radius:999px;padding:12px 22px;font-weight:800;cursor:pointer;background:var(--navy);color:#fff}
 .btn.acc{background:var(--acc);color:var(--navy)}.btn.ghost{background:transparent;color:var(--navy);border:1.5px solid var(--line)}
 .btn.wide{width:100%;margin-top:18px}.btn:disabled{opacity:.6;cursor:wait}
+.btn[hidden]{display:none}
 .msg{margin-top:14px;padding:10px 14px;border-radius:12px;font-size:.92rem}.msg.err{background:#fde2e0;color:#8a1f17}.msg.ok{background:#d9f5e3;color:#11643a}
 .link{background:none;border:0;color:var(--muted);text-decoration:underline;cursor:pointer;margin-top:14px;padding:0}
 .app{display:grid;grid-template-columns:250px 1fr;min-height:100vh}
@@ -35,6 +36,12 @@ header{display:flex;justify-content:space-between;align-items:center;gap:12px;ma
 table{width:100%;border-collapse:collapse;font-size:.92rem}th,td{text-align:left;padding:9px 8px;border-bottom:1px solid var(--line)}th{color:var(--muted);font-weight:700}
 .tag{display:inline-block;padding:3px 10px;border-radius:999px;font-weight:800;font-size:.8rem}.tag.ok{background:#d9f5e3;color:#11643a}.tag.bad{background:#fde2e0;color:#9b1c13}
 .soon{color:var(--muted)}.warn{background:#fff4cc;color:#6b4e00;border-radius:14px;padding:12px 16px;margin-bottom:14px;font-weight:700}.warn.bad{background:#fde2e0;color:#8a1f17}.menu-btn{display:none}
+.tabs{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}.tabs .btn{padding:9px 16px}.tabs .btn.on{background:var(--acc);color:var(--navy)}
+.scroll{overflow-x:auto}.kv div{display:flex;justify-content:space-between;gap:14px;padding:8px 0;border-bottom:1px solid var(--line)}.kv span{color:var(--muted)}.kv b{text-align:right;overflow-wrap:anywhere}
+.act h3{margin:0 0 6px;font-size:1.05rem}.act .hint{color:var(--muted);font-size:.88rem;margin:4px 0 10px}.opt{display:flex;gap:10px;align-items:center;font-weight:600;margin:8px 0}.opt input{width:auto}
+textarea{width:100%;min-height:70px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;font:inherit}
+.btn.bad{background:var(--bad)}.ask{border:2px solid var(--bad);border-radius:14px;padding:14px;margin-top:12px;background:#fff7f6}.ask[hidden]{display:none}
+.row2{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}.row2 .btn{flex:1 1 180px}
 @media(max-width:860px){.app{grid-template-columns:1fr}nav{position:fixed;inset:0 30% 0 0;z-index:5;transform:translateX(-105%);transition:transform .2s;height:100%}nav.open{transform:none}.menu-btn{display:inline-block}main{padding:16px}}
 @media print{nav,.menu-btn,header .btn{display:none}.app{display:block}main{padding:0}.panel{break-inside:avoid}}
 </style>
@@ -105,9 +112,54 @@ const title=(SECTIONS.find(s=>s[0]===k)||[k,k==="emails"?"Имейли – из�
 $("#main").innerHTML=`<header><div><button class="btn ghost menu-btn" onclick="document.getElementById('nav').classList.add('open')">☰ Меню</button><h2>${esc(title)}</h2></div></header><div id="view"></div>`;
 (VIEWS[k]||soon)()}
 function soon(){$("#view").innerHTML=`<div class="panel soon">Този раздел е в процес на изграждане. Данните се показват само от реалната база – тук няма примерни стойности.</div>`}
-const VIEWS={backups,emails};
+const VIEWS={backups,emails,bookings};
+// ===== Резервации: списък, управление на потвърдени (отмяна, неявяване, предаване) и история =====
+// Действията се изпълняват на сървъра (/api/admin/bookings/:id) след отделно потвърждение тук; извършителят е вписаният администратор.
+const ST={pending:["Очаква потвърждение",""],confirmed:["Потвърдена","ok"],rejected:["Отказана","bad"],cancelled:["Отменена","bad"],no_show:["Неявяване","bad"]};
+const REASON={customer:"Клиентът се отказа",owner:"Отмяна от собственика",other:"Друга причина",no_show:"Клиентът не се яви"};
+const ACT={cancel:["Да отменим ли резервацията? Автомобилът ще бъде освободен за нови резервации.","Да, отмени резервацията"],no_show:["Да отбележим ли, че клиентът не се яви? Резервацията ще бъде закрита и автомобилът ще бъде освободен за нови резервации.","Да, клиентът не се яви"],handover:["Да отбележим ли, че автомобилът е предаден на клиента? След това отмяна и „Клиентът не се яви“ няма да са възможни.","Да, автомобилът е предаден"]};
+const EV={"booking.created":"Заявка от сайта","booking.confirm":"Потвърдена","booking.reject":"Отказана","booking.cancel":"Отменена","booking.no_show":"Клиентът не се яви","booking.handover":"Автомобилът е предаден"};
+const ref=id=>String(id||"").slice(0,6).toUpperCase(),tag=s=>`<span class="tag ${(ST[s]||[])[1]||""}">${esc((ST[s]||[s])[0])}</span>`,when=d=>d?new Date(d).toLocaleString("bg-BG",{timeZone:"Europe/Sofia"}):"";
+const bgAt=s=>s?s.slice(8,10)+"."+s.slice(5,7)+"."+s.slice(0,4)+" "+s.slice(11):"";
+function bookings(){const id=location.pathname.split("/")[3];return id?booking(id):bookingList()}
+async function bookingList(){const v=$("#view"),st=new URLSearchParams(location.search).get("status")||"confirmed";v.innerHTML=`<div class="panel">Зарежда се…</div>`;
+try{const {rows}=await api("/api/admin/bookings?status="+encodeURIComponent(st));
+v.innerHTML=`<div class="tabs">${[["confirmed","Потвърдени"],["pending","Чакащи"],["closed","Отменени и отказани"],["all","Всички"]].map(([k,t])=>`<a class="btn ${k===st?"on":"ghost"}" href="/admin/bookings?status=${k}" data-st="${k}">${t}</a>`).join("")}</div>
+<div class="panel scroll">${rows.length?`<table><tr><th>№</th><th>Статус</th><th>Автомобил</th><th>Получаване</th><th>Връщане</th><th>Клиент</th><th></th></tr>${rows.map(r=>`<tr><td>${ref(r.id)}</td><td>${tag(r.status)}${r.handedOverAt?"<br><small>предаден</small>":""}</td><td>${esc(r.car)}</td><td>${esc(r.pickup)}</td><td>${esc(r.dropoff)}</td><td>${esc(r.name)}<br><small>${esc(r.phone)}</small></td><td><a class="btn ghost" href="/admin/bookings/${r.id}" data-id="${r.id}">Управление</a></td></tr>`).join("")}</table>`:"Няма резервации в този списък."}</div>`;
+v.onclick=e=>{const a=e.target.closest("a[data-st],a[data-id]");if(!a)return;e.preventDefault();history.pushState(null,"",a.href);route()}}
+catch(e){if(e.message!=="unauthorized")v.innerHTML=`<div class="panel msg err">Неуспешно зареждане (${esc(e.message)}).</div>`}}
+async function booking(id,msg,ok){const v=$("#view");if(!msg)v.innerHTML=`<div class="panel">Зарежда се…</div>`;
+let d;try{d=await api("/api/admin/bookings/"+id)}catch(e){if(e.message!=="unauthorized")v.innerHTML=`<div class="panel msg err">${e.status===404?"Резервацията не е намерена.":"Неуспешно зареждане ("+esc(e.message)+")."}</div>`;return}
+const b=d.booking,c=d.can,closed=b.status==="cancelled"||b.status==="no_show";
+const kv=[["Номер",ref(b.id)],["Автомобил",b.car],["Получаване",b.pickup],["Връщане",b.dropoff],["Клиент",b.name],["Телефон",b.phone],["Имейл",b.email],["Общо",b.total],
+...(b.handedOverAt?[["Предаден",when(b.handedOverAt)+" ("+b.handedOverBy+")"]]:[]),...(closed?[["Причина",REASON[b.closeReason]||b.closeReason],["Закрита",when(b.closedAt)+" ("+(b.closedBy==="owner-link"?"линк от имейла":b.closedBy)+")"],["Вътрешна бележка",b.closeNote]]:[])]
+.filter(([,x])=>x).map(([k,x])=>`<div><span>${esc(k)}</span><b>${esc(x)}</b></div>`).join("");
+const ask=a=>`<div class="ask" id="ask-${a}" hidden><p><b>${esc(ACT[a][0])}</b></p><p class="hint" id="ask-${a}-mail"></p><div class="row2"><button class="btn bad" data-do="${a}">${esc(ACT[a][1])}</button><button class="btn ghost" data-back="${a}">Назад, без промяна</button></div></div>`;
+const notify=a=>`<label class="opt"><input type="checkbox" id="${a}-notify" checked> Изпрати имейл на клиента</label>`;
+let acts="";
+if(b.status==="confirmed"&&b.handedOverAt)acts=`<div class="panel act"><h3>Наемът е започнал</h3><p class="hint">Автомобилът е предаден – отмяна и „Клиентът не се яви“ не са възможни. Приключването или прекратяването на започнал наем се урежда отделно.</p></div>`;
+else if(c.cancel)acts=`<div class="panel act"><h3>Отмяна на резервацията</h3><p class="hint">Възможна веднага, включително дни преди получаването. Не се извършват плащания или възстановявания.</p>
+${["customer","owner","other"].map((r,i)=>`<label class="opt"><input type="radio" name="reason" value="${r}"${i?"":" checked"}> ${REASON[r]}</label>`).join("")}
+<label for="cancel-note">Вътрешна бележка (по избор, не се изпраща на клиента)</label><textarea id="cancel-note" maxlength="1000"></textarea>${notify("cancel")}
+<button class="btn bad" data-ask="cancel">Отмени резервацията</button>${ask("cancel")}</div>
+<div class="panel act"><h3>Клиентът не се яви</h3>${c.no_show?`<label for="no_show-note">Вътрешна бележка (по избор, не се изпраща на клиента)</label><textarea id="no_show-note" maxlength="1000"></textarea>${notify("no_show")}<button class="btn bad" data-ask="no_show">Клиентът не се яви</button>${ask("no_show")}`:`<p class="hint">Достъпно след часа за получаване: ${esc(bgAt(b.pickupAt))} (време в България).</p>`}</div>
+<div class="panel act"><h3>Предаване на автомобила</h3><p class="hint">Отбележете, когато клиентът получи автомобила.</p><button class="btn" data-ask="handover">Автомобилът е предаден</button>${ask("handover")}</div>`;
+v.innerHTML=`<p><a href="/admin/bookings" data-list>← Всички резервации</a></p>${msg?`<div class="msg ${ok?"ok":"err"}" role="status">${esc(msg)}</div>`:""}
+<div class="panel"><p>${tag(b.status)}</p><div class="kv">${kv}</div></div>${acts}
+<div class="panel"><h3>История</h3><ul>${d.events.map(e=>`<li>${esc(when(e.at))} – ${esc(EV[e.action]||e.action)}${e.details&&e.details.reason?" ("+esc(REASON[e.details.reason]||e.details.reason)+(e.details.notify?", с имейл до клиента":", без имейл")+")":""} – ${esc(e.actor==="owner-link"?"линк от имейла":e.actor)}</li>`).join("")||"<li>Няма записи.</li>"}</ul>
+<h3>Писма</h3><ul>${d.emails.map(m=>`<li>${esc(when(m.at))} – ${esc(EMAIL_KIND[m.kind]||m.kind)}: ${esc((EMAIL_STATUS[m.status]||[m.status])[0])}</li>`).join("")||"<li>Няма писма.</li>"}</ul></div>`;
+v.onclick=async e=>{const l=e.target.closest("a[data-list]");if(l){e.preventDefault();history.pushState(null,"",l.href);return route()}
+const a=e.target.closest("[data-ask]");if(a){const k=a.dataset.ask,n=$("#"+k+"-notify");$("#ask-"+k).hidden=false;a.hidden=true;
+if(k!=="handover")$("#ask-"+k+"-mail").textContent=n&&n.checked?"Ще бъде изпратен имейл до клиента с номера, автомобила, периода и новия статус. Вътрешната бележка не се изпраща.":"Няма да бъде изпратен имейл до клиента.";
+$("#ask-"+k+" [data-do]").focus();return}
+const bk=e.target.closest("[data-back]");if(bk){const k=bk.dataset.back;$("#ask-"+k).hidden=true;$(`[data-ask="${k}"]`).hidden=false;return}
+const go=e.target.closest("[data-do]");if(!go)return;const k=go.dataset.do;go.disabled=true;
+const body={action:k,...(k==="cancel"?{reason:(document.querySelector("input[name=reason]:checked")||{}).value}:{}),...(k!=="handover"?{note:$("#"+k+"-note").value,notify:$("#"+k+"-notify").checked}:{})};
+try{const r=await api("/api/admin/bookings/"+id,{method:"POST",body:JSON.stringify(body)});
+booking(id,(k==="cancel"?"Резервацията е отменена. Автомобилът е освободен.":k==="no_show"?"Резервацията е закрита като неявяване. Автомобилът е освободен.":"Отбелязано е, че автомобилът е предаден.")+(k==="handover"?"":r.email==="sent"?" Клиентът получи имейл.":r.email==="queued"?" Имейлът ще бъде опитан отново автоматично.":" Не е изпратен имейл."),true)}
+catch(err){if(err.message!=="unauthorized")booking(id,err.message==="too_early"?"„Клиентът не се яви“ е достъпно едва след часа за получаване.":"Действието вече е изпълнено или не е възможно при текущия статус.",false)}}}
 const EMAIL_STATUS={sent:["Изпратено","ok"],failed:["Неуспешно – ще се опита отново","bad"],unknown:["Неясен резултат – провери ръчно","bad"],queued:["Чака изпращане",""],sending:["Изпраща се",""]};
-const EMAIL_KIND={"owner-new":"До фирмата: нова заявка","customer-received":"До клиента: получена заявка","customer-decision":"До клиента: решение"};
+const EMAIL_KIND={"owner-new":"До фирмата: нова заявка","customer-received":"До клиента: получена заявка","customer-decision":"До клиента: решение","customer-closed":"До клиента: отмяна / неявяване"};
 async function emails(){const v=$("#view");v.innerHTML=`<div class="panel">Зарежда се…</div>`;
 try{const {counts,rows}=await api("/api/admin/emails");
 v.innerHTML=`<div class="panel"><p>„Неясен резултат“: връзката с пощенската услуга е прекъснала след изпращането – писмото може да е доставено или не. Писмата до клиенти с такъв резултат <b>не се изпращат повторно автоматично</b> – свържете се с клиента при нужда. Известията до фирмата се повтарят с отбелязано „[Повторно известие]“ в темата.</p>
