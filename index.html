@@ -466,7 +466,6 @@ button.btn-ghost{background:transparent}
 .promo{position:absolute;bottom:12px;right:12px;z-index:2;background:#c62828;color:#fff;font-weight:800;font-size:.85rem;line-height:1.2;letter-spacing:.02em;border-radius:6px;padding:4px 9px;box-shadow:0 2px 6px rgba(0,0,0,.18);pointer-events:none}
 .promo-note{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin:0 0 16px;font-weight:800;color:#b71c1c}
 .promo-note[hidden]{display:none}
-.promo-note small{font-weight:700;font-size:.78rem;color:var(--ink);background:#fff7dc;border:1px dashed #d9a400;border-radius:6px;padding:3px 8px}
 .hours-hint{display:block;margin-top:6px;font-size:.82rem;color:var(--muted)}
 /* Снимки на документите: камера в сайта или качване на файл */
 #bk .doc-tip{display:block;clear:both;background:var(--soft);border-radius:12px;padding:10px 14px;font-size:.84rem;line-height:1.45;color:var(--ink);margin:0 0 4px}
@@ -1128,7 +1127,6 @@ const I18N={
 "Резервацията вече не е активна. За въпроси се обадете на +359877748693.":["The booking is no longer active. For questions call +359877748693.","Die Buchung ist nicht mehr aktiv. Bei Fragen rufen Sie +359877748693 an."],
 "Промоционални цени −20%":["Promotional prices −20%","Aktionspreise −20 %"],
 "Промоционална цена":["Promotional price","Aktionspreis"],
-"Демонстрация – само в Preview, не е активно в публичния сайт":["Demo – Preview only, not active on the public site","Demo – nur in der Vorschau, auf der öffentlichen Website nicht aktiv"],
 "Работно време за получаване и връщане: пн–пт 08:00–20:00, сб–нд 09:00–19:00.":["Pick-up and return hours: Mon–Fri 08:00–20:00, Sat–Sun 09:00–19:00.","Abholung und Rückgabe: Mo–Fr 08:00–20:00, Sa–So 09:00–19:00."],
 "Часът на получаване трябва да е в работното време: пн–пт 08:00–20:00, сб–нд 09:00–19:00.":["The pick-up time must be within opening hours: Mon–Fri 08:00–20:00, Sat–Sun 09:00–19:00.","Die Abholzeit muss innerhalb der Öffnungszeiten liegen: Mo–Fr 08:00–20:00, Sa–So 09:00–19:00."],
 "Часът на връщане трябва да е в работното време: пн–пт 08:00–20:00, сб–нд 09:00–19:00.":["The return time must be within opening hours: Mon–Fri 08:00–20:00, Sat–Sun 09:00–19:00.","Die Rückgabezeit muss innerhalb der Öffnungszeiten liegen: Mo–Fr 08:00–20:00, Sa–So 09:00–19:00."],
@@ -1521,13 +1519,11 @@ const CARS=[
 {id:"passat",name:"Volkswagen Passat",color:"Черен",year:2008,engine:"2.0 дизел",fuel:"Дизел",hp:140,drive:"4x4",body:"Комби",gear:"Ръчна",tiers:T25}];
 // ===== Промоция „−20%“ =====
 // Цените в tiers по-горе са крайните (промоционални) цени – обозначението НЕ ги намалява допълнително и не показва
-// зачертани цени. on:true включва badge-а и надписа в публичния сайт; изключено е, докато не бъдат уточнени
-// предходните реално прилагани цени. Извън продукция се показва само като демонстрация (PROMO_DEMO): средата се
-// определя от сървъра (/api/availability → promoDemo, по средата на Netlify), защото адресите на Preview са различни
-// (deploy-preview-N--…, agent-…--…, вграден преглед в app.netlify.com). Локален сървър без функции – по адреса.
-const PROMO={on:false,cars:["punto","ka","ibiza","golf","passat"]};
-let PROMO_DEMO=!PROMO.on&&/^(localhost|127\.0\.0\.1)$/.test(location.hostname);
-const promoOf=c=>(PROMO.on||PROMO_DEMO)&&PROMO.cars.includes(c.id);
+// зачертани цени. Предходни реално прилагани цени (1–15 / 16–30 / над 30 дни):
+//   Punto и Ka: 25 / 22,50 / 18,75 € → сега 20 / 18 / 15 €; Ibiza, Golf и Passat: 31,25 / 28,75 / 25 € → сега 25 / 23 / 20 €.
+// on – единствената настройка: true показва badge-а „−20%“ и надписа над списъка; false ги скрива навсякъде.
+const PROMO={on:true,cars:["punto","ka","ibiza","golf","passat"]};
+const promoOf=c=>PROMO.on&&PROMO.cars.includes(c.id);
 // ===== Работно време за получаване и връщане (Europe/Sofia) – същото като в db/hours.ts =====
 // Ключ: 0 = неделя … 6 = събота. Граничните часове се приемат (напр. 08:00 и 20:00 в делничен ден).
 const HOURS={0:["09:00","19:00"],1:["08:00","20:00"],2:["08:00","20:00"],3:["08:00","20:00"],4:["08:00","20:00"],5:["08:00","20:00"],6:["09:00","19:00"]};
@@ -1791,7 +1787,7 @@ $("#b-a1").addEventListener("input",()=>{S.a1=addr(1);planChanged(1)});$("#b-a2"
 function planErr(){if(!S.d1||!S.t1)return"Моля, изберете дата и час на получаване.";if(!S.d2||!S.t2)return"Моля, изберете дата и час на връщане.";if(span(S.d1,S.t1,S.d2,S.t2)<0)return"Датата на връщане трябва да е след датата на получаване.";{const he=hoursErr();if(he)return he}if(S.m1==="addr"&&(S.a1||"").length<5)return"Моля, въведете адрес за доставка.";if(S.m2==="addr"&&(S.a2||"").length<5)return"Моля, въведете адрес за връщане.";return""}
 function renderCars(){const p=+$("#f-price").value||1e9,t=$("#f-type").value,f=$("#f-fuel").value,g=$("#f-gear").value;
 const l=CARS.filter(c=>c.tiers[0]<=p&&(!t||c.body===t)&&(!f||c.fuel===f)&&(!g||c.gear===g));
-{const pn=$("#promo-note");pn.hidden=!CARS.some(promoOf);if(PROMO_DEMO&&!pn.querySelector("small"))pn.insertAdjacentHTML("beforeend","<small>Демонстрация – само в Preview, не е активно в публичния сайт</small>")}
+$("#promo-note").hidden=!CARS.some(promoOf);
 $("#car-grid").innerHTML=l.length?l.map(carCard).join(""):'<p class="empty">Няма автомобили по избраните филтри. Променете филтрите или се обадете на +359877748693.</p>';reveal()}
 function renderPick(){const el=$("#pick"),c=CARS.find(x=>x.id===S.car);renderCal();
 if(!c){el.hidden=true;$("#details").hidden=true;return}
@@ -1830,7 +1826,7 @@ else{const t1=fitStart(c,ds,S.t1||"12:00");$("#b-d1").value=$("#b-d2").value=ds;
 planChanged()});
 document.addEventListener("click",e=>{if(e.target.closest("[data-lang]")&&cur==="avtomobili")renderCal()});
 // Заетите периоди идват от сървъра (потвърдените резервации)
-function loadAvail(){return fetch("/api/availability",{cache:"no-store"}).then(r=>r.ok?r.json():Promise.reject()).then(j=>{const cars=j.cars||j;if(j.buffer>=0)BUF=j.buffer;if(j.promoDemo===true&&!PROMO.on)PROMO_DEMO=true;Object.keys(BOOKED).forEach(k=>{BOOKED[k]=Array.isArray(cars[k])?cars[k]:[]});if(cur==="avtomobili"){renderCars();renderPick()}}).catch(()=>{})}
+function loadAvail(){return fetch("/api/availability",{cache:"no-store"}).then(r=>r.ok?r.json():Promise.reject()).then(j=>{const cars=j.cars||j;if(j.buffer>=0)BUF=j.buffer;Object.keys(BOOKED).forEach(k=>{BOOKED[k]=Array.isArray(cars[k])?cars[k]:[]});if(cur==="avtomobili"){renderCars();renderPick()}}).catch(()=>{})}
 function setupCars(){
 $("#cars-h").textContent="В момента свободни автомобили";
 $("#cars-p").textContent="Изберете автомобил. След това въвеждате дата и час за получаване и връщане и виждате цената за вашия период.";
