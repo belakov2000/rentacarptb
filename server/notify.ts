@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { bookings } from "../db/schema.js";
 import { lifecycleMail } from "../mail/customer.js";
-import { customerMail } from "../mail/decision.js";
+import { closedMail, customerMail } from "../mail/decision.js";
 import { btn, esc, OWNER_EMAIL, wrapMail, type Attachment } from "../mail/index.js";
 import { contracts } from "./contracts.js";
 import { sendLogged } from "./email.js";
@@ -21,6 +21,8 @@ export const saveOwnerOutbox = (id: string, o: Outbox) => outbox().setJSON(outbo
 export const ownerNewKey = (id: string) => `owner-new:${id}`;
 export const receivedKey = (id: string) => `customer-received:${id}`;
 export const decisionKey = (id: string) => `customer-decision:${id}`;
+// Отмяна / неявяване: една резервация може да бъде закрита само веднъж, затова ключът е по резервация
+export const closedKey = (id: string) => `customer-closed:${id}`;
 
 export async function sendOwnerNew(id: string) {
   const o = ((await outbox().get(outboxKey(id), { type: "json" }).catch(() => null)) as Outbox | null) || (await minimalOwnerMail(id));
@@ -44,7 +46,7 @@ async function minimalOwnerMail(id: string): Promise<Outbox | null> {
   const manage = `${origin}/api/bookings/${b.id}/manage?key=${b.adminToken}`;
   const html = wrapMail(
     `<p style="font-size:17px"><b>Нова заявка за наем от сайта.</b> Потвърдете или откажете – клиентът ще получи имейл и ще види решението на сайта.</p>` +
-      `<p>${btn(manage, "Потвърди резервацията", "#1a8f4c")}${btn(manage, "Откажи", "#c0392b")}</p>` +
+      `<p>${btn(manage, "Потвърди резервацията", "#1a8f4c")}${btn(manage, "Откажи", "#c0392b")}${btn(manage, "Управление на резервацията", "#0f1b2d")}</p>` +
       `<p>${esc(b.car)} · ${esc(b.pickup)} → ${esc(b.dropoff)} · ${esc(b.total)}</p>`,
   );
   return { subject: `Нова заявка за наем: ${b.car} – ${b.name}`, html, htmlNoAttachment: html, replyTo: b.email };
@@ -60,6 +62,11 @@ export function sendDecision(b: Booking) {
   return sendLogged("customer-decision", decisionKey(b.id), b.id, { to: b.email, toName: b.name, subject: m.subject, html: m.html, replyTo: OWNER_EMAIL, lang: b.lang, preheader: m.preheader });
 }
 
+export function sendClosed(b: Booking) {
+  const m = closedMail(b);
+  return sendLogged("customer-closed", closedKey(b.id), b.id, { to: b.email, toName: b.name, subject: m.subject, html: m.html, replyTo: OWNER_EMAIL, lang: b.lang, preheader: m.preheader });
+}
+
 // Повторен опит по запис от email_log
 export async function retry(kind: string, bookingId: string | null) {
   if (!bookingId) return null;
@@ -67,9 +74,11 @@ export async function retry(kind: string, bookingId: string | null) {
   const [b] = await db.select().from(bookings).where(eq(bookings.id, bookingId));
   if (!b) return null;
   if (kind === "customer-received") return sendCustomerReceived(b);
-  if (kind === "customer-decision" && b.status !== "pending") return sendDecision(b);
+  // След отмяна неизпратеното писмо за потвърждението вече не е вярно – не се изпраща
+  if (kind === "customer-decision" && (b.status === "confirmed" || b.status === "rejected")) return sendDecision(b);
+  if (kind === "customer-closed" && (b.status === "cancelled" || b.status === "no_show")) return sendClosed(b);
   return null;
 }
-export const RETRY_KINDS = ["owner-new", "customer-received", "customer-decision"];
+export const RETRY_KINDS = ["owner-new", "customer-received", "customer-decision", "customer-closed"];
 // Писма, които се повтарят и след несигурен резултат (възможно второ копие): само известието до фирмата
 export const UNCERTAIN_RETRY_KINDS = ["owner-new"];

@@ -67,3 +67,56 @@ export function customerMail(b: Booking) {
   const ref = b.id.slice(0, 6).toUpperCase();
   return { subject: `${ok ? t.okSubj : t.noSubj} (№ ${ref})`, html, preheader: `${ok ? t.ok : t.no} ${b.car}, ${b.pickup}` };
 }
+
+// ===== Имейл до клиента след отмяна на потвърдена резервация или неявяване =====
+// Само номер, автомобил, период и новия статус – вътрешната бележка на собственика не се включва.
+// Не обещава възстановяване на суми или депозит.
+const CLOSED: Record<string, Record<string, string>> = {
+  bg: {
+    cancelSubj: "Резервацията ви е отменена – Rent a Car PTB",
+    noShowSubj: "Резервацията ви е закрита поради неявяване – Rent a Car PTB",
+    hi: "Здравейте, {name}!",
+    cancel: "Вашата резервация е отменена и автомобилът вече не е запазен за вас.",
+    noShow: "Резервацията е закрита, тъй като не се явихте в уговорения час за получаване на автомобила.",
+    ref: "Номер на резервацията", car: "Автомобил", pickup: "Получаване", dropoff: "Връщане", status: "Статус",
+    cancelled: "Отменена", no_show: "Закрита – неявяване",
+    q: "Въпроси? Обадете ни се на {phone} или отговорете на този имейл.",
+    why: "Получавате това писмо, защото направихте заявка за наем на автомобил на rentacar-ptb.com.",
+  },
+  en: {
+    cancelSubj: "Your booking has been cancelled – Rent a Car PTB",
+    noShowSubj: "Your booking has been closed (no-show) – Rent a Car PTB",
+    hi: "Hello {name},",
+    cancel: "Your booking has been cancelled and the car is no longer reserved for you.",
+    noShow: "Your booking has been closed because you did not arrive at the agreed pick-up time.",
+    ref: "Booking number", car: "Car", pickup: "Pick-up", dropoff: "Return", status: "Status",
+    cancelled: "Cancelled", no_show: "Closed – no-show",
+    q: "Questions? Call us on {phone} or reply to this email.",
+    why: "You are receiving this email because you requested a car rental on rentacar-ptb.com.",
+  },
+  de: {
+    cancelSubj: "Ihre Buchung wurde storniert – Rent a Car PTB",
+    noShowSubj: "Ihre Buchung wurde wegen Nichterscheinens geschlossen – Rent a Car PTB",
+    hi: "Hallo {name},",
+    cancel: "Ihre Buchung wurde storniert, das Fahrzeug ist nicht mehr für Sie reserviert.",
+    noShow: "Ihre Buchung wurde geschlossen, da Sie zur vereinbarten Abholzeit nicht erschienen sind.",
+    ref: "Buchungsnummer", car: "Fahrzeug", pickup: "Abholung", dropoff: "Rückgabe", status: "Status",
+    cancelled: "Storniert", no_show: "Geschlossen – nicht erschienen",
+    q: "Fragen? Rufen Sie uns an unter {phone} oder antworten Sie auf diese E-Mail.",
+    why: "Sie erhalten diese E-Mail, weil Sie auf rentacar-ptb.com einen Mietwagen angefragt haben.",
+  },
+};
+
+export function closedMail(b: Booking) {
+  const t = CLOSED[b.lang] || CLOSED.bg;
+  const noShow = b.status === "no_show";
+  const ref = b.id.slice(0, 6).toUpperCase();
+  const html = wrapMail(
+    `<p>${esc(t.hi.replace("{name}", b.name))}</p>` +
+      `<p style="font-size:18px"><b>${esc(noShow ? t.noShow : t.cancel)}</b></p>` +
+      `<table style="border-collapse:collapse;margin:14px 0">${mailRow(t.ref, ref)}${mailRow(t.car, b.car)}${mailRow(t.pickup, b.pickup)}${mailRow(t.dropoff, b.dropoff)}${mailRow(t.status, noShow ? t.no_show : t.cancelled)}</table>` +
+      `<p>${esc(t.q.replace("{phone}", PHONE))}</p>` +
+      mailFooter(t.why),
+  );
+  return { subject: `${noShow ? t.noShowSubj : t.cancelSubj} (№ ${ref})`, html, preheader: `${noShow ? t.noShow : t.cancel} ${b.car}, ${b.pickup}` };
+}
