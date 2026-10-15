@@ -17,7 +17,9 @@ const PAY = { payments: [
   { id: "p2", kind: "security", amountCents: 10000, currency: "EUR", method: "cash", status: "received", paidAt: new Date().toISOString(), note: "", txnId: "", createdBy: "admin@example.com", refundable: 0 },
   { id: "p3", kind: "refund", refundOf: "p2", amountCents: 10000, currency: "EUR", method: "cash", status: "received", paidAt: new Date().toISOString(), note: "", txnId: "", createdBy: "admin@example.com", refundable: 0 },
 ], summary: { rentalNet: 5000, securityHeld: 0, expected: 0 } };
-const REPORT = { from: "2027-06-01", to: "2027-06-14", paidUntil: new Date().toISOString(), partialSpend: [], warnings: {}, rows: [
+const REPORT = { from: "2027-06-01", to: "2027-06-14", paidUntil: new Date().toISOString(), warnings: {},
+  partialSpend: [{ id: 9, campaign: "ptb_plovdiv_video_test", content: "video_c_test", periodStart: "2027-05-25", periodEnd: "2027-06-07", amountCents: 3500, currency: "EUR" }], rows: [
+  { campaign: "ptb_plovdiv_video_test", content: "video_c_test", label: "video_c_test", sources: [], leads: 4, confirmed: 2, paid: 1, revenueCents: 9000, spendCents: null, spendIncomplete: true, cplCents: null, costPerPaidCents: null, roas: null },
   { campaign: "ptb_plovdiv_video_test", content: "video_a_woman", label: "Видео А — жена", sources: ["meta / paid_social"], leads: 2, confirmed: 1, paid: 1, revenueCents: 14050, spendCents: 1735, cplCents: 868, costPerPaidCents: 1735, roas: 8.098 },
   { campaign: "ptb_plovdiv_video_test", content: "video_b_man", label: "Видео Б — мъж", sources: [], leads: 1, confirmed: 0, paid: 0, revenueCents: 0, spendCents: null, cplCents: null, costPerPaidCents: null, roas: null },
   { campaign: null, content: null, label: "Няма записан източник", sources: [], leads: 3, confirmed: 1, paid: 0, revenueCents: 0, spendCents: null, cplCents: null, costPerPaidCents: null, roas: null },
@@ -39,7 +41,15 @@ async function open(path, me, loginFirst = false) {
     if (u.pathname === "/api/admin/payments" && m === "POST") return r.fulfill({ status: 201, json: { ok: true, ...PAY } });
     if (u.pathname === "/api/admin/payments") return r.fulfill({ json: u.searchParams.get("booking") ? PAY : { rows: [] } });
     if (u.pathname === "/api/admin/ads/report") return r.fulfill({ json: REPORT });
-    if (u.pathname === "/api/admin/ads/spend") return r.fulfill(m === "POST" ? { status: 201, json: { ok: true } } : { json: { rows: [] } });
+    if (u.pathname === "/api/admin/ads/spend" && m === "POST") {
+      const n = posts.filter((x) => x.path === "/api/admin/ads/spend").length;
+      // 1-во: мрежова грешка (браузърът ще изпрати повторно със същия ключ); 2-ро: записано; 3-то: застъпване
+      if (n === 1) return r.abort("failed");
+      if (n === 3) return r.fulfill({ status: 409, json: { error: "overlap", conflicts: [{ id: 5, periodStart: "2027-06-01", periodEnd: "2027-06-14", amountCents: 1735 }] } });
+      return r.fulfill({ status: 201, json: { ok: true } });
+    }
+    if (u.pathname === "/api/admin/ads/spend/5") return r.fulfill({ status: 201, json: { ok: true } });
+    if (u.pathname === "/api/admin/ads/spend") return r.fulfill({ json: { rows: [{ id: 5, campaign: "ptb_plovdiv_video_test", content: "video_a_woman", periodStart: "2027-06-01", periodEnd: "2027-06-14", amountCents: 1735, note: "", createdBy: "admin@example.com", replacesId: null }] } });
     return r.fulfill({ status: 404, json: { error: "not_found" } });
   });
   const page = await ctx.newPage();
@@ -104,6 +114,20 @@ const PROD = { email: "admin@example.com", env: "production", envKind: "producti
   await s.page.waitForTimeout(500);
   const sp = s.posts.find((x) => x.path === "/api/admin/ads/spend");
   check("12. Въвеждане на действителен разход по вариант и период", sp && sp.body.campaign === "ptb_plovdiv_video_test" && sp.body.content === "video_b_man" && sp.body.amount === "17,35" && sp.body.periodStart === "2027-06-01", "");
+  const rowC = await s.page.$eval("#rt", (e) => [...e.querySelectorAll("tr")].find((tr) => tr.innerText.includes("video_c_test"))?.innerText || "");
+  check("12b. Частично изключен разход: „Непълен разход“, без CPL/ROAS за варианта", /Непълен разход/.test(rowC) && !/€.*€.*€/.test(rowC.split("Непълен")[1] || "") && !/\(\d+ %\)/.test(rowC), rowC.replace(/\s+/g, " ").slice(0, 120));
+  check("12c. Предупреждение за непълния разход с периода и сумата", /Непълен разход – записи/.test(txt) && /25\.05\.2027 – 07\.06\.2027, 35,00 €/.test(txt), "");
+  // Повторно изпращане след мрежова грешка – същият ключ; след успех – нов ключ; застъпване – ясно съобщение
+  await s.page.click("#sf button"); await s.page.waitForTimeout(500);
+  await s.page.fill("#s-a", "5"); await s.page.click("#sf button"); await s.page.waitForTimeout(500);
+  const sps = s.posts.filter((x) => x.path === "/api/admin/ads/spend");
+  check("12d. Повторно изпращане след грешка ползва същия ключ; нов запис – нов ключ", sps.length === 3 && sps[0].body.idempotencyKey === sps[1].body.idempotencyKey && sps[2].body.idempotencyKey !== sps[1].body.idempotencyKey && /^[\w-]{8,}$/.test(sps[0].body.idempotencyKey), sps.map((x) => x.body.idempotencyKey?.slice(0, 8)).join(" "));
+  const msg = await s.page.$eval("#sm", (e) => e.innerText);
+  check("12e. Застъпване → съобщение със засегнатия период и „Корекция“", /застъпващ се период: 01\.06\.2027 – 14\.06\.2027 \(17,35 €\)/.test(msg) && /Корекция/.test(msg), msg.slice(0, 100));
+  s.page.once("dialog", (d) => d.accept("20,00"));
+  await s.page.click("[data-fix='5']"); await s.page.waitForTimeout(600);
+  const fx = s.posts.find((x) => x.path === "/api/admin/ads/spend/5");
+  check("12f. Корекция: изрично действие с нова сума и ключ", fx && fx.body.action === "correct" && fx.body.amount === "20,00" && /^[\w-]{8,}$/.test(fx.body.idempotencyKey), JSON.stringify(fx?.body || {}));
   check("12a. Без грешки в страницата", s.errors.length === 0, s.errors.join("; "));
   await s.ctx.close();
 }

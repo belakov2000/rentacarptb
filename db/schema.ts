@@ -1,4 +1,5 @@
-import { date, index, integer, jsonb, pgTable, serial, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { check, date, index, integer, jsonb, pgTable, serial, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 // Резервации от сайта. Тук пазим само данните, нужни за потвърждението –
 // документите на клиента се изпращат само в имейла до фирмата.
@@ -164,6 +165,11 @@ export const expenses = pgTable(
 // Действителен рекламен разход, въведен ръчно от администратора (не планираният бюджет).
 // Един запис = сума в евроцентове за кампания (utm_campaign) и вариант (utm_content) за периода [periodStart, periodEnd] включително.
 // Изтриването е логическо (deletedAt) – записите остават в историята.
+// Ограничения в базата (миграция add_ad_spend_constraints):
+//  • idempotencyKey – уникален: повторно изпращане на същата форма не създава втори запис;
+//  • ad_spend_no_overlap (EXCLUDE … WHERE deleted_at IS NULL) – за една кампания и вариант няма два активни записа
+//    със застъпващи се периоди, включително при едновременни заявки;
+//  • корекция = в една транзакция старият запис се закрива (deletedAt, deletedBy) и се добавя нов с replacesId към него.
 export const adSpend = pgTable(
   "ad_spend",
   {
@@ -178,8 +184,18 @@ export const adSpend = pgTable(
     createdBy: text("created_by").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     deletedAt: timestamp("deleted_at"),
+    deletedBy: text("deleted_by").notNull().default(""),
+    // Ключ от формата в админ панела (null само за записи отпреди ограничението)
+    idempotencyKey: text("idempotency_key"),
+    // Корекция: номерът на заменения запис
+    replacesId: integer("replaces_id"),
   },
-  (t) => [index("ad_spend_campaign_idx").on(t.campaign, t.content, t.periodStart)],
+  (t) => [
+    index("ad_spend_campaign_idx").on(t.campaign, t.content, t.periodStart),
+    uniqueIndex("ad_spend_idempotency_key_idx").on(t.idempotencyKey),
+    check("ad_spend_amount_check", sql`${t.amountCents} >= 0`),
+    check("ad_spend_period_check", sql`${t.periodStart} <= ${t.periodEnd}`),
+  ],
 );
 
 // Лог на изпратените имейли; dedupeKey не позволява едно и също писмо да бъде изпратено два пъти.

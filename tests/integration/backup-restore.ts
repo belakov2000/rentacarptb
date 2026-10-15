@@ -31,7 +31,7 @@ check("Миграции: нееднозначните не се отгатват
 const snapRows = async () => JSON.stringify((await src.q("select id, total_cents, total_review from bookings order by id")).rows) + JSON.stringify((await src.q("select * from cars order by id")).rows);
 const b1 = await snapRows(); await src.applyMigration(migs[4]); 
 check("Миграции: попълващата миграция е повторяема", b1 === (await snapRows()), "");
-check("Миграции: всички 8 са приложени", migs.length === 8, migs.join(", "));
+check("Миграции: всички 9 са приложени", migs.length === 9, migs.join(", "));
 src.use();
 const db = state.db;
 // Синтетични редове във всички нови таблици

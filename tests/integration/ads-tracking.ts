@@ -137,20 +137,87 @@ check("35. Заявки, потвърдени и с получено плаща�
 check("36. Нетен приход без гаранционния депозит и след възстановяванията", ra.revenueCents === 14050 && rb.revenueCents === 0, String(ra.revenueCents));
 check("37. Без въведен разход → CPL, цена за плащане и ROAS са „Няма данни“ (null)", ra.spendCents === null && ra.cplCents === null && ra.costPerPaidCents === null && ra.roas === null, "");
 check("38. Заявки без източник (директна и изтекла) – отделен ред „Няма записан източник“; без вариант – „(без вариант)“", rn.label === "Няма записан източник" && rn.leads === 2 && rowOf(r, "")?.label === "(без вариант)", String(rn.leads));
-const sp = await adm(adsFn, "/api/admin/ads/spend", { method: "POST", body: { campaign: CAMPAIGN, content: "video_a_woman", periodStart: from, periodEnd: today, amount: "17,35" } });
-await adm(adsFn, "/api/admin/ads/spend", { method: "POST", body: { campaign: CAMPAIGN, content: "video_b_man", periodStart: from, periodEnd: today, amount: "0" } });
-const partSp = await adm(adsFn, "/api/admin/ads/spend", { method: "POST", body: { campaign: CAMPAIGN, content: "video_b_man", periodStart: new Date(Date.now() - 20 * 864e5).toISOString().slice(0, 10), periodEnd: today, amount: "35" } });
-check("39. Невалиден разход се отказва", (await adm(adsFn, "/api/admin/ads/spend", { method: "POST", body: { campaign: "<b>x</b>", content: "", periodStart: from, periodEnd: today, amount: "1" } })).status === 400 && (await adm(adsFn, "/api/admin/ads/spend", { method: "POST", body: { campaign: CAMPAIGN, periodStart: today, periodEnd: from, amount: "1" } })).status === 400, "");
+let sk = 0;
+const spend = (body: Record<string, unknown>, key = `ads-spend-${++sk}-key`) => adm(adsFn, "/api/admin/ads/spend", { method: "POST", body: { campaign: CAMPAIGN, idempotencyKey: key, ...body } });
+const fix = (id: number, amount: string, key = `ads-fix-${++sk}-key`) => adm(adsFn, `/api/admin/ads/spend/${id}`, { method: "POST", body: { action: "correct", amount, idempotencyKey: key }, params: { id: String(id) } });
+const day = (n: number) => new Date(Date.now() + 3 * 3600_000 + n * 864e5).toISOString().slice(0, 10);
+const sp = await spend({ content: "video_a_woman", periodStart: from, periodEnd: today, amount: "17,35" });
+await spend({ content: "video_b_man", periodStart: from, periodEnd: today, amount: "0" });
+// Отделен вариант с период, който започва преди избрания – частично застъпване
+const partSp = await spend({ content: "video_c_test", periodStart: day(-20), periodEnd: today, amount: "35" });
+check("39. Невалиден разход се отказва (кампания, обърнат период, без ключ)", (await spend({ campaign: "<b>x</b>", content: "", periodStart: from, periodEnd: today, amount: "1" })).status === 400 && (await spend({ periodStart: today, periodEnd: from, amount: "1" })).status === 400 && (await adm(adsFn, "/api/admin/ads/spend", { method: "POST", body: { campaign: CAMPAIGN, content: "x_nokey", periodStart: from, periodEnd: today, amount: "1" } })).json.error === "key", "");
 r = await rep();
 ra = rowOf(r, "video_a_woman"); rb = rowOf(r, "video_b_man");
-check("40. CPL = разход / заявки; цена за резервация с плащане; ROAS = приход / разход", sp.status === 201 && ra.spendCents === 1735 && ra.cplCents === 1735 && ra.costPerPaidCents === 1735 && Math.abs(ra.roas - 14050 / 1735) < 1e-9, `ROAS ${ra.roas?.toFixed(2)}`);
+const rc = rowOf(r, "video_c_test");
+check("40. CPL = разход / заявки; цена за резервация с плащане; ROAS = приход / разход", sp.status === 201 && ra.spendCents === 1735 && ra.cplCents === 1735 && ra.costPerPaidCents === 1735 && Math.abs(ra.roas - 14050 / 1735) < 1e-9 && !ra.spendIncomplete, `ROAS ${ra.roas?.toFixed(2)}`);
 check("41. Нулев разход: CPL 0 €, без плащане → цена „Няма данни“, ROAS „Няма данни“ (деление на 0)", rb.spendCents === 0 && rb.cplCents === 0 && rb.costPerPaidCents === null && rb.roas === null, JSON.stringify([rb.spendCents, rb.cplCents, rb.costPerPaidCents, rb.roas]));
-check("42. Разход с частично застъпване не се разпределя, а се показва отделно", partSp.status === 201 && r.partialSpend.length === 1 && r.partialSpend[0].amountCents === 3500, "");
+check("42. Частично застъпващ се разход: не се разпределя, вариантът е „непълен“, без показатели", partSp.status === 201 && r.partialSpend.length === 1 && r.partialSpend[0].amountCents === 3500 && rc.spendIncomplete === true && rc.spendCents === null && rc.cplCents === null && rc.costPerPaidCents === null && rc.roas === null, JSON.stringify(rc));
 check("43. Планираният бюджет (35 €) не се използва автоматично", !readFileSync("server/ad-report.ts", "utf8").includes("3500") && ra.spendCents === 1735, "");
-const old = await rep(`&paidUntil=${new Date(Date.now() - 20 * 864e5).toISOString().slice(0, 10)}`);
+const old = await rep(`&paidUntil=${day(-20)}`);
 check("44. Плащания до избрана дата: по-късните не се броят; показва се докога", rowOf(old, "video_a_woman").revenueCents === 0 && Date.parse(old.paidUntil) < Date.now() - 19 * 864e5, old.paidUntil);
 const del = await adm(adsFn, `/api/admin/ads/spend/${sp.json.row.id}`, { method: "POST", body: { action: "delete" }, params: { id: String(sp.json.row.id) } });
 check("45. Изтрит разход не се отчита, но остава в базата", del.status === 200 && rowOf(await rep(), "video_a_woman").spendCents === null && (await t.q("select count(*)::int n from ad_spend")).rows[0].n === 3, "");
+
+// ===== 7a. Разход: повторно изпращане, застъпване, едновременни заявки, корекция =====
+const V = "video_spend_test";
+const s1 = await spend({ content: V, periodStart: day(-6), periodEnd: day(-4), amount: "10" }, "spend-same-form-key");
+const s1b = await spend({ content: V, periodStart: day(-6), periodEnd: day(-4), amount: "10" }, "spend-same-form-key");
+const activeV = async () => (await t.q("select id, amount_cents, period_start::text ps, period_end::text pe, replaces_id from ad_spend where campaign = $2 and content = $1 and deleted_at is null order by id", [V, CAMPAIGN])).rows;
+check("50. Повторно изпращане на същата форма → същият запис, без втори", s1.status === 201 && s1b.status === 200 && s1b.json.duplicate === true && s1b.json.row.id === s1.json.row.id && (await activeV()).length === 1, `HTTP ${s1.status}/${s1b.status}`);
+const s1c = await spend({ content: V, periodStart: day(-6), periodEnd: day(-4), amount: "99" }, "spend-same-form-key");
+check("51. Същият ключ с други данни → отказ (не се презаписва)", s1c.status === 409 && s1c.json.error === "key_conflict" && (await activeV())[0].amount_cents === 1000, s1c.json.error);
+const ov = await spend({ content: V, periodStart: day(-4), periodEnd: day(-2), amount: "5" });
+check("52. Застъпващ се период (общ ден) за същата кампания и вариант → 409 overlap със засегнатия запис", ov.status === 409 && ov.json.error === "overlap" && ov.json.conflicts?.[0]?.id === s1.json.row.id && (await activeV()).length === 1, JSON.stringify(ov.json));
+const inside = await spend({ content: V, periodStart: day(-5), periodEnd: day(-5), amount: "5" });
+check("53. Период изцяло вътре в съществуващ → също се отказва", inside.status === 409 && inside.json.error === "overlap", "");
+const adj = await spend({ content: V, periodStart: day(-3), periodEnd: day(-1), amount: "7" });
+const otherVar = await spend({ content: V + "_b", periodStart: day(-6), periodEnd: day(-4), amount: "3" });
+const otherCamp = await spend({ campaign: "other_campaign", content: V, periodStart: day(-6), periodEnd: day(-4), amount: "3" });
+check("54. Съседен период, друг вариант или друга кампания за същите дни → разрешено", adj.status === 201 && otherVar.status === 201 && otherCamp.status === 201, `${adj.status} ${otherVar.status} ${otherCamp.status}`);
+const direct = await t.q("insert into ad_spend (campaign, content, period_start, period_end, amount_cents, created_by) values ($1, $2, $3, $4, 1, 't')", [CAMPAIGN, V, day(-5), day(-5)]).then(() => "ok", (e) => e.code);
+check("55. Ограничението е в базата: пряк запис със застъпване се отказва (23P01)", direct === "23P01", String(direct));
+// Едновременни заявки
+const V2 = "video_concurrent";
+const same = await Promise.all(Array.from({ length: 10 }, () => spend({ content: V2, periodStart: day(-30), periodEnd: day(-25), amount: "12" }, "spend-concurrent-same-key")));
+const nV2 = async () => (await t.q("select count(*)::int n from ad_spend where content = $1 and deleted_at is null", [V2])).rows[0].n;
+check("56. 10 едновременни изпращания със същия ключ → 1 запис, останалите връщат него", (await nV2()) === 1 && same.filter((x) => x.status === 201).length === 1 && same.filter((x) => x.json.duplicate).length === 9 && new Set(same.map((x) => x.json.row?.id)).size === 1, same.map((x) => x.status).join(","));
+const many = await Promise.all(Array.from({ length: 10 }, (_, i) => spend({ content: V2 + "_x", periodStart: day(-30 + (i % 3)), periodEnd: day(-24), amount: String(10 + i) })));
+const nX = (await t.q("select count(*)::int n from ad_spend where content = $1 and deleted_at is null", [V2 + "_x"])).rows[0].n;
+check("57. 10 едновременни застъпващи се разхода с различни ключове → само 1 активен, 9 × 409 overlap", nX === 1 && many.filter((x) => x.status === 201).length === 1 && many.filter((x) => x.status === 409 && x.json.error === "overlap").length === 9, many.map((x) => x.status).join(","));
+// Корекция
+const repV = async () => (await adm(adsFn, `/api/admin/ads/report?from=${day(-6)}&to=${day(-4)}`)).json.rows.find((x: any) => x.campaign === CAMPAIGN && x.content === V);
+const beforeFix = await repV();
+const f1 = await fix(s1.json.row.id, "12,50", "spend-fix-key-1");
+const f1b = await fix(s1.json.row.id, "12,50", "spend-fix-key-1");
+const actAfter = await activeV();
+const afterFix = await repV();
+check("58. Корекция: старият запис се закрива, новият го заменя (replacesId), сумата се брои веднъж", beforeFix.spendCents === 1000 && f1.status === 201 && f1.json.row.replacesId === s1.json.row.id && afterFix.spendCents === 1250 && actAfter.filter((x: any) => x.ps === day(-6)).length === 1, `${beforeFix.spendCents} → ${afterFix.spendCents}`);
+check("59. Повторно изпращане на същата корекция → без втора замяна", f1b.status === 200 && f1b.json.duplicate === true && f1b.json.row.id === f1.json.row.id, `HTTP ${f1b.status}`);
+const oldRow = (await t.q("select deleted_at, deleted_by from ad_spend where id = $1", [s1.json.row.id])).rows[0];
+check("60. Коригираният запис остава в историята (deleted_at, deleted_by)", !!oldRow.deleted_at && oldRow.deleted_by === "admin@example.com", "");
+const f2 = await fix(s1.json.row.id, "20");
+check("61. Корекция на вече заменен запис → 409 already_replaced", f2.status === 409 && f2.json.error === "already_replaced", f2.json.error);
+const cc = await Promise.all(Array.from({ length: 5 }, (_, i) => fix(f1.json.row.id, String(30 + i))));
+const nAct = (await activeV()).filter((x: any) => x.ps === day(-6));
+check("62. 5 едновременни корекции на един запис → точно 1 успешна, 1 активен запис", cc.filter((x) => x.status === 201).length === 1 && cc.filter((x) => x.json.error === "already_replaced").length === 4 && nAct.length === 1, cc.map((x) => x.status + ":" + (x.json.error || "")).join(",") + " активни " + nAct.length);
+const reAdd = await spend({ content: V2 + "_x", periodStart: day(-30), periodEnd: day(-24), amount: "1" });
+const delX = (await t.q("select id from ad_spend where content = $1 and deleted_at is null", [V2 + "_x"])).rows[0].id;
+await adm(adsFn, `/api/admin/ads/spend/${delX}`, { method: "POST", body: { action: "delete" }, params: { id: String(delX) } });
+const reAdd2 = await spend({ content: V2 + "_x", periodStart: day(-30), periodEnd: day(-24), amount: "1" });
+check("63. След изтриване същият период може да се въведе отново", reAdd.status === 409 && reAdd2.status === 201, `${reAdd.status} → ${reAdd2.status}`);
+// Отчет: вариант с пълен и частично изключен разход
+const Vp = "video_partial";
+await spend({ content: Vp, periodStart: day(-8), periodEnd: day(-6), amount: "5" }); // извън/частично
+await spend({ content: Vp, periodStart: day(-5), periodEnd: day(-2), amount: "10" }); // изцяло вътре
+const pr = rowOf((await adm(adsFn, `/api/admin/ads/report?from=${day(-7)}&to=${day(-2)}`)).json, Vp);
+const full = rowOf((await adm(adsFn, `/api/admin/ads/report?from=${day(-8)}&to=${day(-2)}`)).json, Vp);
+check("64. Вариант с пълен и частично изключен разход → „непълен“: без сума, CPL, цена и ROAS", pr.spendIncomplete === true && pr.spendCents === null && pr.cplCents === null && pr.costPerPaidCents === null && pr.roas === null, JSON.stringify(pr));
+check("65. Период, който обхваща всички записи изцяло → пълен разход 15 €", full.spendIncomplete === false && full.spendCents === 1500, String(full.spendCents));
+const pureInc = buildReport({ from: "2027-01-05", to: "2027-01-10", paidUntil: new Date("2027-02-01T00:00:00Z"), payments: [P("p", "final", 20000, { bookingId: "b1" })],
+  bookings: [{ id: "b1", status: "confirmed", utmCampaign: "c", utmContent: "v", utmSource: "meta", utmMedium: "paid_social" }],
+  spend: [{ id: 1, campaign: "c", content: "v", periodStart: "2027-01-05", periodEnd: "2027-01-10", amountCents: 1000, currency: "EUR" }, { id: 2, campaign: "c", content: "v", periodStart: "2027-01-01", periodEnd: "2027-01-04", amountCents: 900, currency: "EUR" }, { id: 3, campaign: "c", content: "v", periodStart: "2027-01-11", periodEnd: "2027-01-12", amountCents: 900, currency: "EUR" }, { id: 4, campaign: "c", content: "w", periodStart: "2027-01-03", periodEnd: "2027-01-06", amountCents: 700, currency: "EUR" }] });
+const pv = pureInc.rows.find((x: any) => x.content === "v"), pw = pureInc.rows.find((x: any) => x.content === "w");
+check("66. buildReport: записи изцяло извън периода не правят варианта непълен; частичният – прави", pv.spendIncomplete === false && pv.spendCents === 1000 && pv.roas === 20 && pw.spendIncomplete === true && pw.roas === null && pureInc.partialSpend.length === 1, JSON.stringify([pv.spendCents, pv.roas, pw.spendIncomplete]));
 check("46. Невалиден период на отчета → 400", (await adm(adsFn, `/api/admin/ads/report?from=${today}&to=${from}`)).status === 400, "");
 // Кохорта по българско време
 check("47. Начало на деня по българско време (лятно / зимно)", sofiaMidnight("2027-07-01").toISOString() === "2027-06-30T21:00:00.000Z" && sofiaMidnight("2027-01-15").toISOString() === "2027-01-14T22:00:00.000Z", "");

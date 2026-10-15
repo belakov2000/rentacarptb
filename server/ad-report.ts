@@ -10,7 +10,9 @@ import { variantLabel } from "./attribution.js";
 // Приход = нетно получени плащания за наема и услугите (deposit/partial/final/extra) след възстановяванията;
 // гаранционните депозити (security) и връщането им не влизат (server/payments.ts).
 // Разход = само ръчно въведеният действителен разход, чийто период е изцяло в избрания период. Записи, които само
-// частично се застъпват, не се разпределят (не се измислят суми) – показват се отделно като предупреждение.
+// частично се застъпват, не се разпределят по дни (не се измислят суми). За такъв вариант разходът е „непълен“
+// (spendIncomplete): разход, CPL, цена за резервация с плащане и ROAS не се изчисляват, докато избраният период
+// не обхване записите изцяло.
 // ROAS = нетен получен приход / рекламен разход – възвръщаемост на рекламния разход, не печалба.
 // Отчетът е по записаните UTM параметри и не съвпада непременно с атрибуцията в Meta Ads Manager.
 
@@ -28,7 +30,7 @@ export type ReportBooking = { id: string; status: string; utmCampaign: string | 
 export type ReportSpend = { id: number; campaign: string; content: string; periodStart: string; periodEnd: string; amountCents: number; currency: string };
 export type Row = {
   campaign: string | null; content: string | null; label: string; sources: string[];
-  leads: number; confirmed: number; paid: number; revenueCents: number; spendCents: number | null;
+  leads: number; confirmed: number; paid: number; revenueCents: number; spendCents: number | null; spendIncomplete: boolean;
   cplCents: number | null; costPerPaidCents: number | null; roas: number | null;
 };
 // Потвърдени: включително по-късно отменените или с неявяване (тези статуси са възможни само след потвърждение)
@@ -43,7 +45,7 @@ export function buildReport(o: { from: string; to: string; paidUntil: Date; book
     if (!rows.has(k))
       rows.set(k, {
         campaign, content: campaign == null ? null : content || "", label: campaign == null ? "Няма записан източник" : variantLabel(content) || "(без вариант)",
-        sources: [], leads: 0, confirmed: 0, paid: 0, revenueCents: 0, spendCents: null, cplCents: null, costPerPaidCents: null, roas: null,
+        sources: [], leads: 0, confirmed: 0, paid: 0, revenueCents: 0, spendCents: null, spendIncomplete: false, cplCents: null, costPerPaidCents: null, roas: null,
       });
     return rows.get(k)!;
   };
@@ -68,11 +70,13 @@ export function buildReport(o: { from: string; to: string; paidUntil: Date; book
     const inside = s.periodStart >= o.from && s.periodEnd <= o.to;
     const overlaps = s.periodStart <= o.to && s.periodEnd >= o.from;
     if (!overlaps) continue;
-    if (!inside) { partial.push(s); continue; }
     const r = row(s.campaign, s.content);
+    if (!inside) { partial.push(s); r.spendIncomplete = true; continue; }
     r.spendCents = (r.spendCents ?? 0) + s.amountCents;
   }
   for (const r of rows.values()) {
+    // Непълен разход → нито сума, нито показатели от нея („Непълен разход“ в панела)
+    if (r.spendIncomplete) { r.spendCents = null; r.cplCents = r.costPerPaidCents = r.roas = null; continue; }
     // Няма разход или нулев знаменател → null („Няма данни“)
     r.cplCents = r.spendCents != null && r.leads > 0 ? Math.round(r.spendCents / r.leads) : null;
     r.costPerPaidCents = r.spendCents != null && r.paid > 0 ? Math.round(r.spendCents / r.paid) : null;
