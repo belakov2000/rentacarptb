@@ -14,6 +14,18 @@ export function deployContext(): string {
 
 export const isProduction = (ctx = deployContext()) => ctx === "production";
 
+// Вид на средата за админ панела. Само стойностите, които Netlify подава на сървъра, са доказателство:
+// „production“ – реалният сайт; deploy-preview, branch-deploy и dev (netlify dev) – тестова версия.
+// Всичко друго (липсващ или непознат контекст) е „unknown“ – тогава панелът не твърди, че данните са тестови или изолирани.
+// Файловете в Blobs при unknown отиват в отделни хранилища с префикс „unknown-“ (както досега), а базата
+// се избира от платформата чрез връзката на конкретния deploy – кодът не я пренасочва.
+export type EnvKind = "production" | "preview" | "unknown";
+const PREVIEW_CONTEXTS = ["deploy-preview", "branch-deploy", "dev"];
+export function envKind(ctx = deployContext()): EnvKind {
+  return ctx === "production" ? "production" : PREVIEW_CONTEXTS.includes(ctx) ? "preview" : "unknown";
+}
+export const envInfo = (ctx = deployContext()) => ({ env: ctx, envKind: envKind(ctx), production: isProduction(ctx) });
+
 export function storeName(name: StoreName, ctx = deployContext()) {
   return isProduction(ctx) ? name : `${ctx.toLowerCase().replace(/[^a-z0-9]/g, "") || "unknown"}-${name}`;
 }

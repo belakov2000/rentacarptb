@@ -101,7 +101,12 @@ $("#nav").onclick=e=>{const a=e.target.closest("a[data-k]");if(!a)return;e.preve
 $("#out").onclick=async()=>{await fetch("/api/admin/logout",{method:"POST",credentials:"same-origin"}).catch(()=>{});ME=null;showLogin("Излязохте от панела.")};
 route();alerts()}
 // Предупреждения на всяка страница: тестова среда и неуспешно / остаряло резервно копие
-async function alerts(){let h=ME.production?"":`<div class="warn">Тестова среда (${esc(ME.env)}): отделна база и отделни хранилища за файлове – промените тук не засягат реалния сайт.</div>`;
+// Средата идва от сървъра (/api/admin/me и /api/admin/login): production – без предупреждение; preview – тестова версия;
+// unknown (или липсваща информация) – „Неизвестна среда“, без твърдение, че данните са тестови или изолирани.
+function envWarn(){const k=ME.envKind||"unknown";if(k==="production")return"";
+if(k==="preview")return`<div class="warn">Тестова среда (${esc(ME.env)}): отделни хранилища за файлове и отделна база за тази версия на сайта – промените тук не засягат реалния сайт.</div>`;
+return`<div class="warn bad">Неизвестна среда: сървърът не получи от Netlify информация дали това е реалният сайт или тестова версия. Не приемайте, че базата и файловете са тестови или изолирани – действайте както в реалния сайт. Договорите и снимките на документите може да не се показват (търсят се в отделно хранилище).</div>`}
+async function alerts(){let h=envWarn();
 try{const {status}=await api("/api/admin/backups?status");if(status&&status.warning)h+=`<div class="warn bad">⚠ ${esc(status.warning)} <a href="/admin/backups" data-k="backups">Резервни копия →</a></div>`}catch(_){}
 try{const {counts}=await api("/api/admin/emails");const u=counts.unknown||0,f=counts.failed||0;if(u||f)h+=`<div class="warn bad">⚠ Имейли: ${u?`${u} с неясен резултат`:""}${u&&f?", ":""}${f?`${f} неуспешни`:""}. <a href="/admin/emails" data-k="emails">Имейли →</a></div>`}catch(_){}
 const el=$("#alerts");if(el){el.innerHTML=h;el.onclick=e=>{const a=e.target.closest("a[data-k]");if(!a)return;e.preventDefault();history.pushState(null,"",a.href);route()}}}
@@ -112,7 +117,7 @@ const title=(SECTIONS.find(s=>s[0]===k)||[k,k==="emails"?"Имейли – из�
 $("#main").innerHTML=`<header><div><button class="btn ghost menu-btn" onclick="document.getElementById('nav').classList.add('open')">☰ Меню</button><h2>${esc(title)}</h2></div></header><div id="view"></div>`;
 (VIEWS[k]||soon)()}
 function soon(){$("#view").innerHTML=`<div class="panel soon">Този раздел е в процес на изграждане. Данните се показват само от реалната база – тук няма примерни стойности.</div>`}
-const VIEWS={backups,emails,bookings};
+const VIEWS={backups,emails,bookings,payments,reports};
 // ===== Резервации: списък, управление на потвърдени (отмяна, неявяване, предаване) и история =====
 // Действията се изпълняват на сървъра (/api/admin/bookings/:id) след отделно потвърждение тук; извършителят е вписаният администратор.
 const ST={pending:["Очаква потвърждение",""],confirmed:["Потвърдена","ok"],rejected:["Отказана","bad"],cancelled:["Отменена","bad"],no_show:["Неявяване","bad"]};
@@ -145,10 +150,11 @@ ${["customer","owner","other"].map((r,i)=>`<label class="opt"><input type="radio
 <div class="panel act"><h3>Клиентът не се яви</h3>${c.no_show?`<label for="no_show-note">Вътрешна бележка (по избор, не се изпраща на клиента)</label><textarea id="no_show-note" maxlength="1000"></textarea>${notify("no_show")}<button class="btn bad" data-ask="no_show">Клиентът не се яви</button>${ask("no_show")}`:`<p class="hint">Достъпно след часа за получаване: ${esc(bgAt(b.pickupAt))} (време в България).</p>`}</div>
 <div class="panel act"><h3>Предаване на автомобила</h3><p class="hint">Отбележете, когато клиентът получи автомобила.</p><button class="btn" data-ask="handover">Автомобилът е предаден</button>${ask("handover")}</div>`;
 v.innerHTML=`<p><a href="/admin/bookings" data-list>← Всички резервации</a></p>${msg?`<div class="msg ${ok?"ok":"err"}" role="status">${esc(msg)}</div>`:""}
-<div class="panel"><p>${tag(b.status)}</p><div class="kv">${kv}</div></div>${acts}
+<div class="panel"><p>${tag(b.status)}</p><div class="kv">${kv}</div></div>${srcPanel(b)}<div class="panel act" id="pay"><h3>Плащания</h3><p class="hint">Зарежда се…</p></div>${acts}
 <div class="panel"><h3>История</h3><ul>${d.events.map(e=>`<li>${esc(when(e.at))} – ${esc(EV[e.action]||e.action)}${e.details&&e.details.reason?" ("+esc(REASON[e.details.reason]||e.details.reason)+(e.details.notify?", с имейл до клиента":", без имейл")+")":""} – ${esc(e.actor==="owner-link"?"линк от имейла":e.actor)}</li>`).join("")||"<li>Няма записи.</li>"}</ul>
 <h3>Писма</h3><ul>${d.emails.map(m=>`<li>${esc(when(m.at))} – ${esc(EMAIL_KIND[m.kind]||m.kind)}: ${esc((EMAIL_STATUS[m.status]||[m.status])[0])}</li>`).join("")||"<li>Няма писма.</li>"}</ul></div>`;
-v.onclick=async e=>{const l=e.target.closest("a[data-list]");if(l){e.preventDefault();history.pushState(null,"",l.href);return route()}
+payPanel(id);
+v.onclick=async e=>{if(e.target.closest("#pay"))return;const l=e.target.closest("a[data-list]");if(l){e.preventDefault();history.pushState(null,"",l.href);return route()}
 const a=e.target.closest("[data-ask]");if(a){const k=a.dataset.ask,n=$("#"+k+"-notify");$("#ask-"+k).hidden=false;a.hidden=true;
 if(k!=="handover")$("#ask-"+k+"-mail").textContent=n&&n.checked?"Ще бъде изпратен имейл до клиента с номера, автомобила, периода и новия статус. Вътрешната бележка не се изпраща.":"Няма да бъде изпратен имейл до клиента.";
 $("#ask-"+k+" [data-do]").focus();return}
@@ -158,6 +164,79 @@ const body={action:k,...(k==="cancel"?{reason:(document.querySelector("input[nam
 try{const r=await api("/api/admin/bookings/"+id,{method:"POST",body:JSON.stringify(body)});
 booking(id,(k==="cancel"?"Резервацията е отменена. Автомобилът е освободен.":k==="no_show"?"Резервацията е закрита като неявяване. Автомобилът е освободен.":"Отбелязано е, че автомобилът е предаден.")+(k==="handover"?"":r.email==="sent"?" Клиентът получи имейл.":r.email==="queued"?" Имейлът ще бъде опитан отново автоматично.":" Не е изпратен имейл."),true)}
 catch(err){if(err.message!=="unauthorized")booking(id,err.message==="too_early"?"„Клиентът не се яви“ е достъпно едва след часа за получаване.":"Действието вече е изпълнено или не е възможно при текущия статус.",false)}}}
+// ===== Рекламен източник (UTM), записан към заявката от сайта – само при съгласие за маркетингови бисквитки =====
+const VARIANT={video_a_woman:"Видео А — жена",video_b_man:"Видео Б — мъж"},variant=c=>c?(VARIANT[String(c).toLowerCase()]||c):"";
+function srcPanel(b){const kv=b.utmSource?[["Вариант",variant(b.utmContent)],["utm_source",b.utmSource],["utm_medium",b.utmMedium],["utm_campaign",b.utmCampaign],["utm_content",b.utmContent],["utm_term",b.utmTerm],["Посещение от рекламата",when(b.utmAt)],["Заявка",when(b.createdAt)]].filter(([,x])=>x):[];
+return`<div class="panel act"><h3>Рекламен източник</h3>${kv.length?`<div class="kv">${kv.map(([k,x])=>`<div><span>${esc(k)}</span><b>${esc(x)}</b></div>`).join("")}</div><p class="hint">Последното посещение с UTM параметри в рамките на 30 дни преди заявката. Може да се различава от атрибуцията в Meta Ads Manager.</p>`
+:`<p><b>Няма записан източник</b></p><p class="hint">Заявката няма записани UTM параметри – например по-стара заявка, посещение без рекламна връзка или без съгласие за маркетингови бисквитки. Това не означава непременно органично посещение.</p>`}</div>`}
+// ===== Плащания по резервацията (/api/admin/payments) =====
+// Приход са само получените плащания за наема и услугите; гаранционният депозит не е приход и връщането му не намалява прихода.
+const KIND={deposit:"Аванс по наема",partial:"Частично плащане по наема",final:"Окончателно плащане по наема",extra:"Допълнителни услуги / такси",security:"Гаранционен депозит (не е приход)",refund:"Възстановяване"};
+const METHOD={cash:"В брой",bank:"По банков път",card:"С карта",other:"Друго"};
+const PST={expected:["Очаквано",""],received:["Получено","ok"],failed:["Неуспешно","bad"],refunded:["Получено (възстановено)","ok"]};
+const PAY_ERR={amount:"Невалидна сума.",refund_amount:"Сумата е по-голяма от оставащата за възстановяване по това плащане.",paid_at:"Невалидна дата на плащането (не може да е в бъдещето).",refund_of:"Възстановяването трябва да е към получено плащане по тази резервация.",not_expected:"Плащането вече не е очаквано – статусът е променен.",key:"Формата вече е изпратена – заредете страницата отново."};
+const eur=c=>c==null?"Няма данни":(c<0?"−":"")+(Math.abs(c)/100).toFixed(2).replace(".",",")+" €",ukey=()=>crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2);
+const opts=(o,sel)=>Object.entries(o).map(([k,t])=>`<option value="${k}"${k===sel?" selected":""}>${esc(t)}</option>`).join("");
+const localNow=()=>{const d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,16)};
+async function payPanel(id,msg,ok,refundOf){const el=$("#pay");if(!el)return;let d;
+try{d=await api("/api/admin/payments?booking="+id)}catch(e){if(e.message!=="unauthorized")el.innerHTML=`<h3>Плащания</h3><div class="msg err">Неуспешно зареждане (${esc(e.message)}).</div>`;return}
+const s=d.summary,P=d.payments,byId=Object.fromEntries(P.map(p=>[p.id,p])),ro=refundOf&&byId[refundOf];
+el.innerHTML=`<h3>Плащания</h3>${msg?`<div class="msg ${ok?"ok":"err"}" role="status">${esc(msg)}</div>`:""}
+<div class="grid" style="margin:10px 0"><div class="stat"><small>Получено за наема и услугите (нетно, след възстановяванията)</small><b>${eur(s.rentalNet)}</b></div><div class="stat"><small>Гаранционен депозит в момента (не е приход)</small><b>${eur(s.securityHeld)}</b></div><div class="stat"><small>Очаквани (още не са получени)</small><b>${eur(s.expected)}</b></div></div>
+<div class="scroll">${P.length?`<table><tr><th>Дата на плащане</th><th>Вид</th><th>Сума</th><th>Начин</th><th>Статус</th><th>Бележка</th><th></th></tr>${P.map(p=>`<tr><td>${esc(when(p.paidAt)||"—")}</td><td>${esc(KIND[p.kind]||p.kind)}${p.kind==="refund"&&byId[p.refundOf]?`<br><small>на: ${esc(KIND[byId[p.refundOf].kind]||"")} ${esc(eur(byId[p.refundOf].amountCents))}</small>`:""}</td><td>${esc(eur(p.kind==="refund"?-p.amountCents:p.amountCents))}</td><td>${esc(METHOD[p.method]||p.method)}</td><td><span class="tag ${(PST[p.status]||[])[1]||""}">${esc((PST[p.status]||[p.status])[0])}</span></td><td>${esc(p.note)}${p.txnId?`<br><small>${esc(p.txnId)}</small>`:""}<br><small>${esc(p.createdBy)}</small></td>
+<td>${p.status==="expected"?`<button class="btn ghost" data-recv="${p.id}">Получено</button> <button class="btn ghost" data-fail="${p.id}">Неуспешно</button>`:""}${p.refundable>0?`<button class="btn ghost" data-refund="${p.id}">Възстановяване</button>`:""}</td></tr>`).join("")}</table>`:"<p>Няма въведени плащания.</p>"}</div>
+<form id="payf" data-key="${ukey()}"><h3 style="margin-top:16px">${ro?"Възстановяване на "+esc(KIND[ro.kind]||"")+" ("+esc(eur(ro.amountCents))+", остават "+esc(eur(ro.refundable))+")":"Ново плащане"}</h3>
+${ro?`<input type="hidden" id="pf-kind" value="refund">`:`<label for="pf-kind">Вид</label><select id="pf-kind">${opts(Object.fromEntries(Object.entries(KIND).filter(([k])=>k!=="refund")),"deposit")}</select><p class="hint">„Аванс по наема“ е част от цената на наема (приход). „Гаранционен депозит“ се връща на клиента и не е приход – връщането му не намалява прихода.</p>`}
+<div class="grid"><div><label for="pf-amount">Сума (EUR)</label><input id="pf-amount" inputmode="decimal" placeholder="напр. 120,50" value="${ro?esc((ro.refundable/100).toFixed(2).replace(".",",")):""}" required></div>
+<div><label for="pf-method">Начин</label><select id="pf-method">${opts(METHOD,ro?ro.method:"cash")}</select></div>
+<div><label for="pf-status">Статус</label><select id="pf-status">${opts(ro?{received:"Върнато",expected:"Предстои връщане"}:{received:"Получено",expected:"Очаквано"},"received")}</select></div>
+<div><label for="pf-at">Дата и час</label><input id="pf-at" type="datetime-local" value="${localNow()}"></div></div>
+<label for="pf-txn">Номер на транзакция / бон (по избор)</label><input id="pf-txn" maxlength="120"><label for="pf-note">Бележка (по избор)</label><textarea id="pf-note" maxlength="1000"></textarea>
+<div class="row2"><button class="btn">${ro?"Запиши възстановяването":"Запиши плащането"}</button>${ro?`<button type="button" class="btn ghost" data-cancel>Отказ</button>`:""}</div></form>`;
+el.onclick=async e=>{const r=e.target.closest("[data-refund]");if(r)return payPanel(id,"",true,r.dataset.refund);if(e.target.closest("[data-cancel]"))return payPanel(id);
+const t=e.target.closest("[data-recv],[data-fail]");if(!t)return;t.disabled=true;const recv=!!t.dataset.recv;
+try{await api("/api/admin/payments/"+(t.dataset.recv||t.dataset.fail),{method:"POST",body:JSON.stringify(recv?{status:"received",paidAt:new Date().toISOString()}:{status:"failed"})});payPanel(id,recv?"Плащането е отбелязано като получено.":"Плащането е отбелязано като неуспешно.",true)}
+catch(err){if(err.message!=="unauthorized")payPanel(id,PAY_ERR[err.message]||"Неуспешно ("+err.message+").",false)}};
+$("#payf").onsubmit=async e=>{e.preventDefault();const f=e.target,b=f.querySelector("button:not([type])");b.disabled=true;const at=$("#pf-at").value;
+const body={bookingId:id,kind:$("#pf-kind").value,method:$("#pf-method").value,amount:$("#pf-amount").value,status:$("#pf-status").value,paidAt:at?new Date(at).toISOString():"",txnId:$("#pf-txn").value,note:$("#pf-note").value,idempotencyKey:f.dataset.key,...(ro?{refundOf:ro.id}:{})};
+try{const r=await api("/api/admin/payments",{method:"POST",body:JSON.stringify(body)});payPanel(id,r.duplicate?"Плащането вече е записано.":ro?"Възстановяването е записано.":"Плащането е записано.",true)}
+catch(err){b.disabled=false;if(err.message!=="unauthorized")$("#payf").insertAdjacentHTML("afterbegin",`<div class="msg err">${esc(PAY_ERR[err.message]||"Неуспешно ("+err.message+").")}</div>`)}}}
+// ===== Всички плащания (последните 200) =====
+async function payments(){const v=$("#view");v.innerHTML=`<div class="panel">Зарежда се…</div>`;
+try{const {rows}=await api("/api/admin/payments");
+v.innerHTML=`<div class="panel"><p class="hint">Плащанията се въвеждат от страницата на резервацията (Резервации → Управление → Плащания). Гаранционният депозит не е приход.</p></div>
+<div class="panel scroll">${rows.length?`<table><tr><th>Дата на плащане</th><th>Резервация</th><th>Вид</th><th>Сума</th><th>Начин</th><th>Статус</th></tr>${rows.map(p=>`<tr><td>${esc(when(p.paidAt)||"—")}</td><td><a href="/admin/bookings/${esc(p.bookingId)}" data-id>${esc(ref(p.bookingId))}</a><br><small>${esc(p.name)} · ${esc(p.car)}</small></td><td>${esc(KIND[p.kind]||p.kind)}</td><td>${esc(eur(p.kind==="refund"?-p.amountCents:p.amountCents))}</td><td>${esc(METHOD[p.method]||p.method)}</td><td><span class="tag ${(PST[p.status]||[])[1]||""}">${esc((PST[p.status]||[p.status])[0])}</span></td></tr>`).join("")}</table>`:"Няма въведени плащания."}</div>`;
+v.onclick=e=>{const a=e.target.closest("a[data-id]");if(!a)return;e.preventDefault();history.pushState(null,"",a.href);route()}}
+catch(e){if(e.message!=="unauthorized")v.innerHTML=`<div class="panel msg err">Неуспешно зареждане (${esc(e.message)}).</div>`}}
+// ===== Реклами: заявки и ROAS по кампания и вариант (/api/admin/ads/*) =====
+const ND="Няма данни",dBG=s=>s?s.slice(8,10)+"."+s.slice(5,7)+"."+s.slice(0,4):"",isoDay=d=>new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString().slice(0,10);
+const roasTxt=x=>x==null?ND:x.toFixed(2).replace(".",",")+" ("+Math.round(x*100)+" %)";
+async function reports(){const v=$("#view"),qs=new URLSearchParams(location.search),today=isoDay(new Date());
+const from=qs.get("from")||isoDay(new Date(Date.now()-29*864e5)),to=qs.get("to")||today,pu=qs.get("paidUntil")||"";
+v.innerHTML=`<div class="panel"><h3>Реклами: заявки и ROAS</h3><form id="rf" class="grid"><div><label for="r-from">Заявки, създадени от</label><input id="r-from" type="date" value="${esc(from)}" required></div><div><label for="r-to">до (включително)</label><input id="r-to" type="date" value="${esc(to)}" required></div><div><label for="r-pu">Плащания, получени до (по избор)</label><input id="r-pu" type="date" value="${esc(pu)}"></div><div style="align-self:end"><button class="btn">Покажи</button></div></form>
+<p class="hint">Кохорта: заявките, създадени в избрания период (българско време). По тях се отчитат всички получени плащания до посочената дата (по подразбиране – до момента), включително получени след края на периода. Приход = нетно получените плащания за наема и услугите след възстановяванията, без гаранционните депозити. Разход = само въведеният тук действителен разход, чийто период е изцяло в избрания период. <b>ROAS = нетен получен приход / рекламен разход</b> – възвръщаемост на рекламния разход, не печалба. Отчетът е по записаните UTM параметри (само при съгласие за маркетингови бисквитки) и не съвпада непременно с атрибуцията в Meta Ads Manager; заявките без съгласие са в реда „Няма записан източник“.</p></div>
+<div class="panel scroll" id="rt">Зарежда се…</div>
+<div class="panel"><h3>Действителен рекламен разход</h3><p class="hint">Въведете реално изразходваната сума от Meta Ads Manager за вариант и период (не планирания бюджет).</p>
+<form id="sf" class="grid"><div><label for="s-c">Кампания (utm_campaign)</label><input id="s-c" value="ptb_plovdiv_video_test" maxlength="100" required></div><div><label for="s-v">Вариант (utm_content)</label><input id="s-v" list="s-vl" maxlength="100"><datalist id="s-vl"><option value="video_a_woman">Видео А — жена</option><option value="video_b_man">Видео Б — мъж</option></datalist></div>
+<div><label for="s-f">Период от</label><input id="s-f" type="date" required></div><div><label for="s-t">до (включително)</label><input id="s-t" type="date" required></div><div><label for="s-a">Изразходвано (EUR)</label><input id="s-a" inputmode="decimal" placeholder="напр. 17,35" required></div><div><label for="s-n">Бележка</label><input id="s-n" maxlength="500"></div><div style="align-self:end"><button class="btn">Запиши разхода</button></div></form><div id="sm"></div><div class="scroll" id="sl"></div></div>`;
+$("#rf").onsubmit=e=>{e.preventDefault();const q=new URLSearchParams({from:$("#r-from").value,to:$("#r-to").value});if($("#r-pu").value)q.set("paidUntil",$("#r-pu").value);history.pushState(null,"","/admin/reports?"+q);reports()};
+$("#sf").onsubmit=async e=>{e.preventDefault();const b=e.target.querySelector("button");b.disabled=true;
+try{await api("/api/admin/ads/spend",{method:"POST",body:JSON.stringify({campaign:$("#s-c").value,content:$("#s-v").value,periodStart:$("#s-f").value,periodEnd:$("#s-t").value,amount:$("#s-a").value,note:$("#s-n").value})});$("#s-a").value="";$("#s-n").value="";$("#sm").innerHTML=`<div class="msg ok">Разходът е записан.</div>`;spendList();reportTable(from,to,pu)}
+catch(err){if(err.message!=="unauthorized")$("#sm").innerHTML=`<div class="msg err">${esc({campaign:"Невалидна кампания (букви, цифри, _ . - до 100 знака).",content:"Невалиден вариант.",period:"Невалиден период.",amount:"Невалидна сума."}[err.message]||"Неуспешно ("+err.message+").")}</div>`}b.disabled=false};
+reportTable(from,to,pu);spendList()}
+async function reportTable(from,to,pu){const el=$("#rt");
+try{const q=new URLSearchParams({from,to});if(pu)q.set("paidUntil",pu);const r=await api("/api/admin/ads/report?"+q);
+el.innerHTML=`<p>Заявки, създадени <b>${esc(dBG(r.from))} – ${esc(dBG(r.to))}</b>; плащания, отчетени до <b>${esc(when(r.paidUntil))}</b>.</p>
+${r.rows.length?`<table><tr><th>Кампания / вариант</th><th>Заявки</th><th>Потвърдени</th><th>С получено плащане за наема</th><th>Нетен получен приход</th><th>Рекламен разход</th><th>CPL (разход / заявки)</th><th>Цена за резервация с плащане</th><th>ROAS (приход / разход)</th></tr>
+${r.rows.map(x=>`<tr><td><b>${esc(x.label)}</b>${x.campaign!=null?`<br><small>${esc(x.campaign)}${x.content?" · "+esc(x.content):""}${x.sources.length?" · "+esc(x.sources.join(", ")):""}</small>`:""}</td><td>${x.leads}</td><td>${x.confirmed}</td><td>${x.paid}</td><td>${esc(eur(x.revenueCents))}</td><td>${esc(x.spendCents==null?ND:eur(x.spendCents))}</td><td>${esc(x.cplCents==null?ND:eur(x.cplCents))}</td><td>${esc(x.costPerPaidCents==null?ND:eur(x.costPerPaidCents))}</td><td>${esc(roasTxt(x.roas))}</td></tr>`).join("")}</table>`:"<p>Няма заявки и разходи в този период.</p>"}
+<p class="hint">„Потвърдени“ включва и по-късно отменените резервации и тези с неявяване. „С получено плащане за наема“ – нетно получена сума за наема и услугите над 0 €.</p>
+${r.partialSpend.length?`<div class="warn">Не са включени разходи, чийто период само частично се застъпва с избрания: ${r.partialSpend.map(s=>esc(s.campaign+(s.content?" · "+s.content:"")+" ("+dBG(s.periodStart)+" – "+dBG(s.periodEnd)+", "+eur(s.amountCents)+")")).join("; ")}. Изберете период, който ги обхваща изцяло.</div>`:""}
+${r.warnings.nonEurPayments||r.warnings.nonEurSpend?`<div class="warn">Записи в друга валута не са включени.</div>`:""}`}
+catch(e){if(e.message!=="unauthorized")el.innerHTML=`<div class="msg err">${e.message==="period"?"Невалиден период.":"Неуспешно зареждане ("+esc(e.message)+")."}</div>`}}
+async function spendList(){const el=$("#sl");try{const {rows}=await api("/api/admin/ads/spend");
+el.innerHTML=rows.length?`<table><tr><th>Период</th><th>Кампания</th><th>Вариант</th><th>Сума</th><th>Бележка</th><th>Въведен от</th><th></th></tr>${rows.map(s=>`<tr><td>${esc(dBG(s.periodStart))} – ${esc(dBG(s.periodEnd))}</td><td>${esc(s.campaign)}</td><td>${esc(variant(s.content)||"—")}</td><td>${esc(eur(s.amountCents))}</td><td>${esc(s.note)}</td><td>${esc(s.createdBy)}</td><td><button class="btn ghost" data-del="${s.id}">Изтрий</button></td></tr>`).join("")}</table>`:"<p>Няма въведен разход.</p>";
+el.onclick=async e=>{const b=e.target.closest("[data-del]");if(!b||!confirm("Да изтрием ли този запис за разход?"))return;b.disabled=true;try{await api("/api/admin/ads/spend/"+b.dataset.del,{method:"POST",body:JSON.stringify({action:"delete"})});spendList();reports()}catch(_){b.disabled=false}}}
+catch(e){if(e.message!=="unauthorized")el.innerHTML=`<div class="msg err">Неуспешно зареждане (${esc(e.message)}).</div>`}}
 const EMAIL_STATUS={sent:["Изпратено","ok"],failed:["Неуспешно – ще се опита отново","bad"],unknown:["Неясен резултат – провери ръчно","bad"],queued:["Чака изпращане",""],sending:["Изпраща се",""]};
 const EMAIL_KIND={"owner-new":"До фирмата: нова заявка","customer-received":"До клиента: получена заявка","customer-decision":"До клиента: решение","customer-closed":"До клиента: отмяна / неявяване"};
 async function emails(){const v=$("#view");v.innerHTML=`<div class="panel">Зарежда се…</div>`;

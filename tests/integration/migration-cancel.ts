@@ -11,7 +11,7 @@ setContext("deploy-preview");
 const MIG = "20261015022647_add_booking_cancel_handover";
 const all = migrations();
 const idx = all.indexOf(MIG);
-check("1. новата миграция е последна и единствена след приложените 6", idx === 6 && all.length === 7, all.join(", "));
+check("1. миграцията е седма – след приложените 6 (по-късните се прилагат след проверките ѝ)", idx === 6 && all.length >= 7, all.join(", "));
 const t = await freshDb("migcancel", idx);
 t.use();
 
@@ -44,6 +44,8 @@ check("4. новите колони са с празни стойности по
 check("5. историята и лога на писмата не са променени", (await snap("booking_events", "id")) === before.events && (await snap("email_log", "id")) === before.emails, "");
 check("6. наличността е същата след миграцията", JSON.stringify(await (await availabilityFn()).json()) === JSON.stringify(busyBefore), JSON.stringify(busyBefore.cars));
 
+// По-късните миграции (напр. рекламен източник) – новият код очаква всички колони
+for (const m of all.slice(idx + 1)) await t.applyMigration(m);
 // Новият код управлява стара потвърдена резервация
 const r = await act(old[1][0], "cancel", { actor: "admin@example.com", reason: "customer", notify: false });
 const b = (await t.db.select().from(schema.bookings).where(eq(schema.bookings.id, old[1][0])))[0];

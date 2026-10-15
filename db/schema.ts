@@ -50,11 +50,21 @@ export const bookings = pgTable("bookings", {
   closedBy: text("closed_by").notNull().default(""),
   closeReason: text("close_reason").notNull().default(""),
   closeNote: text("close_note").notNull().default(""),
+  // Рекламен източник (UTM) от браузъра на клиента – последното посещение с валидни UTM параметри в рамките на 30 дни,
+  // записано само при съгласие за маркетингови бисквитки (server/attribution.ts). Всички полета са от едно и също посещение;
+  // utmAt е моментът на това посещение. Празно (null) – няма записан източник (по-стари заявки, директно посещение или без съгласие).
+  utmSource: text("utm_source"),
+  utmMedium: text("utm_medium"),
+  utmCampaign: text("utm_campaign"),
+  utmContent: text("utm_content"),
+  utmTerm: text("utm_term"),
+  utmAt: timestamp("utm_at"),
 }, (t) => [
   uniqueIndex("bookings_request_key_idx").on(t.requestKey),
   index("bookings_car_dates_idx").on(t.carId, t.startDate, t.endDate),
   index("bookings_status_idx").on(t.status),
   index("bookings_created_idx").on(t.createdAt),
+  index("bookings_utm_idx").on(t.utmCampaign, t.utmContent),
 ]);
 
 // ===== Административен модул =====
@@ -149,6 +159,27 @@ export const expenses = pgTable(
     deletedAt: timestamp("deleted_at"),
   },
   (t) => [index("expenses_date_idx").on(t.date)],
+);
+
+// Действителен рекламен разход, въведен ръчно от администратора (не планираният бюджет).
+// Един запис = сума в евроцентове за кампания (utm_campaign) и вариант (utm_content) за периода [periodStart, periodEnd] включително.
+// Изтриването е логическо (deletedAt) – записите остават в историята.
+export const adSpend = pgTable(
+  "ad_spend",
+  {
+    id: serial().primaryKey(),
+    campaign: text().notNull(),
+    content: text().notNull().default(""),
+    periodStart: date("period_start").notNull(),
+    periodEnd: date("period_end").notNull(),
+    amountCents: integer("amount_cents").notNull(),
+    currency: text().notNull().default("EUR"),
+    note: text().notNull().default(""),
+    createdBy: text("created_by").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    deletedAt: timestamp("deleted_at"),
+  },
+  (t) => [index("ad_spend_campaign_idx").on(t.campaign, t.content, t.periodStart)],
 );
 
 // Лог на изпратените имейли; dedupeKey не позволява едно и също писмо да бъде изпратено два пъти.

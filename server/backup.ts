@@ -21,11 +21,12 @@ export const TABLES = {
   email_log: schema.emailLog,
   contract_versions: schema.contractVersions,
   settings: schema.settings,
+  ad_spend: schema.adSpend,
 } as const;
 // Първичен ключ на всяка таблица (име на колоната в базата)
 const PK: Record<keyof typeof TABLES, string> = {
   bookings: "id", payments: "id", booking_events: "id", cars: "id", car_blocks: "id",
-  expenses: "id", email_log: "id", contract_versions: "id", settings: "key",
+  expenses: "id", email_log: "id", contract_versions: "id", settings: "key", ad_spend: "id",
 };
 export const SOURCE_STORES = ["contracts", "documents"] as const;
 const KEEP_DAYS = 35;

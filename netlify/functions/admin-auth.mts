@@ -1,7 +1,7 @@
 import { AuthError, getUser, login, logout } from "@netlify/identity";
 import type { Config, Context } from "@netlify/functions";
 import { audit, ipHash, isAdminUser, json, requireAdmin, sameOrigin, tooManyFailedLogins } from "../../server/auth.js";
-import { deployContext, isProduction } from "../../server/stores.js";
+import { envInfo } from "../../server/stores.js";
 
 // Вход в административния панел с Netlify Identity (бисквитката nf_jwt се задава от сървъра).
 // POST /api/admin/login  { email, password }
@@ -21,8 +21,8 @@ async function handle(req: Request, context: Context) {
 
   if (path.endsWith("/me")) {
     const admin = await requireAdmin(req);
-    // Средата се показва в панела – извън продукция с ясно предупреждение, че данните и файловете са тестови
-    return admin instanceof Response ? admin : json({ email: admin.email, env: deployContext(), production: isProduction() });
+    // Средата се показва в панела: тестова версия – с предупреждение; непозната – „Неизвестна среда“ (server/stores.ts)
+    return admin instanceof Response ? admin : json({ email: admin.email, ...envInfo() });
   }
 
   if (req.method !== "POST" || !sameOrigin(req)) return json({ error: "forbidden" }, 403);
@@ -49,7 +49,8 @@ async function handle(req: Request, context: Context) {
       return json({ error: "forbidden" }, 403);
     }
     await audit(email, "admin.login", { ip });
-    return json({ email });
+    // Същите данни за средата като /me – без тях панелът след вход показваше „Тестова среда ()“ и в продукция
+    return json({ email, ...envInfo() });
   } catch (e) {
     await audit(email, "admin.login_failed", { ip }).catch(() => null);
     if (e instanceof AuthError && (e.status === 400 || e.status === 401)) return json({ error: "credentials" }, 401);

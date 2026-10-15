@@ -31,7 +31,7 @@ check("Миграции: нееднозначните не се отгатват
 const snapRows = async () => JSON.stringify((await src.q("select id, total_cents, total_review from bookings order by id")).rows) + JSON.stringify((await src.q("select * from cars order by id")).rows);
 const b1 = await snapRows(); await src.applyMigration(migs[4]); 
 check("Миграции: попълващата миграция е повторяема", b1 === (await snapRows()), "");
-check("Миграции: всички 7 са приложени", migs.length === 7, migs.join(", "));
+check("Миграции: всички 8 са приложени", migs.length === 8, migs.join(", "));
 src.use();
 const db = state.db;
 // Синтетични редове във всички нови таблици
@@ -47,6 +47,7 @@ await db.insert(schema.carBlocks).values({ carId: "golf", startDate: "2027-02-01
 await db.insert(schema.expenses).values({ carId: "ka", date: "2027-01-05", category: "repair", amountCents: 12345, createdBy: "t" });
 await db.insert(schema.emailLog).values({ kind: "x", recipient: "t***@example.com", status: "sent", dedupeKey: "d1" });
 await db.insert(schema.contractVersions).values({ bookingId: b0.id, version: 1, blobKey: "k", fileName: "f.docx", createdBy: "t" });
+await db.insert(schema.adSpend).values({ campaign: "ptb_test", content: "video_a_woman", periodStart: "2027-01-01", periodEnd: "2027-01-14", amountCents: 1735, createdBy: "t" });
 
 // ===== 2. Файлове: голям обем, на части, прекъсване, нова версия =====
 for (let k = 0; k < 40; k++) await getStore("contracts").set("c" + k, randomBytes(20_000), { metadata: { name: `Dogovor-${k}.docx` } });
