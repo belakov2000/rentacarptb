@@ -376,8 +376,9 @@ catch(e){if(e.message!=="unauthorized")v.innerHTML=`<div class="panel msg err">�
 async function backups(){const v=$("#view");v.innerHTML=`<div class="panel">Проверява се последното копие…</div>`;
 try{const {snapshots,check,status}=await api("/api/admin/backups");
 v.innerHTML=`${status&&status.warning?`<div class="warn bad">⚠ ${esc(status.warning)}${status.lastErrorAt?" ("+esc(new Date(status.lastErrorAt).toLocaleString("bg-BG"))+")":""}</div>`:""}
-<div class="panel"><p>Последно успешно копие: <b>${status&&status.lastSuccessAt?esc(new Date(status.lastSuccessAt).toLocaleString("bg-BG")):"няма"}</b>${status&&status.pendingFiles?` · ${status.pendingFiles} файла чакат копиране при следващото изпълнение`:""}</p></div>
-<div class="panel"><p><span class="tag ${check.ok?"ok":"bad"}">${check.ok?"Копието е цяло и може да бъде възстановено":"Има проблем"}</span></p>
+<div class="panel"><div class="kv"><div><span>Копие на базата</span><b>${status&&status.lastSuccessAt?`<span class="tag ${check.dbOk===false?"bad":"ok"}">${check.dbOk===false?"има проблем":"успешно"}</span> `+esc(new Date(status.lastSuccessAt).toLocaleString("bg-BG")):`<span class="tag bad">няма</span>`}</b></div>
+<div><span>Архивиране на договори и документи</span><b>${check.files?(()=>{const t=Object.values(check.files).reduce((a,f)=>({s:a.s+f.source,b:a.b+f.backedUp,m:a.m+f.missing,x:a.x+f.mismatched}),{s:0,b:0,m:0,x:0});return check.filesOk?`<span class="tag ok">завършено</span> ${t.b} от ${t.s} файла`:`<span class="tag bad">не е завършено</span> ${t.b} от ${t.s} файла с копие, ${t.m} без копие${t.x?`, ${t.x} разлики`:""}`})():`<span class="tag bad">няма данни</span>`}</b></div></div>
+<p class="hint">Успешно копие на базата не означава, че файловете са архивирани. Файловете се копират на части; в тестова версия автоматичната задача не се изпълнява – натиснете „Направи копие сега“ отново, за да се довърши.</p>
 ${check.problems&&check.problems.length?`<ul>${check.problems.map(p=>`<li>${esc(p)}</li>`).join("")}</ul>`:""}
 <p>Последно копие на базата: <b>${esc(check.snapshot||"няма")}</b>${check.createdAt?" ("+esc(new Date(check.createdAt).toLocaleString("bg-BG"))+")":""}</p>
 <button class="btn acc" id="run">Направи копие сега</button></div>
