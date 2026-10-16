@@ -3,3 +3,4 @@ node_modules
 # Local Netlify folder
 .netlify
 tests/integration/.out
+tests/e2e/.out

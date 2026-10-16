@@ -41,6 +41,10 @@ const T: Record<string, Record<string, string>> = {
     // Връщане
     r24Subj: "Утре е връщането на автомобила – Rent a Car PTB",
     r24: "Напомняме ви, че наемът приключва утре.",
+    p24nSubj: "Наближава получаването на автомобила – Rent a Car PTB",
+    p24n: "Напомняме ви, че наближава получаването на автомобила.",
+    r24nSubj: "Наближава връщането на автомобила – Rent a Car PTB",
+    r24n: "Напомняме ви, че наемът наближава своя край.",
     rsSubj: "Наближава часът за връщане на автомобила – Rent a Car PTB",
     rs: "Наближава часът за връщане на автомобила.",
     retTips: "Преди връщане:",
@@ -83,6 +87,10 @@ const T: Record<string, Record<string, string>> = {
     hoLate: "If you are running late or want to change the time, please call us on {phone}.",
     r24Subj: "Your car return is tomorrow – Rent a Car PTB",
     r24: "A friendly reminder that your rental ends tomorrow.",
+    p24nSubj: "Your car pick-up is coming up – Rent a Car PTB",
+    p24n: "A friendly reminder that your car pick-up is coming up.",
+    r24nSubj: "Your car return is coming up – Rent a Car PTB",
+    r24n: "A friendly reminder that your rental is coming to an end.",
     rsSubj: "Your car return time is coming up – Rent a Car PTB",
     rs: "Your car return time is coming up soon.",
     retTips: "Before returning:",
@@ -124,6 +132,10 @@ const T: Record<string, Record<string, string>> = {
     hoLate: "Wenn Sie sich verspäten oder die Uhrzeit ändern möchten, rufen Sie uns bitte unter {phone} an.",
     r24Subj: "Morgen ist die Fahrzeugrückgabe – Rent a Car PTB",
     r24: "Wir erinnern Sie daran, dass Ihre Miete morgen endet.",
+    p24nSubj: "Die Abholung Ihres Fahrzeugs rückt näher – Rent a Car PTB",
+    p24n: "Wir erinnern Sie daran, dass die Abholung Ihres Fahrzeugs näher rückt.",
+    r24nSubj: "Die Fahrzeugrückgabe rückt näher – Rent a Car PTB",
+    r24n: "Wir erinnern Sie daran, dass Ihre Miete bald endet.",
     rsSubj: "Die Rückgabezeit rückt näher – Rent a Car PTB",
     rs: "Die Uhrzeit für die Rückgabe des Fahrzeugs rückt näher.",
     retTips: "Vor der Rückgabe:",
@@ -155,7 +167,10 @@ function where(t: Record<string, string>, raw: string) {
 
 const list = (items: string[]) => `<ul style="padding-left:20px;margin:6px 0 14px">${items.map((i) => `<li style="margin:3px 0">${esc(i)}</li>`).join("")}</ul>`;
 
-export function lifecycleMail(kind: CustomerMailKind, b: Booking) {
+// tomorrow = false: първото напомняне не е в деня преди получаването / връщането (настроен е друг брой часове) –
+// тогава текстът не казва „утре“.
+export function lifecycleMail(kind: CustomerMailKind, b: Booking, o: { tomorrow?: boolean } = {}) {
+  const tomorrow = o.tomorrow !== false;
   const t = T[b.lang] || T.bg;
   const fill = (s: string) => s.replace("{name}", b.name).replace("{phone}", PHONE);
   const ref = b.id.slice(0, 6).toUpperCase();
@@ -175,8 +190,8 @@ export function lifecycleMail(kind: CustomerMailKind, b: Booking) {
         `<p>${esc(t.recInfo)}</p><p style="color:#5b6577">${esc(t.recNote)}</p>`;
       break;
     case "pickup24":
-      subject = t.p24Subj;
-      lead = t.p24;
+      subject = tomorrow ? t.p24Subj : t.p24nSubj;
+      lead = tomorrow ? t.p24 : t.p24n;
       body =
         when(b.startDate, b.startTime, pick) + mapLink(pick) +
         `<p><b>${esc(t.bring)}</b></p>` + list([t.bring1, t.bring2, t.bring3, ...(b.payment === "cash" ? [t.bringCash] : [])]);
@@ -192,8 +207,8 @@ export function lifecycleMail(kind: CustomerMailKind, b: Booking) {
       break;
     case "return24":
     case "returnSoon":
-      subject = kind === "return24" ? t.r24Subj : t.rsSubj;
-      lead = kind === "return24" ? t.r24 : t.rs;
+      subject = kind === "return24" ? (tomorrow ? t.r24Subj : t.r24nSubj) : t.rsSubj;
+      lead = kind === "return24" ? (tomorrow ? t.r24 : t.r24n) : t.rs;
       body =
         when(b.endDate, b.endTime, ret) + mapLink(ret) +
         `<p><b>${esc(t.retTips)}</b></p>` + list([t.ret1, t.retClean, t.ret2, t.ret3]) +

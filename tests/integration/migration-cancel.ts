@@ -32,7 +32,15 @@ await t.q(`insert into booking_events (booking_id, actor, action, details) value
 await t.q(`insert into email_log (kind, booking_id, recipient, status, dedupe_key) values ('customer-decision', $1, 'mi***@example.com', 'sent', $2)`, [old[1][0], "customer-decision:" + old[1][0]]);
 const snap = async (table: string, order: string) => JSON.stringify((await t.q(`select * from ${table} order by ${order}`)).rows);
 const before = { bookings: (await t.q("select * from bookings order by id")).rows, events: await snap("booking_events", "id"), emails: await snap("email_log", "id") };
-const busyBefore = await (await availabilityFn()).json();
+// Заетост по правилото отпреди миграцията (потвърдени с дати) – текущият код очаква всички по-късни колони,
+// затова наличността от функцията се сравнява след прилагане на всички миграции (проверка 6)
+const oldBusy = async () => {
+  const cars: Record<string, string[][]> = {};
+  for (const r of (await t.q(`select car_id, start_date::text s, end_date::text e, start_time, end_time from bookings where status = 'confirmed' and start_date is not null and end_date >= (current_date - 1) order by id`)).rows)
+    (cars[r.car_id] ||= []).push([r.s, r.e, r.start_time, r.end_time]);
+  return cars;
+};
+const busyBefore = await oldBusy();
 
 await t.applyMigration(MIG);
 
@@ -42,10 +50,10 @@ check("2. брой записи и стари колони – без промя
 check("3. статусите са запазени", after.map((r: any) => r.status).join() === "pending,confirmed,rejected,confirmed", after.map((r: any) => r.status).join());
 check("4. новите колони са с празни стойности по подразбиране", after.every((r: any) => r.handed_over_at === null && r.closed_at === null && r.handed_over_by === "" && r.closed_by === "" && r.close_reason === "" && r.close_note === ""), "");
 check("5. историята и лога на писмата не са променени", (await snap("booking_events", "id")) === before.events && (await snap("email_log", "id")) === before.emails, "");
-check("6. наличността е същата след миграцията", JSON.stringify(await (await availabilityFn()).json()) === JSON.stringify(busyBefore), JSON.stringify(busyBefore.cars));
-
 // По-късните миграции (напр. рекламен източник) – новият код очаква всички колони
 for (const m of all.slice(idx + 1)) await t.applyMigration(m);
+const busyAfter = (await (await availabilityFn()).json()).cars;
+check("6. наличността е същата след миграцията (публичната функция с всички миграции = старото правило)", JSON.stringify(busyAfter) === JSON.stringify(await oldBusy()) && JSON.stringify(busyAfter) === JSON.stringify(busyBefore), JSON.stringify(busyAfter));
 // Новият код управлява стара потвърдена резервация
 const r = await act(old[1][0], "cancel", { actor: "admin@example.com", reason: "customer", notify: false });
 const b = (await t.db.select().from(schema.bookings).where(eq(schema.bookings.id, old[1][0])))[0];

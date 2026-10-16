@@ -120,3 +120,37 @@ export function closedMail(b: Booking) {
   );
   return { subject: `${noShow ? t.noShowSubj : t.cancelSubj} (№ ${ref})`, html, preheader: `${noShow ? t.noShow : t.cancel} ${b.car}, ${b.pickup}` };
 }
+
+// ===== Имейл до клиента при удължаване на наема (само ако администраторът изрично е избрал изпращане) =====
+const EXTENDED: Record<string, Record<string, string>> = {
+  bg: {
+    subj: "Наемът ви е удължен – Rent a Car PTB", hi: "Здравейте, {name}!", lead: "Потвърждаваме удължаването на наема.",
+    car: "Автомобил", pickup: "Получаване", oldEnd: "Предишно връщане", newEnd: "Ново връщане", added: "Допълнителна сума за удължаването", total: "Нова обща сума",
+    info: "Ще ви предоставим новата версия на договора за подпис. Плащането на допълнителната сума се урежда отделно.",
+    q: "Въпроси? Обадете ни се на {phone} или отговорете на този имейл.", why: "Получавате това писмо, защото имате резервация за наем на автомобил на rentacar-ptb.com.",
+  },
+  en: {
+    subj: "Your rental has been extended – Rent a Car PTB", hi: "Hello {name},", lead: "We confirm the extension of your rental.",
+    car: "Car", pickup: "Pick-up", oldEnd: "Previous return", newEnd: "New return", added: "Additional amount for the extension", total: "New total",
+    info: "We will provide the new version of the contract for signing. Payment of the additional amount is arranged separately.",
+    q: "Questions? Call us on {phone} or reply to this email.", why: "You are receiving this email because you have a car rental booking on rentacar-ptb.com.",
+  },
+  de: {
+    subj: "Ihre Miete wurde verlängert – Rent a Car PTB", hi: "Hallo {name},", lead: "Wir bestätigen die Verlängerung Ihrer Miete.",
+    car: "Fahrzeug", pickup: "Abholung", oldEnd: "Bisherige Rückgabe", newEnd: "Neue Rückgabe", added: "Zusätzlicher Betrag für die Verlängerung", total: "Neuer Gesamtbetrag",
+    info: "Wir stellen Ihnen die neue Version des Vertrags zur Unterschrift zur Verfügung. Die Zahlung des zusätzlichen Betrags wird separat geregelt.",
+    q: "Fragen? Rufen Sie uns an unter {phone} oder antworten Sie auf diese E-Mail.", why: "Sie erhalten diese E-Mail, weil Sie eine Mietwagenbuchung auf rentacar-ptb.com haben.",
+  },
+};
+const dmy = (d: string) => d.split("-").reverse().join(".");
+const eurTxt = (c: number) => (c / 100).toFixed(2).replace(".", ",") + " €";
+export function extendedMail(b: Booking, e: { oldEndDate: string; oldEndTime: string; newEndDate: string; newEndTime: string; addedCents: number; newTotalCents: number | null }) {
+  const t = EXTENDED[b.lang] || EXTENDED.bg;
+  const ref = b.id.slice(0, 6).toUpperCase();
+  const html = wrapMail(
+    `<p>${esc(t.hi.replace("{name}", b.name))}</p><p style="font-size:18px"><b>${esc(t.lead)}</b></p>` +
+      `<table style="border-collapse:collapse;margin:14px 0">${mailRow(t.car, b.car)}${mailRow(t.pickup, b.pickup)}${mailRow(t.oldEnd, `${dmy(e.oldEndDate)} ${e.oldEndTime}`)}${mailRow(t.newEnd, `${dmy(e.newEndDate)} ${e.newEndTime}`)}${mailRow(t.added, eurTxt(e.addedCents))}${e.newTotalCents != null ? mailRow(t.total, eurTxt(e.newTotalCents)) : ""}</table>` +
+      `<p>${esc(t.info)}</p><p>${esc(t.q.replace("{phone}", PHONE))}</p>` + mailFooter(t.why),
+  );
+  return { subject: `${t.subj} (№ ${ref})`, html, preheader: `${t.lead} ${b.car}` };
+}

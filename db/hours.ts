@@ -27,3 +27,23 @@ export function withinHours(date: string, time: string) {
 // Днешната дата в Пловдив (гггг-мм-дд)
 export const sofiaToday = (now = new Date()) =>
   new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Sofia", year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
+
+// Момент във времето → местна дата и час в Пловдив ["гггг-мм-дд", "чч:мм"] (лятното часово време се отчита от Intl)
+export function sofiaLocal(d: Date | string | number): [string, string] {
+  const p = Object.fromEntries(
+    new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Sofia", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" })
+      .formatToParts(new Date(d))
+      .map((x) => [x.type, x.value]),
+  );
+  return [`${p.year}-${p.month}-${p.day}`, `${p.hour}:${p.minute}`];
+}
+
+// Местна дата и час в Пловдив → момент във времето (UTC милисекунди)
+export function sofiaToUtc(date: string, time: string) {
+  const [y, m, d] = date.split("-").map(Number);
+  const [hh, mm] = time.split(":").map(Number);
+  const guess = Date.UTC(y, m - 1, d, hh, mm);
+  const [ld, lt] = sofiaLocal(guess);
+  const offset = Date.parse(`${ld}T${lt}:00Z`) - guess;
+  return guess - offset;
+}

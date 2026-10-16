@@ -1,8 +1,8 @@
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { db } from "../db/index.js";
-import { bookings } from "../db/schema.js";
+import { bookingExtensions, bookings } from "../db/schema.js";
 import { lifecycleMail } from "../mail/customer.js";
-import { closedMail, customerMail } from "../mail/decision.js";
+import { closedMail, customerMail, extendedMail } from "../mail/decision.js";
 import { btn, esc, OWNER_EMAIL, wrapMail, type Attachment } from "../mail/index.js";
 import { contracts } from "./contracts.js";
 import { sendLogged } from "./email.js";
@@ -67,8 +67,16 @@ export function sendClosed(b: Booking) {
   return sendLogged("customer-closed", closedKey(b.id), b.id, { to: b.email, toName: b.name, subject: m.subject, html: m.html, replyTo: OWNER_EMAIL, lang: b.lang, preheader: m.preheader });
 }
 
+// Удължаване: ключът е по запис за удължаване – всяко удължаване има най-много едно писмо
+export const extendedKey = (id: string, extId: number) => `customer-extended:${id}:${extId}`;
+type Extension = typeof bookingExtensions.$inferSelect;
+export function sendExtended(b: Booking, e: Extension) {
+  const m = extendedMail(b, e);
+  return sendLogged("customer-extended", extendedKey(b.id, e.id), b.id, { to: b.email, toName: b.name, subject: m.subject, html: m.html, replyTo: OWNER_EMAIL, lang: b.lang, preheader: m.preheader });
+}
+
 // Повторен опит по запис от email_log
-export async function retry(kind: string, bookingId: string | null) {
+export async function retry(kind: string, bookingId: string | null, dedupeKey: string | null = null) {
   if (!bookingId) return null;
   if (kind === "owner-new") return sendOwnerNew(bookingId);
   const [b] = await db.select().from(bookings).where(eq(bookings.id, bookingId));
@@ -77,8 +85,14 @@ export async function retry(kind: string, bookingId: string | null) {
   // След отмяна неизпратеното писмо за потвърждението вече не е вярно – не се изпраща
   if (kind === "customer-decision" && (b.status === "confirmed" || b.status === "rejected")) return sendDecision(b);
   if (kind === "customer-closed" && (b.status === "cancelled" || b.status === "no_show")) return sendClosed(b);
+  // Удължаване: само ако е последното удължаване и наемът все още е активен – иначе писмото вече не е вярно
+  if (kind === "customer-extended" && dedupeKey && b.status === "confirmed" && !b.returnedAt) {
+    const extId = Number(dedupeKey.split(":")[2]);
+    const [last] = await db.select().from(bookingExtensions).where(eq(bookingExtensions.bookingId, b.id)).orderBy(desc(bookingExtensions.id)).limit(1);
+    if (last && last.id === extId && last.notify) return sendExtended(b, last);
+  }
   return null;
 }
-export const RETRY_KINDS = ["owner-new", "customer-received", "customer-decision", "customer-closed"];
+export const RETRY_KINDS = ["owner-new", "customer-received", "customer-decision", "customer-closed", "customer-extended"];
 // Писма, които се повтарят и след несигурен резултат (възможно второ копие): само известието до фирмата
 export const UNCERTAIN_RETRY_KINDS = ["owner-new"];

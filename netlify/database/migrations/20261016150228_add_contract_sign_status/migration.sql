@@ -1,0 +1,1 @@
+ALTER TABLE "contract_versions" ADD COLUMN "sign_status" text DEFAULT 'unknown' NOT NULL;

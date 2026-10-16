@@ -12,7 +12,7 @@ export const contractDataKey = (id: string) => `${id}.json`;
 const DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 const rnd = () => crypto.randomUUID().replace(/-/g, "").slice(0, 12);
 
-async function addVersion(bookingId: string, file: Uint8Array | ArrayBuffer, name: string, reason: string, actor: string) {
+async function addVersion(bookingId: string, file: Uint8Array | ArrayBuffer, name: string, reason: string, actor: string, legacy = false) {
   for (let attempt = 0; attempt < 5; attempt++) {
     const [{ n }] = await db
       .select({ n: sql<number>`coalesce(max(${contractVersions.version}), 0)::int` })
@@ -24,7 +24,7 @@ async function addVersion(bookingId: string, file: Uint8Array | ArrayBuffer, nam
     // Уникалното ограничение (booking_id, version) не позволява две версии с един номер при едновременен запис
     const [row] = await db
       .insert(contractVersions)
-      .values({ bookingId, version, blobKey, fileName: name, reason, createdBy: actor })
+      .values({ bookingId, version, blobKey, fileName: name, reason, createdBy: actor, signStatus: legacy ? "unknown" : "awaiting" })
       .onConflictDoNothing()
       .returning();
     if (row) return row;
@@ -37,7 +37,7 @@ async function preserveLegacy(bookingId: string) {
   const [has] = await db.select({ id: contractVersions.id }).from(contractVersions).where(eq(contractVersions.bookingId, bookingId)).limit(1);
   if (has) return;
   const cur = await contracts().getWithMetadata(bookingId, { type: "arrayBuffer" });
-  if (cur) await addVersion(bookingId, cur.data, String(cur.metadata?.name || "Dogovor-naem.docx"), "Договор отпреди историята на версиите", "system");
+  if (cur) await addVersion(bookingId, cur.data, String(cur.metadata?.name || "Dogovor-naem.docx"), "Договор отпреди историята на версиите", "system", true);
 }
 
 export async function saveContract(bookingId: string, data: ContractData, actor: string, reason: string) {

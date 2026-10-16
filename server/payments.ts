@@ -66,3 +66,24 @@ export function refundableLeft(original: Pay, list: Pay[]) {
   const done = list.filter((p) => p.kind === "refund" && p.refundOf === original.id && p.status !== "failed").reduce((a, p) => a + p.amountCents, 0);
   return Math.max(0, original.amountCents - done);
 }
+
+// ===== Финансово състояние на една резервация (за детайлите в панела) =====
+// agreedCents – договорената сума (bookings.totalCents; при удължаване – новата обща сума). null / totalReview – не е определена.
+// balance – остатък за плащане (> 0) или надплащане (< 0) по наема спрямо нетно полученото. Определя се само за потвърдена
+// резервация с определена сума. За отменени, отказани и неявили се резервации договорената цена НЕ се представя като дълг:
+// задължението (неустойка, връщане на аванс) се уточнява от администратора → „review“. Нищо тук не създава плащания.
+export type BalanceState = "due" | "paid" | "overpaid" | "review" | "not_due";
+export function finance(b: { status: string; totalCents: number | null; totalReview: string }, list: Pay[]) {
+  const s = summarize(list);
+  const agreedCents = b.totalCents != null && !b.totalReview ? b.totalCents : null;
+  let state: BalanceState, balanceCents: number | null = null;
+  if (b.status === "confirmed") {
+    if (agreedCents == null) state = "review";
+    else {
+      balanceCents = agreedCents - s.rentalNet;
+      state = balanceCents > 0 ? "due" : balanceCents < 0 ? "overpaid" : "paid";
+    }
+  } else if (b.status === "pending" || b.status === "rejected") state = s.rentalNet || s.securityHeld ? "review" : "not_due";
+  else state = "review"; // cancelled | no_show
+  return { ...s, agreedCents, balanceCents, balanceState: state };
+}
