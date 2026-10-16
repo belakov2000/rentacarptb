@@ -121,8 +121,15 @@ export default async (req: Request, context: Context) => {
   const action = body?.action as Action;
   if (!["cancel", "no_show", "handover"].includes(action)) return json({ error: "action" }, 400);
   if (action === "cancel" && !(REASONS as readonly string[]).includes(body?.reason)) return json({ error: "reason" }, 400);
-  const r = await act(id, action, { actor: admin.email, reason: body?.reason, note: typeof body?.note === "string" ? body.note : "", notify: body?.notify === true });
-  if (!r.ok) return json({ error: r.error, ...(r.booking ? await detail(id) : {}) }, r.error === "not_found" ? 404 : 409);
+  // Предаване: по избор действителният момент (ISO) – за въвеждане след факта; не в бъдещето
+  let at: Date | null = null;
+  if (action === "handover" && body?.handedOverAt != null && body.handedOverAt !== "") {
+    const t = typeof body.handedOverAt === "string" ? Date.parse(body.handedOverAt) : NaN;
+    if (!Number.isFinite(t)) return json({ error: "handed_over_at" }, 400);
+    at = new Date(t);
+  }
+  const r = await act(id, action, { actor: admin.email, reason: body?.reason, note: typeof body?.note === "string" ? body.note : "", notify: body?.notify === true, at });
+  if (!r.ok) return json({ error: r.error, ...(r.booking ? await detail(id) : {}) }, r.error === "not_found" ? 404 : r.error === "handed_over_at" ? 400 : 409);
   return json({ ok: true, email: r.email, ...(await detail(id)) });
 };
 

@@ -69,6 +69,10 @@ export const bookings = pgTable("bookings", {
   returnedAt: timestamp("returned_at"),
   returnedBy: text("returned_by").notNull().default(""),
   returnNote: text("return_note").notNull().default(""),
+  // Кога администраторът е въвел предаването / връщането (handedOverAt / returnedAt са моментите на самите събития –
+  // могат да са в миналото при въвеждане след факта). null – записи отпреди тези колони (въведени в момента на събитието).
+  handoverRecordedAt: timestamp("handover_recorded_at"),
+  returnRecordedAt: timestamp("return_recorded_at"),
   // Клиентски профил – връзката се създава само изрично от администратора (не се обединява автоматично по име/телефон/имейл)
   customerId: integer("customer_id").references(() => customers.id),
   // Снимки на документите от формата: [{ label, id }] – ключове в хранилището documents. null – по-стари заявки (линковете са само в имейла).

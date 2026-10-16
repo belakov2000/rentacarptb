@@ -47,10 +47,24 @@ export function allowed(b: Booking, now = new Date()) {
   };
 }
 
-export type Result = { ok: true; booking: Booking; email: "sent" | "queued" | "none" } | { ok: false; error: "not_found" | "state" | "too_early" | "reason"; booking?: Booking };
+export type Result = { ok: true; booking: Booking; email: "sent" | "queued" | "none" } | { ok: false; error: "not_found" | "state" | "too_early" | "reason" | "handed_over_at"; booking?: Booking };
 
-export async function act(id: string, action: Action, o: { actor: string; reason?: string; note?: string; notify?: boolean; now?: Date }): Promise<Result> {
+// Действителен момент на събитие (предаване / връщане), въведен от администратора – може да е в миналото (въвеждане след факта),
+// но не в бъдещето. Полето в панела е с точност до минута, затова до 5 мин. напред се приема и се записва като „сега“.
+export const EARLIEST_EVENT = Date.UTC(2020, 0, 1);
+function eventAt(at: Date | null | undefined, now: Date): Date | null {
+  if (!at) return now;
+  const t = at.getTime();
+  if (!Number.isFinite(t) || t < EARLIEST_EVENT || t > now.getTime() + 5 * 60_000) return null;
+  return t > now.getTime() ? now : at;
+}
+
+// handover: o.at – действителният момент на предаването (по подразбиране сега); handedOverAt е моментът на събитието,
+// handoverRecordedAt – кога е въведено, handedOverBy – кой. Не се създават плащания и не се изпращат писма.
+export async function act(id: string, action: Action, o: { actor: string; reason?: string; note?: string; notify?: boolean; now?: Date; at?: Date | null }): Promise<Result> {
   const now = o.now || new Date();
+  const at = action === "handover" ? eventAt(o.at, now) : now;
+  if (!at) return { ok: false, error: "handed_over_at" };
   const reason = action === "no_show" ? "no_show" : action === "cancel" ? String(o.reason || "") : "";
   if (action === "cancel" && !(REASONS as readonly string[]).includes(reason)) return { ok: false, error: "reason" };
   const note = action === "handover" ? "" : String(o.note || "").trim().slice(0, 1000);
@@ -62,7 +76,7 @@ export async function act(id: string, action: Action, o: { actor: string; reason
     if (!can[action]) return { ok: false as const, error: action === "no_show" && can.cancel ? ("too_early" as const) : ("state" as const), booking: b };
     const set =
       action === "handover"
-        ? { handedOverAt: now, handedOverBy: o.actor, updatedAt: now }
+        ? { handedOverAt: at, handedOverBy: o.actor, handoverRecordedAt: now, updatedAt: now }
         : { status: action === "cancel" ? "cancelled" : "no_show", closedAt: now, closedBy: o.actor, closeReason: reason, closeNote: note, updatedAt: now };
     const [u] = await tx
       .update(bookings)
@@ -73,7 +87,9 @@ export async function act(id: string, action: Action, o: { actor: string; reason
     // Без лични данни и без бележката в историята – бележката е в close_note
     await tx.insert(bookingEvents).values({
       bookingId: id, actor: o.actor, action: `booking.${action}`,
-      details: action === "handover" ? {} : { reason, notify, from: "confirmed", to: u.status, hasNote: !!note },
+      details: action === "handover"
+        ? { at: at.toISOString(), recordedAt: now.toISOString(), afterTheFact: now.getTime() - at.getTime() > 5 * 60_000 }
+        : { reason, notify, from: "confirmed", to: u.status, hasNote: !!note },
     });
     if (notify) await queueEmail(tx, "customer-closed", closedKey(id), id, u.email);
     return { ok: true as const, booking: u };
@@ -176,9 +192,9 @@ export function linkExpired(b: Pick<Booking, "endDate" | "createdAt">, now = new
 // Старите резервации НЕ се приключват автоматично – само с това действие.
 export async function returnRental(id: string, o: { actor: string; at?: Date | null; note?: string; now?: Date }) {
   const now = o.now || new Date();
-  const at = o.at || now;
+  const at = eventAt(o.at, now);
   const note = String(o.note || "").trim().slice(0, 1000);
-  if (at.getTime() > now.getTime() + 5 * 60_000) return { ok: false as const, error: "returned_at" as const };
+  if (!at) return { ok: false as const, error: "returned_at" as const };
   return db.transaction(async (tx) => {
     const [b] = await tx.select().from(bookings).where(eq(bookings.id, id)).for("update");
     if (!b) return { ok: false as const, error: "not_found" as const };
@@ -191,13 +207,13 @@ export async function returnRental(id: string, o: { actor: string; at?: Date | n
     }
     const [u] = await tx
       .update(bookings)
-      .set({ returnedAt, returnedBy: o.actor, returnNote: note, updatedAt: now })
+      .set({ returnedAt, returnedBy: o.actor, returnNote: note, returnRecordedAt: now, updatedAt: now })
       .where(and(eq(bookings.id, id), eq(bookings.status, "confirmed"), isNotNull(bookings.handedOverAt), isNull(bookings.returnedAt)))
       .returning();
     if (!u) return { ok: false as const, error: "state" as const, booking: b };
     await tx.insert(bookingEvents).values({
       bookingId: id, actor: o.actor, action: "booking.return",
-      details: { returnedAt: returnedAt.toISOString(), agreedEnd: `${b.endDate} ${endTimeOf(b.endTime, b.dropoff)}`, hasNote: !!note },
+      details: { returnedAt: returnedAt.toISOString(), recordedAt: now.toISOString(), afterTheFact: now.getTime() - returnedAt.getTime() > 5 * 60_000, agreedEnd: `${b.endDate} ${endTimeOf(b.endTime, b.dropoff)}`, hasNote: !!note },
     });
     return { ok: true as const, booking: u };
   });
