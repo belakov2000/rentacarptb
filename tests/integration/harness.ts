@@ -56,6 +56,8 @@ export const mail = {
   calls: 0,
 };
 process.env.BREVO_API_KEY = "test-only-not-a-real-key";
+// Пощата е подменена (fetch по-долу) – изпращането извън продукция е разрешено само в тестовете (виж mail/index.ts)
+process.env.MAIL_OUTSIDE_PRODUCTION = "1";
 process.env.URL = "https://site.example";
 export const http = { handler: null as null | ((url: string, init: any) => Response | Promise<Response> | null) };
 globalThis.fetch = (async (url: any, init: any = {}) => {

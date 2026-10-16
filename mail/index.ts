@@ -1,3 +1,4 @@
+import { deployContext } from "../server/stores.js";
 // Общи помощни функции за имейлите (Brevo) – ползват се от резервациите и от автоматичните напомняния.
 export const OWNER_EMAIL = process.env.BOOKING_OWNER_EMAIL || "rentaptb_stroi@abv.bg";
 const SENDER_EMAIL = process.env.BREVO_SENDER_EMAIL || OWNER_EMAIL;
@@ -21,7 +22,13 @@ const toText = (html: string) =>
     .trim();
 
 export type Attachment = { name: string; content: string }; // content – base64
+// Извън продукция (Deploy Preview, branch deploy, dev, неизвестна среда) писма НЕ се изпращат: BREVO_API_KEY е зададен за
+// всички среди и без тази проверка тестова заявка в Preview би стигнала до реалната поща на фирмата и до клиента.
+// Писмото се записва в email_log като неуспешно (с причината), а сайтът показва резервното известие както при грешка.
+// Изрично разрешаване (само за тестова среда с подменена поща): MAIL_OUTSIDE_PRODUCTION=1.
+export const mailAllowed = () => deployContext() === "production" || process.env.MAIL_OUTSIDE_PRODUCTION === "1";
 export async function sendMail(to: string, toName: string, subject: string, html: string, replyTo?: string, attachment?: Attachment[], lang = "bg", preheader = "") {
+  if (!mailAllowed()) throw new Error(`Mail is disabled outside production (${deployContext()})`);
   const key = process.env.BREVO_API_KEY;
   if (!key) throw new Error("BREVO_API_KEY is not set");
   // Мрежова грешка или изтекло време: Brevo може вече да е приел писмото, без отговорът да стигне до нас.

@@ -4,6 +4,7 @@ import { BUFFER_MIN } from "../../db/slots.js";
 import { HOURS } from "../../db/hours.js";
 import { getReminders, jobStatus, parseReminders, REMINDER_LIMITS, saveReminders } from "../../server/settings.js";
 import { backupStatus } from "../../server/backup.js";
+import { mailAllowed } from "../../mail/index.js";
 
 // Настройки и автоматизации (само за администратор).
 // GET  /api/admin/settings – действащите настройки: часова зона, буфер, работно време (само за четене – задават се в кода
@@ -30,7 +31,7 @@ export default async (req: Request) => {
   const backup = await backupStatus().catch(() => null);
   return json({
     timezone: "Europe/Sofia", bufferMinutes: BUFFER_MIN, hours: HOURS, reminders, limits: REMINDER_LIMITS,
-    mailConfigured: !!process.env.BREVO_API_KEY,
+    mailConfigured: !!process.env.BREVO_API_KEY, mailAllowed: mailAllowed(),
     jobs: JOBS.map((j) => ({ ...j, last: j.key === "backup" ? (backup ? { at: (backup as any).lastSuccessAt || null, warning: (backup as any).warning || "" } : null) : jobs[j.key] || null })),
   });
 };
