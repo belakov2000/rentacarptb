@@ -1,9 +1,10 @@
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "../db/index.js";
-import { bookingEvents, bookings } from "../db/schema.js";
+import { bookingEvents, bookings, cars } from "../db/schema.js";
 import { startTimeOf } from "../db/slots.js";
+import { findConflict, lock, type Conflict } from "./conflicts.js";
 import { queueEmail } from "./email.js";
-import { closedKey, sendClosed } from "./notify.js";
+import { closedKey, decisionKey, sendClosed, sendDecision } from "./notify.js";
 
 // Действия по вече потвърдена резервация – общи за страницата от имейла (/api/bookings/:id/manage) и за админ панела.
 //   cancel   – предварителна отмяна; възможна веднага след потвърждаването, докато автомобилът не е предаден
@@ -74,6 +75,78 @@ export async function act(id: string, action: Action, o: { actor: string; reason
   if (notify) {
     const r = await sendClosed(out.booking).catch(() => ({ result: "failed" as const }));
     email = r.result === "sent" || r.result === "duplicate" ? "sent" : "queued";
+  }
+  return { ok: true, booking: out.booking, email };
+}
+
+// ===== Решение по чакаща заявка (pending → confirmed / rejected) =====
+// Общо за страницата от имейла до фирмата и за админ панела („Резервации → Чакащи → Управление“).
+//   confirm – само ако заявката има дати, часът за получаване още не е минал (Europe/Sofia), автомобилът е активен и няма
+//             потвърдена резервация или активен блокиран период, които се застъпват (с буфера BUFFER_MIN).
+//             Проверката е в транзакция със заключване на автомобила – две конфликтни заявки не могат да бъдат потвърдени едновременно.
+//   reject  – винаги възможен, докато заявката е pending (и за стари заявки без дати или с минали дати).
+// Промяната е условна (status = pending): повторно или едновременно действие (от админа и от имейла) не презаписва вече взето
+// решение и не праща второ писмо. message – съобщение до клиента (само от страницата в имейла, влиза в писмото);
+// internalNote – вътрешна бележка, НЕ се изпраща на клиента. Не се създават плащания, възстановявания или събития към Meta.
+export type Decision = "confirm" | "reject";
+export type DecideError = "not_found" | "state" | "no_dates" | "expired" | "car_inactive" | "busy";
+export type DecideResult =
+  | { ok: true; booking: Booking; email: "sent" | "queued" | "uncertain" | "none" }
+  | { ok: false; error: DecideError; booking?: Booking; conflict?: Conflict };
+
+// Може ли чакащата заявка да бъде потвърдена по дати (без проверка за заетост) – за бутона и за съобщението в панела
+export function confirmBlock(b: Pick<Booking, "status" | "startDate" | "endDate" | "startTime" | "pickup">, now = new Date()): DecideError | "" {
+  if (b.status !== "pending") return "state";
+  if (!b.startDate || !b.endDate) return "no_dates";
+  if (pickupPassed(b, now)) return "expired";
+  return "";
+}
+
+export async function decide(
+  id: string,
+  decision: Decision,
+  o: { actor: string; internalNote?: string; message?: string; notify?: boolean; now?: Date },
+): Promise<DecideResult> {
+  const now = o.now || new Date();
+  const internalNote = String(o.internalNote || "").trim().slice(0, 1000);
+  const message = String(o.message || "").trim().slice(0, 1000);
+  const notify = !!o.notify;
+  const out = await db.transaction(async (tx) => {
+    const [cur] = await tx.select().from(bookings).where(eq(bookings.id, id));
+    if (!cur) return { ok: false as const, error: "not_found" as const };
+    // Заключване на автомобила преди заключването на реда – същият ред като при всяко потвърждаване, без взаимно блокиране
+    if (decision === "confirm" && cur.carId) await lock(tx, "car:" + cur.carId);
+    const [b] = await tx.select().from(bookings).where(eq(bookings.id, id)).for("update");
+    if (b.status !== "pending") return { ok: false as const, error: "state" as const, booking: b };
+    if (decision === "confirm") {
+      const blocked = confirmBlock(b, now);
+      if (blocked) return { ok: false as const, error: blocked, booking: b };
+      if (b.carId) {
+        const [car] = await tx.select({ status: cars.status }).from(cars).where(eq(cars.id, b.carId));
+        if (car && car.status !== "active") return { ok: false as const, error: "car_inactive" as const, booking: b };
+      }
+      const c = await findConflict(b.carId, b.startDate!, b.endDate!, b.startTime, b.endTime, b.id, tx);
+      if (c) return { ok: false as const, error: "busy" as const, booking: b, conflict: c };
+    }
+    const [u] = await tx
+      .update(bookings)
+      .set({ status: decision === "confirm" ? "confirmed" : "rejected", note: message, decidedAt: now, decidedBy: o.actor, decisionNote: internalNote, updatedAt: now })
+      .where(and(eq(bookings.id, id), eq(bookings.status, "pending")))
+      .returning();
+    if (!u) return { ok: false as const, error: "state" as const, booking: b };
+    // Без лични данни и без текста на бележката в историята – бележката е в decision_note
+    await tx.insert(bookingEvents).values({
+      bookingId: id, actor: o.actor, action: `booking.${decision}`,
+      details: { notify, from: "pending", to: u.status, hasNote: !!internalNote, hasMessage: !!message },
+    });
+    if (notify) await queueEmail(tx, "customer-decision", decisionKey(id), id, u.email);
+    return { ok: true as const, booking: u };
+  });
+  if (!out.ok) return out;
+  let email: "sent" | "queued" | "uncertain" | "none" = "none";
+  if (notify) {
+    const r = await sendDecision(out.booking).catch(() => ({ result: "failed" as const }));
+    email = r.result === "sent" || r.result === "duplicate" ? "sent" : r.result === "uncertain" ? "uncertain" : "queued";
   }
   return { ok: true, booking: out.booking, email };
 }

@@ -47,8 +47,9 @@ async function session({ viewport = { width: 1280, height: 900 }, init = TRACK, 
 }
 const plan = (page, d1, t1, d2, t2) => page.evaluate(([d1, t1, d2, t2]) => { Object.assign(S, { car: "ka", d1, t1, d2, t2, m1: "store", m2: "store" }); writePlan(); $("#plan").hidden = false; planChanged(); return { err: planErr(), t1min: $("#b-t1").min, t1max: $("#b-t1").max, t2min: $("#b-t2").min, t2max: $("#b-t2").max, alert: $("#pick .alert")?.textContent || "", details: !$("#details").hidden }; }, [d1, t1, d2, t2]);
 async function fill(page) {
-  const f = { "#b-name": "ТЕСТ Камера", "#b-cit": "BG", "#b-phone": "+359000000000", "#b-mail": "camera-test@example.com", "#b-idn": SECRET.idn, "#b-egn": SECRET.egn, "#b-idd": "2020-01-01", "#b-idp": "МВР-ТЕСТ", "#b-city": "Тестоград", "#b-addr": SECRET.addr, "#b-dln": SECRET.dln, "#b-dlname": "ТЕСТ", "#b-dld": "2020-01-01", "#b-dlp": "МВР-ТЕСТ" };
+  const f = { "#b-name": "ТЕСТ Камера", "#b-cit": "BG", "#b-phone": "+359000000000", "#b-mail": "camera-test@example.com", "#b-idn": SECRET.idn, "#b-egn": SECRET.egn, "#b-idd": "2020-01-01", "#b-idp": "МВР-ТЕСТ", "#b-reg": "ТЕСТ-област", "#b-mun": "ТЕСТ-община", "#b-city": "Тестоград", "#b-addr": SECRET.addr, "#b-dln": SECRET.dln, "#b-dlname": "ТЕСТ", "#b-dld": "2020-01-01", "#b-dlp": "МВР-ТЕСТ" };
   for (const [sel, v] of Object.entries(f)) await page.fill(sel, v);
+  await page.check('input[name="ptype"][value="village"]').catch(() => {});
   await page.check("#b-ok");
   await page.check('input[name="pay"][value="cash"]');
 }

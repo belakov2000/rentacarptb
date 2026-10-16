@@ -41,9 +41,10 @@ async function session({ consent, attr, path = "/" } = {}) {
 async function book(page) {
   await page.evaluate(() => { location.hash = "avtomobili"; });
   await page.waitForSelector("#bk", { state: "visible" });
-  const f = { "#b-name": "ТЕСТ UTM", "#b-cit": "BG", "#b-phone": "+359000000000", "#b-mail": "utm-test@example.com", "#b-idn": "TESTID1", "#b-egn": "8001019999", "#b-idd": "2020-01-01", "#b-idp": "МВР-ТЕСТ", "#b-city": "Тестоград", "#b-addr": "ул. Тестова 1", "#b-dln": "TESTDL1", "#b-dlname": "ТЕСТ", "#b-dld": "2020-01-01", "#b-dlp": "МВР-ТЕСТ" };
+  const f = { "#b-name": "ТЕСТ UTM", "#b-cit": "BG", "#b-phone": "+359000000000", "#b-mail": "utm-test@example.com", "#b-idn": "TESTID1", "#b-egn": "8001019999", "#b-idd": "2020-01-01", "#b-idp": "МВР-ТЕСТ", "#b-reg": "ТЕСТ-област", "#b-mun": "ТЕСТ-община", "#b-city": "Тестоград", "#b-addr": "ул. Тестова 1", "#b-dln": "TESTDL1", "#b-dlname": "ТЕСТ", "#b-dld": "2020-01-01", "#b-dlp": "МВР-ТЕСТ" };
   for (const [sel, v] of Object.entries(f)) if (await page.$(sel)) await page.fill(sel, v).catch(() => {});
   for (const id of ["p-idf", "p-idb", "p-dlf", "p-dlb"]) await page.setInputFiles("#" + id, { name: "test.png", mimeType: "image/png", buffer: PNG });
+  await page.check('input[name="ptype"][value="village"]').catch(() => {});
   await page.check("#b-ok").catch(() => {});
   const pay = await page.$('input[name="pay"][value="cash"]'); if (pay) await pay.check();
   await page.waitForTimeout(400);

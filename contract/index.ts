@@ -66,7 +66,10 @@ const kmText = (k: number) => String(k).replace(".", ",");
 type Leg = { addr: string; km: number | null; rate?: number } | null;
 export type ContractData = {
   name: string; carId: string; citizen: string;
-  idt: string; idn: string; egn: string; idd: string; idp: string; city: string; addr: string;
+  idt: string; idn: string; egn: string; idd: string; idp: string;
+  // Адрес по документа. region / municipality / placeType липсват (undefined) в договорите отпреди тези полета –
+  // за тях адресът остава „град, адрес“ без представки, както е бил (видът на населеното място не се измисля).
+  region?: string; municipality?: string; placeType?: "city" | "village" | ""; city: string; addr: string;
   dln: string; dld: string; dlp: string;
   d1: string; t1: string; d2: string; t2: string;
   days: number | null; rent: number | null; seat: number | null; seatN: number; seatDay: number | null;
@@ -80,6 +83,28 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/, TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 export const kmRate = (v: unknown) => (KM_RATES.includes(v as number) ? (v as number) : KM_RATE);
 const leg = (v: any): Leg => (v && typeof v === "object" && s(v.addr) ? { addr: s(v.addr), km: num(v.km), rate: kmRate(v.rate) } : null);
 
+// ===== Адрес по документа =====
+// Представките се добавят само тук (docAddress); ако клиентът ги е написал в полето, се махат – без „гр. гр.“ или „с. с.“.
+// Полетата приемат латиница и чужди наименования; област и община са задължителни само за българска лична карта.
+const PRE = { region: /^(обл\.|област\s)\s*/i, municipality: /^(общ\.|община\s)\s*/i, city: /^(гр\.|град\s|с\.|село\s)\s*/i };
+const unpre = (v: string, re: RegExp) => v.replace(re, "").trim();
+const BG = /^(bg|bgr|българия|република българия|bulgaria|republic of bulgaria|bulgarien|bulgarie)$/i;
+export const adminAreasRequired = (citizen: string, idt: string) => idt !== "pass" && BG.test(citizen.trim().replace(/\.$/, ""));
+export function docAddress(d: Pick<ContractData, "region" | "municipality" | "placeType" | "city" | "addr">) {
+  const t = d.placeType === "city" ? "гр. " : d.placeType === "village" ? "с. " : "";
+  return [d.region && "обл. " + d.region, d.municipality && "общ. " + d.municipality, d.city && t + d.city, d.addr].filter(Boolean).join(", ");
+}
+// Проверка на адреса от формата (и на сървъра – заявката може да бъде променена ръчно). Само за заявки от новата форма
+// (с поле placeType); по-старите страници не го пращат и се приемат както досега. Връща "" или код на грешката.
+export function addressError(c: any) {
+  if (!c || typeof c !== "object" || !("placeType" in c)) return "";
+  const d = parseContract(c, "", "");
+  if (!d || (d.placeType !== "city" && d.placeType !== "village")) return "place_type";
+  if (!d.city || !d.addr) return "address";
+  if (adminAreasRequired(d.citizen, d.idt) && (!d.region || !d.municipality)) return "admin_areas";
+  return "";
+}
+
 export function parseContract(c: any, name: string, carId: string): ContractData | null {
   if (!c || typeof c !== "object") return null;
   const date = (v: unknown) => (DATE_RE.test(s(v, 10)) ? s(v, 10) : "");
@@ -87,7 +112,15 @@ export function parseContract(c: any, name: string, carId: string): ContractData
   return {
     name, carId,
     citizen: s(c.citizen, 80), idt: c.idt === "pass" ? "pass" : "id",
-    idn: s(c.idn, 40), egn: s(c.egn, 20), idd: date(c.idd), idp: s(c.idp, 120), city: s(c.city, 80), addr: s(c.addr),
+    idn: s(c.idn, 40), egn: s(c.egn, 20), idd: date(c.idd), idp: s(c.idp, 120),
+    // Без placeType (по-стари заявки) името на града се пази непроменено
+    ...("placeType" in c
+      ? {
+          region: unpre(s(c.region, 80), PRE.region), municipality: unpre(s(c.municipality, 80), PRE.municipality),
+          placeType: c.placeType === "city" || c.placeType === "village" ? c.placeType : "", city: unpre(s(c.city, 80), PRE.city),
+        }
+      : { city: s(c.city, 80) }),
+    addr: s(c.addr),
     dln: s(c.dln, 40), dld: date(c.dld), dlp: s(c.dlp, 120),
     d1: date(c.d1), t1: time(c.t1), d2: date(c.d2), t2: time(c.t2),
     days: num(c.days), rent: num(c.rent), seat: num(c.seat),
@@ -124,7 +157,7 @@ function values(d: ContractData): Record<string, string> {
   const [seatNo, seatYes] = check(seatN > 0);
   return {
     date: bgDate(d.d1), name: d.name, egn: d.egn, citizen: d.citizen,
-    address: [d.city, d.addr].filter(Boolean).join(", "),
+    address: docAddress(d),
     idLabel: d.idt === "pass" ? "Паспорт" : "ЛК", idIssued: d.idt === "pass" ? "издаден" : "издадена",
     idn: d.idn, idd: bgDate(d.idd), idp: d.idp,
     dln: d.dln, dld: bgDate(d.dld), dlp: d.dlp,

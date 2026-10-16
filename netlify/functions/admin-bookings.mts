@@ -3,13 +3,17 @@ import { asc, desc, eq, inArray } from "drizzle-orm";
 import { db } from "../../db/index.js";
 import { bookingEvents, bookings, emailLog } from "../../db/schema.js";
 import { json, requireAdmin } from "../../server/auth.js";
-import { act, allowed, pickupAt, REASONS, type Action } from "../../server/booking-actions.js";
+import { act, allowed, confirmBlock, decide, pickupAt, REASONS, type Action } from "../../server/booking-actions.js";
+import { findConflict } from "../../server/conflicts.js";
 
 // Резервации в админ панела (само за вписан администратор с роля "admin"; промените – само от същия сайт).
 // GET  /api/admin/bookings?status=confirmed|pending|closed|all – списък (последните 300 по дата на получаване)
 // GET  /api/admin/bookings/:id – подробности, възможни действия, история и писма
 // POST /api/admin/bookings/:id { action: cancel | no_show | handover, reason?, note?, notify? }
 //      – същите действия като страницата от имейла (server/booking-actions.ts); извършителят е имейлът на администратора
+// POST /api/admin/bookings/:id { action: confirm | reject, note?, notify? } – решение по чакаща заявка (общата логика decide()):
+//      note е вътрешна бележка (не се изпраща на клиента); notify – дали да се изпрати писмо до клиента с решението.
+//      Отговор 409 { error: state | busy | no_dates | expired | car_inactive } – решението не е взето (или вече е взето).
 const ID_RE = /^[a-f0-9]{32}$/;
 const LIST = {
   id: bookings.id, status: bookings.status, car: bookings.car, carId: bookings.carId, name: bookings.name, phone: bookings.phone,
@@ -27,7 +31,11 @@ async function detail(id: string) {
     .from(emailLog).where(eq(emailLog.bookingId, id)).orderBy(asc(emailLog.at));
   // Без токените за достъп – те остават само в имейла до фирмата
   const { viewToken: _v, adminToken: _a, ...safe } = b;
-  return { booking: { ...safe, pickupAt: pickupAt(b) }, can: allowed(b), events, emails };
+  // Чакаща заявка: може ли да бъде потвърдена (дати, час, заетост към момента – окончателната проверка е при действието)
+  const block = b.status === "pending" ? confirmBlock(b) : "state";
+  const conflict = b.status === "pending" && !block ? await findConflict(b.carId, b.startDate!, b.endDate!, b.startTime, b.endTime, b.id) : null;
+  const decision = { confirm: !block && !conflict, reject: b.status === "pending", block: block === "state" ? "" : block || (conflict ? "busy" : ""), conflict };
+  return { booking: { ...safe, pickupAt: pickupAt(b) }, can: { ...allowed(b), ...decision }, events, emails };
 }
 
 export default async (req: Request, context: Context) => {
@@ -47,6 +55,11 @@ export default async (req: Request, context: Context) => {
     return d ? json(d) : json({ error: "not_found" }, 404);
   }
   const body = await req.json().catch(() => null);
+  if (body?.action === "confirm" || body?.action === "reject") {
+    const r = await decide(id, body.action, { actor: admin.email, internalNote: typeof body?.note === "string" ? body.note : "", notify: body?.notify === true });
+    if (!r.ok) return json({ error: r.error, ...(r.booking ? await detail(id) : {}) }, r.error === "not_found" ? 404 : 409);
+    return json({ ok: true, email: r.email, ...(await detail(id)) });
+  }
   const action = body?.action as Action;
   if (!["cancel", "no_show", "handover"].includes(action)) return json({ error: "action" }, 400);
   if (action === "cancel" && !(REASONS as readonly string[]).includes(body?.reason)) return json({ error: "reason" }, 400);

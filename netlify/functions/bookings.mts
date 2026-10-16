@@ -1,19 +1,20 @@
 import type { Config, Context } from "@netlify/functions";
 import { AsyncLocalStorage } from "node:async_hooks";
-import { and, eq, gte, lte, ne, sql } from "drizzle-orm";
+import { and, eq, gte, sql } from "drizzle-orm";
 import { db } from "../../db/index.js";
 import { bookingEvents, bookings } from "../../db/schema.js";
 import { parseTotalCents, totalReviewOf } from "../../db/money.js";
-import { addDays, endTimeOf, minutes, overlaps, startTimeOf } from "../../db/slots.js";
+import { minutes } from "../../db/slots.js";
 import { sofiaToday, withinHours } from "../../db/hours.js";
-import { kmRate, parseContract, type ContractData } from "../../contract/index.js";
+import { addressError, docAddress, kmRate, parseContract, type ContractData } from "../../contract/index.js";
 import { btn, esc, OWNER_EMAIL, wrapMail } from "../../mail/index.js";
 import { contractDataKey, contracts, saveContract } from "../../server/contracts.js";
 import { maskEmail, queueEmail } from "../../server/email.js";
 import { langOf, langSwitch, localize, type Lang } from "../../server/manage-i18n.js";
-import { act, allowed, linkExpired, pickupAt, REASON_BG, REASONS, STATUS_LABEL, type Action } from "../../server/booking-actions.js";
+import { act, allowed, confirmBlock, decide, linkExpired, pickupAt, REASON_BG, REASONS, STATUS_LABEL, type Action, type DecideError } from "../../server/booking-actions.js";
+import { findConflict, lock, type Conflict } from "../../server/conflicts.js";
 import { parseAttribution } from "../../server/attribution.js";
-import { decisionKey, ownerNewKey, receivedKey, saveOwnerOutbox, sendCustomerReceived, sendDecision, sendOwnerNew } from "../../server/notify.js";
+import { ownerNewKey, receivedKey, saveOwnerOutbox, sendCustomerReceived, sendOwnerNew } from "../../server/notify.js";
 
 // Резервации с потвърждение от фирмата.
 // POST /api/bookings                 – записва заявката, праща имейл до фирмата с бутони „Потвърди“ / „Откажи“ и потвърждение до клиента, че заявката е получена
@@ -42,47 +43,6 @@ const DUPLICATE_WINDOW_MS = 10 * 60_000;
 const contractLink = (origin: string, b: { id: string; adminToken: string }) => `${origin}/api/bookings/${b.id}/contract?key=${b.adminToken}`;
 
 type Booking = typeof bookings.$inferSelect;
-type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
-// Транзакционно заключване (освобождава се автоматично в края на транзакцията). Ключът е текст, затова съществува
-// за всеки автомобил – и за такъв, който още няма ред в таблицата cars.
-const lock = (q: Tx, key: string) => q.execute(sql`select pg_advisory_xact_lock(hashtextextended(${key}, 0))`);
-
-// Потвърдена резервация за същия автомобил, която се застъпва с периода [start startTime, end endTime].
-// Между връщане и следващо получаване трябва да има поне BUFFER_MIN минути (напр. върнат в 12:00 → свободен от 13:00).
-async function findConflict(carId: string, start: string, end: string, startTime = "", endTime = "", exceptId = "", q: Pick<typeof db, "select"> = db) {
-  if (!carId || !start || !end) return null;
-  // По дати търсим с един ден резерва – буферът може да мине през полунощ
-  const rows = await q
-    .select({
-      id: bookings.id,
-      name: bookings.name,
-      pickup: bookings.pickup,
-      dropoff: bookings.dropoff,
-      startDate: bookings.startDate,
-      endDate: bookings.endDate,
-      startTime: bookings.startTime,
-      endTime: bookings.endTime,
-    })
-    .from(bookings)
-    .where(
-      and(
-        eq(bookings.carId, carId),
-        eq(bookings.status, "confirmed"),
-        lte(bookings.startDate, addDays(end, 1)),
-        gte(bookings.endDate, addDays(start, -1)),
-        ...(exceptId ? [ne(bookings.id, exceptId)] : []),
-      ),
-    );
-  const a = minutes(start, startTimeOf(startTime));
-  const z = minutes(end, endTimeOf(endTime));
-  const c = rows.find(
-    (r) =>
-      r.startDate &&
-      r.endDate &&
-      overlaps(a, z, minutes(r.startDate, startTimeOf(r.startTime, r.pickup)), minutes(r.endDate, endTimeOf(r.endTime, r.dropoff))),
-  );
-  return c ? { id: c.id, name: c.name, pickup: c.pickup, dropoff: c.dropoff } : null;
-}
 
 // ===== Страница за фирмата =====
 // Език на страницата за управление (?lang=en|de; по подразбиране български) – за всяка заявка поотделно
@@ -184,21 +144,38 @@ async function confirmPage(b: Booking, origin: string, action: Action, reason: s
 }
 const manageLink = (origin: string, b: { id: string; adminToken: string }) => `${origin}/api/bookings/${b.id}/manage?key=${b.adminToken}${pageLang() === "bg" ? "" : "&lang=" + pageLang()}`;
 
-function managePage(b: Booking, origin: string, msg = "", conflict: { name: string; pickup: string; dropoff: string } | null = null, cd: ContractData | null = null) {
+// Защо чакащата заявка не може да бъде потвърдена (общо за страницата от имейла; панелът има свои текстове)
+const DECIDE_MSG: Record<DecideError, string> = {
+  not_found: "Резервацията не е намерена.",
+  state: "Тази резервация вече е обработена.",
+  no_dates: "Заявката няма записани дати на получаване и връщане и не може да бъде потвърдена. Можете да я откажете и да се свържете с клиента за нова заявка.",
+  expired: "Часът за получаване по тази заявка вече е минал и тя не може да бъде потвърдена. Можете да я откажете и да се свържете с клиента за нова заявка.",
+  car_inactive: "Автомобилът е отбелязан като неактивен и заявката не може да бъде потвърдена.",
+  busy: "Резервацията не е потвърдена – датите вече са заети.",
+};
+const conflictText = (c: Conflict) =>
+  c.kind === "booking"
+    ? `Внимание: автомобилът вече е потвърден за ${c.name} (${c.pickup} → ${c.dropoff}).`
+    : `Внимание: автомобилът е блокиран за периода ${c.startDate} – ${c.endDate}${c.reason ? ` (${c.reason})` : ""}.`;
+
+function managePage(b: Booking, origin: string, msg = "", conflict: Conflict | null = null, cd: ContractData | null = null) {
   const kv = [
     ["Клиент", b.name], ["Телефон", b.phone], ["Имейл", b.email], ["Автомобил", b.car],
     ["Получаване", b.pickup], ["Връщане", b.dropoff], ["Общо", b.total], ["Плащане", PAY_BG[b.payment] || ""],
   ].map(([k, v]) => `<div><span>${esc(k)}</span><b>${esc(v || "-")}</b></div>`).join("") +
     (b.invoice ? `<div><span>Данни за фактура</span><b style="white-space:pre-line;text-align:right">${esc(b.invoice)}</b></div>` : "");
-  const warn = conflict && b.status === "pending"
-    ? `<p class="badge rejected" style="display:block;border-radius:14px">Внимание: автомобилът вече е потвърден за ${esc(conflict.name)} (${esc(conflict.pickup)} → ${esc(conflict.dropoff)}). Тази заявка не може да бъде потвърдена за същите дати.</p>`
-    : "";
+  const blocked = b.status === "pending" ? confirmBlock(b) : "";
+  const warn = blocked
+    ? `<p class="badge rejected" style="display:block;border-radius:14px">${esc(DECIDE_MSG[blocked])}</p>`
+    : conflict && b.status === "pending"
+      ? `<p class="badge rejected" style="display:block;border-radius:14px">${esc(conflictText(conflict))} Тази заявка не може да бъде потвърдена за същите дати.</p>`
+      : "";
   const actions =
     b.status === "pending"
       ? `<form method="post"><label for="note">Съобщение до клиента (по избор)</label><textarea id="note" name="note" maxlength="1000" placeholder="Напр. час и място за среща или причина за отказ"></textarea>
-<button class="ok" name="action" value="confirm">✓ Потвърди резервацията</button>
+${blocked ? "" : `<button class="ok" name="action" value="confirm">✓ Потвърди резервацията</button>`}
 <button class="no" name="action" value="reject" onclick="return confirm('Сигурни ли сте, че искате да откажете резервацията?')">✕ Откажи резервацията</button></form>`
-      : `<p>Решението е взето${b.decidedAt ? " на " + esc(b.decidedAt.toLocaleString("bg-BG", { timeZone: "Europe/Sofia" })) : ""}. Клиентът е уведомен по имейл и на сайта.</p>` + lifecycle(b);
+      : `<p>Решението е взето${b.decidedAt ? " на " + esc(b.decidedAt.toLocaleString("bg-BG", { timeZone: "Europe/Sofia" })) : ""}. Клиентът вижда статуса на сайта.</p>` + lifecycle(b);
   return page(
     "Резервация – " + b.name,
     `<h1>Резервация</h1><span class="badge ${b.status}">${STATUS_BG[b.status] || b.status}</span>${msg ? `<p><b>${esc(msg)}</b></p>` : ""}${warn}<div class="kv">${kv}</div><p><a href="${esc(contractLink(origin, b))}" style="display:block;text-align:center;background:#0f1b2d;color:#fff;padding:14px 22px;border-radius:999px;font-weight:700;text-decoration:none;margin-top:16px">📄 Изтегли попълнения договор за наем</a></p>${actions}${kmForm(cd)}`,
@@ -249,6 +226,9 @@ async function handle(req: Request, context: Context) {
       return Response.json({ error: "Invalid dates" }, { status: 400 });
     }
     if (!withinHours(b.startDate, b.startTime) || !withinHours(b.endDate, b.endTime)) return Response.json({ error: "hours" }, { status: 400 });
+    // Адрес по документа (град / село, населено място, адрес; област и община – за българска лична карта)
+    const addrErr = addressError(body.contract);
+    if (addrErr) return Response.json({ error: "address", detail: addrErr }, { status: 400 });
     if (await findConflict(b.carId, b.startDate || "", b.endDate || "", b.startTime, b.endTime)) {
       return Response.json({ error: "busy" }, { status: 409 });
     }
@@ -301,10 +281,14 @@ async function handle(req: Request, context: Context) {
     // Попълненият договор за наем се пази на сървъра (линк в имейла) и се прикача към имейла.
     // Ако не може да се генерира, заявката пак се изпраща.
     let hasContract = false;
+    let docAddr = "";
     try {
       const data = parseContract(body.contract, b.name, b.carId);
       if (!data) console.error("Contract data missing in the booking request");
-      else hasContract = !!(await saveContract(saved.id, data, "customer", "Заявка от сайта"));
+      else {
+        docAddr = docAddress(data);
+        hasContract = !!(await saveContract(saved.id, data, "customer", "Заявка от сайта"));
+      }
     } catch (e) {
       console.error("Contract could not be generated", (e as Error)?.message);
     }
@@ -317,6 +301,8 @@ async function handle(req: Request, context: Context) {
             ? `<p>📄 <b>Договорът за наем е попълнен</b> с данните на клиента и автомобила – готов за печат.${attached ? " Прикачен е към този имейл." : ""}</p>` +
               `<p>${btn(contractLink(url.origin, saved), "Изтегли договора за наем", "#0f1b2d")}</p>`
             : `<p>Договорът за наем не можа да бъде попълнен автоматично за тази заявка.</p>`) +
+          // Адресът по документа така, както е записан в договора (проверен и подреден на сървъра)
+          (docAddr ? `<p><b>Адрес по документа (както в договора):</b> ${esc(docAddr)}</p>` : "") +
           `<pre style="white-space:pre-wrap;font-family:Arial,sans-serif;background:#f3f5f9;padding:16px;border-radius:12px">${esc(message).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1">$1</a>')}</pre>`,
       );
     const subject = `Нова заявка за наем: ${b.car} – ${b.name}`;
@@ -426,38 +412,21 @@ async function handle(req: Request, context: Context) {
     return managePage(b, url.origin, "Километрите са записани – изтеглете договора отново.", conflict, next);
   }
   if (action !== "confirm" && action !== "reject") return managePage(b, url.origin, "", conflict, cd);
-  if (action === "confirm" && conflict) return managePage(b, url.origin, "Резервацията не е потвърдена – датите вече са заети.", conflict, cd);
   if (b.status !== "pending") return managePage(b, url.origin, "Тази резервация вече е обработена.", null, cd);
 
+  // Съобщението от формата е до клиента (влиза в писмото). Решението е общо с админ панела (server/booking-actions.ts):
+  // повторна проверка на датите, автомобила и заетостта в транзакция със заключване на автомобила.
   const note = typeof form?.get("note") === "string" ? String(form!.get("note")).trim().slice(0, 1000) : "";
-  // Заключване на автомобила и повторна проверка за застъпване вътре в транзакцията: втора едновременна заявка изчаква
-  // първата да приключи и вижда нейното потвърждение
-  const out = await db.transaction(async (tx) => {
-    if (action === "confirm") {
-      await lock(tx, "car:" + b.carId);
-      const c = await findConflict(b.carId, b.startDate || "", b.endDate || "", b.startTime, b.endTime, b.id, tx);
-      if (c) return { conflict: c, updated: null };
-    }
-    const [u] = await tx
-      .update(bookings)
-      .set({ status: action === "confirm" ? "confirmed" : "rejected", note, decidedAt: new Date(), updatedAt: new Date() })
-      .where(and(eq(bookings.id, id), eq(bookings.status, "pending")))
-      .returning();
-    if (u) {
-      await queueEmail(tx, "customer-decision", decisionKey(u.id), u.id, u.email);
-      await tx.insert(bookingEvents).values({ bookingId: u.id, actor: "owner-link", action: action === "confirm" ? "booking.confirm" : "booking.reject", details: {} });
-    }
-    return { conflict: null, updated: u ?? null };
-  });
-  if (out.conflict) return managePage(b, url.origin, "Резервацията не е потвърдена – датите вече са заети.", out.conflict, cd);
-  const updated = out.updated;
-  if (!updated) return managePage(b, url.origin, "Тази резервация вече е обработена.", null, cd);
-
-  const sent = await sendDecision(updated).catch((e) => ({ result: "failed" as const, error: String((e as Error)?.message) }));
-  if (sent.result === "uncertain") {
+  const r = await decide(b.id, action, { actor: "owner-link", message: note, notify: true });
+  if (!r.ok) {
+    if (r.error === "busy") return managePage(r.booking || b, url.origin, DECIDE_MSG.busy, r.conflict || null, cd);
+    return managePage(r.booking || b, url.origin, DECIDE_MSG[r.error], null, cd);
+  }
+  const updated = r.booking;
+  if (r.email === "uncertain") {
     return managePage(updated, url.origin, `Решението е записано и клиентът го вижда на сайта. Връзката с пощенската услуга прекъсна и не е сигурно дали имейлът до ${updated.email} е изпратен – няма да бъде изпратен повторно автоматично; при нужда се свържете с клиента.`, null, cd);
   }
-  if (sent.result !== "sent") {
+  if (r.email !== "sent") {
     return managePage(updated, url.origin, `Решението е записано и клиентът го вижда на сайта, но имейлът до ${updated.email} не беше изпратен. Ще опитаме отново автоматично; при нужда се свържете с клиента.`, null, cd);
   }
   return managePage(
