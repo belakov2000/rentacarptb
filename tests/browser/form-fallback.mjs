@@ -4,6 +4,9 @@
 // --local-index: браузърът получава локалния index.html на адреса на Preview (за проверка преди нов deploy);
 // всички заявки към /api/* отиват към реалните функции на Preview.
 // Само синтетични данни (@example.com, тестови номера). Заявките към Web3Forms се прихващат и НЕ се изпращат.
+// Писма: заявките стигат до реалните функции на Preview. Извън продукция сървърът не изпраща писма (mail/index.ts,
+// mailAllowed) – затова отговорът е notify: "failed". Ако Preview върне друго (напр. по-стара версия без тази защита),
+// тестът спира веднага след първата заявка, за да не създава следващи писма.
 import { readFileSync } from "node:fs";
 import { chromium } from "playwright-core";
 
@@ -66,11 +69,13 @@ async function submit(page) {
   check(LOCAL ? "Страницата е ПОДМЕНЕНА с локален index.html" : "Страницата е заредена от самия Preview (заглавки на Netlify, без подмяна)", (LOCAL || fromNet) && info.fn && info.src && !info.old, `server=${h.server}, x-nf-request-id ${h["x-nf-request-id"] ? "има" : "няма"}, fallbackNotice=${info.fn}, mailFields=${info.old}`);
   await ctx.close();
 }
-// 1. Успешно записване + кратко резервно известие (в Preview няма ключ за Brevo)
+// 1. Успешно записване + кратко резервно известие (в Preview писмата не се изпращат – виж по-горе)
 const s1 = await session("ok" + RUN, ["2029-04-01", "2029-04-03"], { delivery: true });
 const e1 = await fill(s1.page, "ok" + RUN);
 const r1 = await submit(s1.page);
 check("Успешно записване (реална функция на Preview)", !e1 && r1.hash === "#blagodarim" && s1.api[0]?.status === 201, `HTTP ${s1.api[0]?.status}, notify=${s1.api[0]?.notify}`);
+check("Preview не изпраща писма (сървърът връща notify: failed)", s1.api[0]?.notify === "failed", `notify=${s1.api[0]?.notify}`);
+if (s1.api[0]?.notify !== "failed") { console.log("СПРЯНО: Preview може да изпраща реални писма – останалите сценарии не се изпълняват."); await browser.close(); process.exit(1); }
 check("Клиентът вижда „получена и се обработва“", /получена успешно и в момента се обработва/.test(r1.sub), "");
 check("Резервно известие: точно 1, само разрешени полета", s1.w3.length === 1 && Object.keys(s1.w3[0]).sort().join() === "access_key,from_name,message,subject", Object.keys(s1.w3[0] || {}).join(","));
 check("Резервно известие при запис: без ЕГН, документи, адреси, снимки и връзки", leaks(s1.w3[0]).length === 0, leaks(s1.w3[0]).join(",") || "чисто");

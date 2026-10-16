@@ -2,7 +2,7 @@ import type { Config, Context } from "@netlify/functions";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { and, eq, gte, sql } from "drizzle-orm";
 import { db } from "../../db/index.js";
-import { bookingEvents, bookings } from "../../db/schema.js";
+import { bookingEvents, bookings, cars } from "../../db/schema.js";
 import { parseTotalCents, totalReviewOf } from "../../db/money.js";
 import { minutes } from "../../db/slots.js";
 import { sofiaToday, withinHours } from "../../db/hours.js";
@@ -14,6 +14,7 @@ import { langOf, langSwitch, localize, type Lang } from "../../server/manage-i18
 import { act, allowed, confirmBlock, decide, linkExpired, pickupAt, REASON_BG, REASONS, STATUS_LABEL, type Action, type DecideError } from "../../server/booking-actions.js";
 import { findConflict, lock, type Conflict } from "../../server/conflicts.js";
 import { parseAttribution } from "../../server/attribution.js";
+import { documentsOf } from "../../server/documents.js";
 import { ownerNewKey, receivedKey, saveOwnerOutbox, sendCustomerReceived, sendOwnerNew } from "../../server/notify.js";
 
 // Резервации с потвърждение от фирмата.
@@ -43,6 +44,7 @@ const DUPLICATE_WINDOW_MS = 10 * 60_000;
 const contractLink = (origin: string, b: { id: string; adminToken: string }) => `${origin}/api/bookings/${b.id}/contract?key=${b.adminToken}`;
 
 type Booking = typeof bookings.$inferSelect;
+
 
 // ===== Страница за фирмата =====
 // Език на страницата за управление (?lang=en|de; по подразбиране български) – за всяка заявка поотделно
@@ -229,13 +231,18 @@ async function handle(req: Request, context: Context) {
     // Адрес по документа (град / село, населено място, адрес; област и община – за българска лична карта)
     const addrErr = addressError(body.contract);
     if (addrErr) return Response.json({ error: "address", detail: addrErr }, { status: 400 });
+    // Неактивен автомобил (админ панел → Автомобили) не приема нови заявки; съществуващите резервации остават
+    if (b.carId) {
+      const [car] = await db.select({ status: cars.status }).from(cars).where(eq(cars.id, b.carId));
+      if (car && car.status !== "active") return Response.json({ error: "busy" }, { status: 409 });
+    }
     if (await findConflict(b.carId, b.startDate || "", b.endDate || "", b.startTime, b.endTime)) {
       return Response.json({ error: "busy" }, { status: 409 });
     }
     const requestKey = REQUEST_KEY_RE.test(str(body.requestKey, 100)) ? str(body.requestKey, 100) : null;
     // Рекламен източник (UTM) – само проверени стойности от едно посещение; при невалиден или липсващ – без източник (server/attribution.ts)
     const utm = parseAttribution(body.attribution);
-    const row = { id: rnd(1), viewToken: rnd(2), adminToken: rnd(2), ...b, requestKey, totalCents: parseTotalCents(b.total), totalReview: totalReviewOf(b.total), ...utm };
+    const row = { id: rnd(1), viewToken: rnd(2), adminToken: rnd(2), ...b, requestKey, totalCents: parseTotalCents(b.total), totalReview: totalReviewOf(b.total), ...utm, documents: documentsOf(message, url.origin) };
 
     // Повторно или едновременно изпращане на същата заявка връща вече записаната резервация – без втора резервация и без нови имейли.
     // 1) същият requestKey (уникален индекс в базата); 2) за по-стари страници без ключ – същият клиент, автомобил и период в последните 10 минути.

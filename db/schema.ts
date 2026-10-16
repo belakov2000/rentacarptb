@@ -1,4 +1,4 @@
-import { check, date, index, integer, jsonb, pgTable, serial, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { boolean, check, date, index, integer, jsonb, pgTable, serial, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
 // Резервации от сайта. Тук пазим само данните, нужни за потвърждението –
@@ -64,13 +64,68 @@ export const bookings = pgTable("bookings", {
   utmContent: text("utm_content"),
   utmTerm: text("utm_term"),
   utmAt: timestamp("utm_at"),
+  // Реално връщане (приключване на наема) – отбелязва се от администратора само след отбелязано предаване.
+  // Договорените дати (startDate/endDate) остават непроменени; заетостта на автомобила свършва при returnedAt + буфера.
+  returnedAt: timestamp("returned_at"),
+  returnedBy: text("returned_by").notNull().default(""),
+  returnNote: text("return_note").notNull().default(""),
+  // Кога администраторът е въвел предаването / връщането (handedOverAt / returnedAt са моментите на самите събития –
+  // могат да са в миналото при въвеждане след факта). null – записи отпреди тези колони (въведени в момента на събитието).
+  handoverRecordedAt: timestamp("handover_recorded_at"),
+  returnRecordedAt: timestamp("return_recorded_at"),
+  // Клиентски профил – връзката се създава само изрично от администратора (не се обединява автоматично по име/телефон/имейл)
+  customerId: integer("customer_id").references(() => customers.id),
+  // Снимки на документите от формата: [{ label, id }] – ключове в хранилището documents. null – по-стари заявки (линковете са само в имейла).
+  documents: jsonb(),
 }, (t) => [
   uniqueIndex("bookings_request_key_idx").on(t.requestKey),
   index("bookings_car_dates_idx").on(t.carId, t.startDate, t.endDate),
   index("bookings_status_idx").on(t.status),
   index("bookings_created_idx").on(t.createdAt),
   index("bookings_utm_idx").on(t.utmCampaign, t.utmContent),
+  index("bookings_customer_idx").on(t.customerId),
 ]);
+
+// Клиентски профили. Създават се ръчно от администратора от конкретна резервация; други резервации се свързват
+// само с изрично действие („Свържи“). Номерата и снимките на документите не се пазят тук.
+export const customers = pgTable("customers", {
+  id: serial().primaryKey(),
+  name: text().notNull(),
+  email: text().notNull().default(""),
+  phone: text().notNull().default(""),
+  note: text().notNull().default(""),
+  createdBy: text("created_by").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedBy: text("updated_by").notNull().default(""),
+  updatedAt: timestamp("updated_at"),
+});
+
+// Удължавания на наема – история на старите и новите дати и суми (само добавяне).
+// calc: auto – по договорената дневна цена от договора × добавени цели дни; manual – сума, въведена и потвърдена от администратора.
+export const bookingExtensions = pgTable(
+  "booking_extensions",
+  {
+    id: serial().primaryKey(),
+    bookingId: text("booking_id").notNull().references(() => bookings.id),
+    oldEndDate: date("old_end_date").notNull(),
+    oldEndTime: text("old_end_time").notNull(),
+    newEndDate: date("new_end_date").notNull(),
+    newEndTime: text("new_end_time").notNull(),
+    oldTotalCents: integer("old_total_cents"),
+    newTotalCents: integer("new_total_cents"),
+    addedCents: integer("added_cents").notNull(),
+    dailyCents: integer("daily_cents"),
+    addedDays: integer("added_days"),
+    calc: text().notNull(), // auto | manual
+    contractVersion: integer("contract_version"),
+    notify: boolean().notNull().default(false),
+    note: text().notNull().default(""),
+    idempotencyKey: text("idempotency_key").notNull(),
+    createdBy: text("created_by").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (t) => [uniqueIndex("booking_extensions_key_idx").on(t.idempotencyKey), index("booking_extensions_booking_idx").on(t.bookingId)],
+);
 
 // ===== Административен модул =====
 // Всички суми са цели числа в евроцентове (напр. 829,47 € → 82947).
@@ -129,6 +184,12 @@ export const cars = pgTable("cars", {
   sort: integer().notNull().default(0),
   note: text().notNull().default(""),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  // Срокове за следващ технически преглед, застраховка и обслужване (по избор) – предупреждения в панела
+  inspectionDue: date("inspection_due"),
+  insuranceDue: date("insurance_due"),
+  serviceDue: date("service_due"),
+  updatedBy: text("updated_by").notNull().default(""),
+  updatedAt: timestamp("updated_at"),
 });
 
 // Временно недостъпни периоди (ремонт, обслужване); отменените остават в историята
@@ -141,12 +202,15 @@ export const carBlocks = pgTable(
     startTime: text("start_time").notNull().default("00:00"),
     endDate: date("end_date").notNull(),
     endTime: text("end_time").notNull().default("23:59"),
-    reason: text().notNull().default(""),
+    reason: text().notNull().default(""), // свободен текст (бележка)
+    kind: text().notNull().default("other"), // service (сервиз) | personal (лична употреба) | other
     createdBy: text("created_by").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     cancelledAt: timestamp("cancelled_at"),
+    cancelledBy: text("cancelled_by").notNull().default(""),
+    idempotencyKey: text("idempotency_key"),
   },
-  (t) => [index("car_blocks_car_idx").on(t.carId, t.startDate, t.endDate)],
+  (t) => [index("car_blocks_car_idx").on(t.carId, t.startDate, t.endDate), uniqueIndex("car_blocks_key_idx").on(t.idempotencyKey)],
 );
 
 // Разходи, въведени от администратора
@@ -241,6 +305,9 @@ export const contractVersions = pgTable(
     reason: text().notNull().default(""),
     createdBy: text("created_by").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
+    // Подписване: unknown – няма записани данни (всички версии отпреди тази колона); awaiting – генерирана, очаква подписване.
+    // Липсата на записано доказателство не означава, че документът не е подписан.
+    signStatus: text("sign_status").notNull().default("unknown"),
   },
   (t) => [uniqueIndex("contract_versions_booking_version_idx").on(t.bookingId, t.version)],
 );

@@ -4,7 +4,7 @@ import { db } from "../../db/index.js";
 import { bookingEvents, bookings, payments } from "../../db/schema.js";
 import { parseAmountCents } from "../../db/money.js";
 import { json, requireAdmin } from "../../server/auth.js";
-import { KINDS, METHODS, refundableLeft, summarize } from "../../server/payments.js";
+import { finance, KINDS, METHODS, refundableLeft, summarize } from "../../server/payments.js";
 
 // Плащания по резервации в админ панела (само за администратор; промените – само от същия сайт).
 // GET  /api/admin/payments?booking=:id – плащанията по резервацията и обобщение (приход за наема, гаранционен депозит, очаквани)
@@ -25,7 +25,9 @@ function paidAtOf(v: unknown) {
 
 async function forBooking(bookingId: string) {
   const list = await db.select().from(payments).where(eq(payments.bookingId, bookingId)).orderBy(payments.createdAt);
-  return { payments: list.map((p) => ({ ...p, refundable: refundableLeft(p, list) })), summary: summarize(list) };
+  const [b] = await db.select({ status: bookings.status, totalCents: bookings.totalCents, totalReview: bookings.totalReview }).from(bookings).where(eq(bookings.id, bookingId));
+  // finance: договорена сума, остатък / надплащане и гаранционен депозит (server/payments.ts) – само показване, без нови записи
+  return { payments: list.map((p) => ({ ...p, refundable: refundableLeft(p, list) })), summary: summarize(list), finance: b ? finance(b, list) : null };
 }
 
 export default async (req: Request, context: Context) => {

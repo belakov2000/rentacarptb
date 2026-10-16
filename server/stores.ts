@@ -30,4 +30,8 @@ export function storeName(name: StoreName, ctx = deployContext()) {
   return isProduction(ctx) ? name : `${ctx.toLowerCase().replace(/[^a-z0-9]/g, "") || "unknown"}-${name}`;
 }
 
-export const store = (name: StoreName) => getStore(storeName(name));
+// strong: четене и списък веднага след запис (за архивирането и проверката му). По подразбиране Netlify Blobs е eventual –
+// новозаписан ключ може да липсва от list() до около минута, затова проверката веднага след „Направи копие сега“
+// показваше 0 копия при реално копирани файлове.
+export const store = (name: StoreName, o: { strong?: boolean } = {}) =>
+  o.strong ? getStore({ name: storeName(name), consistency: "strong" }) : getStore(storeName(name));

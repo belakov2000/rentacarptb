@@ -2,7 +2,10 @@
 import { createHash } from "node:crypto";
 type Item = { data: Uint8Array; metadata: Record<string, unknown>; etag: string };
 export const stores = new Map<string, Map<string, Item>>();
-export const faults = { delayMs: 0, failGetAfter: Infinity as number, gets: 0 };
+// eventualMs: как в Netlify Blobs по подразбиране (consistency „eventual“) list() не вижда ключове, записани в последните eventualMs;
+// хранилище, отворено с consistency: "strong", ги вижда веднага
+export const faults = { delayMs: 0, failGetAfter: Infinity as number, gets: 0, eventualMs: 0 };
+const writtenAt = new Map<string, number>();
 const buf = async (d: any) => typeof d === "string" ? new TextEncoder().encode(d) : d instanceof Blob ? new Uint8Array(await d.arrayBuffer()) : new Uint8Array(d);
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 // По избор хранилищата се пазят на диск (BLOB_STUB_DIR) – за тестове, които пускат отделен процес (scripts/restore.ts)
@@ -21,13 +24,14 @@ export function loadStores() {
     stores.set(n, new Map(Object.entries(m).map(([k, it]: [string, any]) => [k, { data: new Uint8Array(Buffer.from(it.d, "base64")), metadata: it.m, etag: it.e }])));
 }
 if (process.env.BLOB_STUB_CHILD) loadStores();
-export function getStore(arg: string | { name: string }) {
+export function getStore(arg: string | { name: string; consistency?: string }) {
   const name = typeof arg === "string" ? arg : arg.name;
+  const strong = typeof arg === "object" && arg.consistency === "strong";
   if (!stores.has(name)) stores.set(name, new Map());
   const m = stores.get(name)!;
   const out = (it: Item, type?: string) => type === "text" ? new TextDecoder().decode(it.data) : type === "json" ? JSON.parse(new TextDecoder().decode(it.data)) : it.data.buffer.slice(it.data.byteOffset, it.data.byteOffset + it.data.byteLength);
   return {
-    async set(key: string, data: any, o: any = {}) { const d = await buf(data); m.set(key, { data: d, metadata: JSON.parse(JSON.stringify(o.metadata || {})), etag: '"' + createHash("md5").update(d).digest("hex") + '"' }); if (process.env.BLOB_STUB_CHILD) saveStores(); },
+    async set(key: string, data: any, o: any = {}) { const d = await buf(data); writtenAt.set(name + "\u0000" + key, Date.now()); m.set(key, { data: d, metadata: JSON.parse(JSON.stringify(o.metadata || {})), etag: '"' + createHash("md5").update(d).digest("hex") + '"' }); if (process.env.BLOB_STUB_CHILD) saveStores(); },
     async setJSON(key: string, v: any, o: any = {}) { return this.set(key, JSON.stringify(v), o); },
     async get(key: string, o: any = {}) { const it = m.get(key); return it ? out(it, o.type) : null; },
     async getWithMetadata(key: string, o: any = {}) {
@@ -35,7 +39,7 @@ export function getStore(arg: string | { name: string }) {
       if (faults.delayMs) await sleep(faults.delayMs);
       const it = m.get(key); return it ? { data: out(it, o.type), metadata: it.metadata, etag: it.etag } : null; },
     async getMetadata(key: string) { const it = m.get(key); return it ? { etag: it.etag, metadata: it.metadata } : null; },
-    async list(o: any = {}) { return { blobs: [...m.entries()].filter(([k]) => !o.prefix || k.startsWith(o.prefix)).map(([key, it]) => ({ key, etag: it.etag })), directories: [] }; },
+    async list(o: any = {}) { return { blobs: [...m.entries()].filter(([k]) => !o.prefix || k.startsWith(o.prefix)).filter(([k]) => strong || !faults.eventualMs || Date.now() - (writtenAt.get(name + "\u0000" + k) ?? 0) > faults.eventualMs).map(([key, it]) => ({ key, etag: it.etag })), directories: [] }; },
     async delete(key: string) { m.delete(key); if (process.env.BLOB_STUB_CHILD) saveStores(); },
   };
 }
