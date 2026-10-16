@@ -28,6 +28,10 @@ export const bookings = pgTable("bookings", {
   invoice: text().notNull().default(""), // данни за фактурата, ако клиентът я е поискал
   createdAt: timestamp("created_at").defaultNow().notNull(),
   decidedAt: timestamp("decided_at"),
+  // Решение по заявката (потвърждаване / отказ): кой го е взел (имейл на администратора или „owner-link“) и вътрешна бележка.
+  // decisionNote не се изпраща на клиента (съобщението до клиента е в note). Празно – по-стари решения отпреди тези полета.
+  decidedBy: text("decided_by").notNull().default(""),
+  decisionNote: text("decision_note").notNull().default(""),
   // Кога е изпратено всяко от автоматичните писма до клиента (празно – още не е)
   pickupReminderAt: timestamp("pickup_reminder_at"),
   handoverInfoAt: timestamp("handover_info_at"),

@@ -88,6 +88,15 @@ const D: Record<string, [string, string]> = {
   "Действието вече е изпълнено или не е възможно при текущия статус.": ["The action has already been carried out or is not possible with the current status.", "Die Aktion wurde bereits ausgeführt oder ist beim aktuellen Status nicht möglich."],
   "Резервацията е потвърдена. Клиентът получи имейл.": ["The booking is confirmed. The customer received an email.", "Die Buchung ist bestätigt. Der Kunde hat eine E-Mail erhalten."],
   "Резервацията е отказана. Клиентът получи имейл.": ["The booking was rejected. The customer received an email.", "Die Buchung wurde abgelehnt. Der Kunde hat eine E-Mail erhalten."],
+  "Заявката няма записани дати на получаване и връщане и не може да бъде потвърдена. Можете да я откажете и да се свържете с клиента за нова заявка.": [
+    "The request has no saved pick-up and return dates and cannot be confirmed. You can reject it and contact the customer for a new request.",
+    "Die Anfrage hat keine gespeicherten Abhol- und Rückgabedaten und kann nicht bestätigt werden. Sie können sie ablehnen und den Kunden um eine neue Anfrage bitten.",
+  ],
+  "Часът за получаване по тази заявка вече е минал и тя не може да бъде потвърдена. Можете да я откажете и да се свържете с клиента за нова заявка.": [
+    "The pick-up time of this request has already passed and it cannot be confirmed. You can reject it and contact the customer for a new request.",
+    "Die Abholzeit dieser Anfrage ist bereits vorbei, sie kann nicht bestätigt werden. Sie können sie ablehnen und den Kunden um eine neue Anfrage bitten.",
+  ],
+  "Автомобилът е отбелязан като неактивен и заявката не може да бъде потвърдена.": ["The car is marked as inactive and the request cannot be confirmed.", "Das Fahrzeug ist als inaktiv markiert, die Anfrage kann nicht bestätigt werden."],
   "Тази резервация вече е обработена.": ["This booking has already been processed.", "Diese Buchung wurde bereits bearbeitet."],
   "Резервацията не е потвърдена – датите вече са заети.": ["The booking was not confirmed – the dates are already taken.", "Die Buchung wurde nicht bestätigt – die Termine sind bereits belegt."],
   "Решението е записано и клиентът го вижда на сайта, но имейлът до ": ["The decision is saved and the customer sees it on the site, but the email to ", "Die Entscheidung ist gespeichert und der Kunde sieht sie auf der Website, aber die E-Mail an "],
@@ -119,6 +128,9 @@ const D: Record<string, [string, string]> = {
 // Изречения с дати, имена и адреси между фиксираните части
 const RULES: [RegExp, string, string][] = [
   [/(\d{1,2}:\d{2}(?::\d{2})?) ч\./g, "$1", "$1"],
+  [/Внимание: автомобилът е блокиран за периода ([\d-]+) – ([\d-]+)/g, "Warning: the car is blocked for the period $1 – $2", "Achtung: Das Fahrzeug ist im Zeitraum $1 – $2 gesperrt"],
+  [/Решението е взето на ([^<]*?)\. Клиентът вижда статуса на сайта\./g, "The decision was made on $1. The customer sees the status on the site.", "Die Entscheidung wurde am $1 getroffen. Der Kunde sieht den Status auf der Website."],
+  [/Решението е взето\. Клиентът вижда статуса на сайта\./g, "The decision has been made. The customer sees the status on the site.", "Die Entscheidung wurde getroffen. Der Kunde sieht den Status auf der Website."],
   [/Решението е взето на ([^<]*?)\. Клиентът е уведомен по имейл и на сайта\./g, "The decision was made on $1. The customer has been notified by email and on the site.", "Die Entscheidung wurde am $1 getroffen. Der Kunde wurde per E-Mail und auf der Website benachrichtigt."],
   [/Решението е взето\. Клиентът е уведомен по имейл и на сайта\./g, "The decision has been made. The customer has been notified by email and on the site.", "Die Entscheidung wurde getroffen. Der Kunde wurde per E-Mail und auf der Website benachrichtigt."],
   [/Предаден на ([^<(]+) \(/g, "Handed over on $1 (", "Übergeben am $1 ("],

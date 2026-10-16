@@ -436,7 +436,7 @@ button.btn-ghost{background:transparent}
 .lang a[aria-current=true]{background:var(--acc);color:var(--acc-ink)}
 @media(max-width:900px){.bar{gap:10px}.bar .lang{margin-left:auto}}
 @media(max-width:420px){.logo{font-size:.86rem}.lang a{padding:6px 8px;min-width:32px}}
-#bk .fbox{border:1.5px solid var(--line);border-radius:var(--r);padding:20px 18px 22px;margin-bottom:18px;background:#fff}
+#bk .fbox{min-width:0;border:1.5px solid var(--line);border-radius:var(--r);padding:20px 18px 22px;margin-bottom:18px;background:#fff}
 #bk .fbox legend{display:flex;align-items:center;gap:10px;float:left;width:100%;margin-bottom:12px}
 #bk .fn{width:30px;height:30px;border-radius:50%;background:var(--navy);color:#fff;display:grid;place-items:center;font-size:.9rem;flex:none}
 #bk .seg{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -457,6 +457,11 @@ button.btn-ghost{background:transparent}
 #bk .seg .opt{padding:12px 14px;margin:0}
 #bk .hint{display:block;margin-top:4px;font-size:.78rem;color:var(--muted)}
 #bk .lbl-opt{font-weight:500;color:var(--muted);font-size:.85em}
+/* Адрес по документа: област, община, град / село и адрес (улица, номер …) */
+#bk .adoc{display:grid;gap:12px;min-width:0}
+#bk .adoc .seg{margin-top:2px}
+#bk .adoc-hint{margin:0;font-size:.88rem;line-height:1.45;color:var(--muted)}
+#bk .adoc-hint[hidden],#bk .lbl-opt[hidden]{display:none}
 #bk button[type=submit][disabled]{opacity:.45;cursor:not-allowed}
 #b-need{margin:-4px 0 0}
 #bk .phin{padding:10px;background:var(--soft)}
@@ -934,7 +939,12 @@ button.btn-ghost{background:transparent}
 <div class="seg" role="radiogroup" aria-label="Вид документ"><label class="opt"><input type="radio" name="idt" value="id" checked><span>Лична карта</span></label><label class="opt"><input type="radio" name="idt" value="pass"><span>Паспорт</span></label></div>
 <div class="row"><div><label for="b-idn">Номер на документа</label><input id="b-idn" autocomplete="off" required></div><div><label for="b-egn">ЕГН</label><input id="b-egn" inputmode="numeric" autocomplete="off" maxlength="20" required></div></div>
 <div class="row"><div><label for="b-idd">Дата на издаване</label><input id="b-idd" type="date" required></div><div><label for="b-idp">Издаден от / къде</label><input id="b-idp" placeholder="напр. МВР Пловдив" required></div></div>
-<div class="row"><div><label for="b-city">Град</label><input id="b-city" autocomplete="address-level2" required></div><div><label for="b-addr">Адрес</label><input id="b-addr" autocomplete="street-address" placeholder="Улица, номер, вход, апартамент" required></div></div>
+<div class="adoc" role="group" aria-labelledby="b-adoc-t" aria-describedby="b-adoc-hint"><span class="phl" id="b-adoc-t">Адрес по документа</span>
+<div class="row"><div><label for="b-reg">Област <span class="lbl-opt" data-adm-opt hidden>(по избор)</span></label><input id="b-reg" autocomplete="address-level1" placeholder="напр. Пловдив"></div><div><label for="b-mun">Община <span class="lbl-opt" data-adm-opt hidden>(по избор)</span></label><input id="b-mun" autocomplete="off" placeholder="напр. Марица"></div></div>
+<div><span class="phl" id="b-ptype-t">Населено място</span><div class="seg" role="radiogroup" aria-labelledby="b-ptype-t"><label class="opt"><input type="radio" name="ptype" value="city"><span>Град</span></label><label class="opt"><input type="radio" name="ptype" value="village"><span>Село</span></label></div></div>
+<div class="row"><div><label for="b-city">Име на населеното място</label><input id="b-city" autocomplete="address-level2" placeholder="напр. Труд" required></div><div><label for="b-addr">Адрес</label><input id="b-addr" autocomplete="street-address" placeholder="Улица, номер, вход, апартамент" required></div></div>
+<p class="adoc-hint" id="b-adoc-hint">Попълнете адреса по документа: област, община и град/село. Пример: обл. Пловдив, общ. Марица, с. Труд.</p>
+<p class="adoc-hint" id="b-adoc-foreign" hidden>За паспорт или документ, издаден извън България, областта и общината не са задължителни. Можете да пишете и на латиница.</p></div>
 <p class="doc-tip">Поставете документа върху равна повърхност при добро осветление. Снимайте го целия, така че всички краища и данни да се виждат ясно. Избягвайте размазване, отблясъци и закриване с пръсти. Проверете четливостта преди изпращане.</p>
 <div class="row"><div><span class="phl" id="p-idf-t">Снимка – лицева страна</span><div class="phbtn"><button type="button" class="upb camb" data-cam="p-idf" aria-describedby="p-idf-t">Снимай с камерата</button><input id="p-idf" class="phin" type="file" accept="image/*" required aria-labelledby="p-idf-t p-idf-u"><label class="upb" id="p-idf-u" for="p-idf">Качи снимка/файл</label></div><p class="phmsg" id="p-idf-m" role="status"></p><img class="phprev" id="p-idf-v" alt="" hidden></div><div><span class="phl" id="p-idb-t">Снимка – гръб</span><div class="phbtn"><button type="button" class="upb camb" data-cam="p-idb" aria-describedby="p-idb-t">Снимай с камерата</button><input id="p-idb" class="phin" type="file" accept="image/*" required aria-labelledby="p-idb-t p-idb-u"><label class="upb" id="p-idb-u" for="p-idb">Качи снимка/файл</label></div><p class="phmsg" id="p-idb-m" role="status"></p><img class="phprev" id="p-idb-v" alt="" hidden></div></div>
 </fieldset>
@@ -1157,7 +1167,18 @@ const I18N={
 "Моля, попълнете гражданство.":["Please enter your citizenship.","Bitte geben Sie Ihre Staatsangehörigkeit ein."],
 "Дата на издаване":["Date of issue","Ausstellungsdatum"],
 "Издаден от / къде":["Issued by / where","Ausgestellt von / wo"],
-"Град":["City","Stadt"],
+"Град":["Town / city","Stadt"],
+"Село":["Village","Dorf"],
+"Населено място":["Town / village","Ort"],
+"Име на населеното място":["Name of the town / village","Name des Ortes"],
+"Адрес по документа":["Address as in the document","Adresse laut Dokument"],
+"Област":["Region (oblast) / state","Bezirk (Oblast) / Bundesland"],
+"Община":["Municipality","Gemeinde"],
+"напр. Пловдив":["e.g. Plovdiv","z. B. Plowdiw"],
+"напр. Марица":["e.g. Maritsa","z. B. Maritsa"],
+"напр. Труд":["e.g. Trud","z. B. Trud"],
+"Попълнете адреса по документа: област, община и град/село. Пример: обл. Пловдив, общ. Марица, с. Труд.":["Enter the address as shown in the document: region, municipality and town/village. Example: Plovdiv region, Maritsa municipality, village of Trud.","Geben Sie die Adresse laut Dokument an: Bezirk, Gemeinde und Stadt/Dorf. Beispiel: Bezirk Plowdiw, Gemeinde Maritsa, Dorf Trud."],
+"За паспорт или документ, издаден извън България, областта и общината не са задължителни. Можете да пишете и на латиница.":["For a passport or a document issued outside Bulgaria, region and municipality are optional. You can write in Latin letters.","Bei einem Reisepass oder einem außerhalb Bulgariens ausgestellten Dokument sind Bezirk und Gemeinde optional. Sie können auch in lateinischer Schrift schreiben."],
 "Адрес":["Address","Adresse"],
 "Шофьорска книжка":["Driving licence","Führerschein"],
 "Номер на книжката":["Licence number","Führerscheinnummer"],
@@ -1369,6 +1390,10 @@ const I18N={
 "Моля, попълнете датата на издаване на документа за самоличност.":["Please enter the date of issue of your ID document.","Bitte geben Sie das Ausstellungsdatum Ihres Ausweisdokuments ein."],
 "Моля, попълнете от кого е издаден документът за самоличност.":["Please enter who issued your ID document.","Bitte geben Sie an, wer Ihr Ausweisdokument ausgestellt hat."],
 "Моля, попълнете град и адрес.":["Please enter your city and address.","Bitte geben Sie Stadt und Adresse ein."],
+"Моля, изберете дали населеното място е град или село.":["Please choose whether the place is a town/city or a village.","Bitte wählen Sie, ob der Ort eine Stadt oder ein Dorf ist."],
+"Моля, попълнете населеното място и адреса.":["Please enter the town/village and the address.","Bitte geben Sie den Ort und die Adresse ein."],
+"Моля, попълнете областта и общината по документа.":["Please enter the region (oblast) and municipality as shown in the document.","Bitte geben Sie Bezirk (Oblast) und Gemeinde wie im Dokument an."],
+"Моля, проверете адреса по документа: изберете град или село и попълнете населеното място и адреса (за българска лична карта – и областта и общината).":["Please check the address from the document: choose town/city or village and enter the place and the address (for a Bulgarian ID card also the region and municipality).","Bitte prüfen Sie die Adresse laut Dokument: Wählen Sie Stadt oder Dorf und geben Sie Ort und Adresse an (bei einem bulgarischen Personalausweis auch Bezirk und Gemeinde)."],
 "Моля, попълнете номера на шофьорската книжка.":["Please enter your driving licence number.","Bitte geben Sie Ihre Führerscheinnummer ein."],
 "Моля, попълнете имената от шофьорската книжка.":["Please enter the name on your driving licence.","Bitte geben Sie den Namen auf Ihrem Führerschein ein."],
 "Моля, попълнете датата на издаване на шофьорската книжка.":["Please enter the date of issue of your driving licence.","Bitte geben Sie das Ausstellungsdatum Ihres Führerscheins ein."],
@@ -1610,10 +1635,27 @@ function showFaq(){$("#faq").hidden=false}
 $("#fct").addEventListener("click",function(){const o=this.getAttribute("aria-expanded")!=="true";this.setAttribute("aria-expanded",o);$("#fct-list").hidden=!o});
 $$("[data-faq]").forEach(a=>a.addEventListener("click",()=>{showFaq();if(location.hash==="#faq")$("#faq").scrollIntoView()}));
 // ===== Форма с данни (началната страница) =====
-const fields={name:"#b-name",cit:"#b-cit",phone:"#b-phone",mail:"#b-mail",idn:"#b-idn",egn:"#b-egn",idd:"#b-idd",idp:"#b-idp",city:"#b-city",addr:"#b-addr",dln:"#b-dln",dlname:"#b-dlname",dld:"#b-dld",dlp:"#b-dlp",note:"#b-note",icn:"#b-icn",ieik:"#b-ieik",ivat:"#b-ivat",imol:"#b-imol",iaddr:"#b-iaddr",pname:"#b-pname",pegn:"#b-pegn",paddr:"#b-paddr"};
+const fields={name:"#b-name",cit:"#b-cit",phone:"#b-phone",mail:"#b-mail",idn:"#b-idn",egn:"#b-egn",idd:"#b-idd",idp:"#b-idp",reg:"#b-reg",mun:"#b-mun",city:"#b-city",addr:"#b-addr",dln:"#b-dln",dlname:"#b-dlname",dld:"#b-dld",dlp:"#b-dlp",note:"#b-note",icn:"#b-icn",ieik:"#b-ieik",ivat:"#b-ivat",imol:"#b-imol",iaddr:"#b-iaddr",pname:"#b-pname",pegn:"#b-pegn",paddr:"#b-paddr"};
 Object.entries(fields).forEach(([k,s])=>{if(S[k])$(s).value=S[k]});
 if(S.idt==="pass")document.querySelector("input[name=idt][value=pass]").checked=true;
 const idt=()=>document.querySelector("input[name=idt]:checked").value;
+// ===== Адрес по документа: област, община, град / село и адрес (улица, номер, вход, апартамент) =====
+// Представките „обл.“, „общ.“, „гр.“ и „с.“ се добавят само при показване (docAddr) – ако клиентът ги е написал, се махат
+// от полето, а „гр.“ / „с.“ избират вида на населеното място. Същото правило е и на сървъра (contract/index.ts).
+// Област и община са задължителни само за българска лична карта; за паспорт и чужди документи са по избор (и на латиница).
+if(S.ptype==="city"||S.ptype==="village")document.querySelector(`input[name=ptype][value=${S.ptype}]`).checked=true;
+const ptype=()=>{const e=document.querySelector("input[name=ptype]:checked");return e?e.value:""};
+const ADM_BG=/^(bg|bgr|българия|република българия|bulgaria|republic of bulgaria|bulgarien|bulgarie)$/i;
+const admReq=(cit,t)=>t==="id"&&ADM_BG.test(String(cit||"").trim().replace(/\.$/,""));
+const PRE={reg:/^(обл\.|област\s)\s*/i,mun:/^(общ\.|община\s)\s*/i,city:/^(гр\.|град\s|с\.|село\s)\s*/i};
+const unpre=(x,re)=>String(x||"").trim().replace(re,"").trim();
+const docAddr=R=>{const t=R.ptype==="city"?"гр. ":R.ptype==="village"?"с. ":"";return[R.reg&&"обл. "+R.reg,R.mun&&"общ. "+R.mun,R.city&&t+R.city,R.addr].filter(Boolean).join(", ")};
+function tidyAdm(){const c=$("#b-city"),m=/^(гр\.|град\s)|^(с\.|село\s)/i.exec(c.value.trim());
+if(m&&!ptype())document.querySelector(`input[name=ptype][value=${m[1]?"city":"village"}]`).checked=true;
+c.value=unpre(c.value,PRE.city);$("#b-reg").value=unpre($("#b-reg").value,PRE.reg);$("#b-mun").value=unpre($("#b-mun").value,PRE.mun)}
+function syncAdm(){const r=admReq($("#b-cit").value,idt());$$("[data-adm-opt]").forEach(e=>e.hidden=r);$("#b-adoc-foreign").hidden=r}
+["#b-city","#b-reg","#b-mun"].forEach(i=>$(i).addEventListener("change",tidyAdm));
+$("#b-cit").addEventListener("input",syncAdm);$$("input[name=idt]").forEach(e=>e.addEventListener("change",syncAdm));syncAdm();
 // Начин на плащане: bankp – по банков път, физическо лице; bank – по банков път, фирма; cash – в брой на място с касов бон
 const PAY={bankp:"По банков път – физическо лице (фактура)",bank:"По банков път – фирма (фактура)",cash:"В брой на място с касов бон"};
 if(PAY[S.pay])document.querySelector(`input[name=pay][value=${S.pay}]`).checked=true;
@@ -1621,7 +1663,7 @@ const pay=()=>{const e=document.querySelector("input[name=pay]:checked");return 
 const syncPay=()=>{$("#inv").hidden=pay()!=="bank";$("#invp").hidden=pay()!=="bankp"};syncPay();
 $$("input[name=pay]").forEach(e=>e.addEventListener("change",syncPay));
 const invText=R=>R.pay==="bank"?[`Фирма: ${R.icn||"-"}`,`ЕИК / Булстат: ${R.ieik||"-"}`,R.ivat?`ДДС номер: ${R.ivat}`:"",R.imol?`МОЛ: ${R.imol}`:"",`Адрес: ${R.iaddr||"-"}`].filter(Boolean).join("\n")
-:R.pay==="bankp"?["Физическо лице",`Имена: ${R.pname||R.name||"-"}`,`ЕГН: ${R.pegn||R.egn||"-"}`,`Адрес: ${R.paddr||[R.city,R.addr].filter(Boolean).join(", ")||"-"}`].join("\n"):"";
+:R.pay==="bankp"?["Физическо лице",`Имена: ${R.pname||R.name||"-"}`,`ЕГН: ${R.pegn||R.egn||"-"}`,`Адрес: ${R.paddr||docAddr(R)||"-"}`].join("\n"):"";
 // Имената в шофьорската книжка се попълват от личната карта, докато клиентът не ги промени ръчно
 let dlPrev=$("#b-name").value.trim();
 $("#b-name").addEventListener("input",()=>{const d=$("#b-dlname"),n=$("#b-name").value.trim();if(!d.value.trim()||d.value.trim()===dlPrev)d.value=n;dlPrev=n});
@@ -1631,7 +1673,7 @@ function buildText(){const R=S,c=CARS.find(x=>x.id===R.car),q=c&&hasD()?quote(c,
 return[`Заявка за наем${c?": "+c.name:" (автомобилът още не е избран)"}`,R.d1?`Получаване: ${bf(R.d1,R.t1)}, ${R.m1==="addr"?"доставка до "+R.a1:BASE}`:"",R.d2?`Връщане: ${bf(R.d2,R.t2)}, ${R.m2==="addr"?"вземане от "+R.a2:BASE}`:"",R.d1?`Детско столче: ${R.seat?"да, "+seatN(R)+" бр.":"не"}`:"",R.d1?`Пътуване в чужбина: ${abrText(R)}`:"",q&&!q.err?`Общо за услугите: ${fmt(q.tot)}${q.pend.length?" (без "+q.pend.join(" и ")+")":""}. Депозит: ${fmt(DEPOSIT)}`:"",q&&!q.err?`Брой дни: ${q.d}, цена на ден: ${fmt(q.r)}, наем на автомобила: ${fmt(q.base)}`:"",
 R.pay?`\nПЛАЩАНЕ: ${PAY[R.pay]}`:"",invText(R)?"ДАННИ ЗА ФАКТУРА\n"+invText(R):"",
 "\nКЛИЕНТ",`Имена: ${R.name}`,`Гражданство: ${R.cit||"-"}`,`Телефон: ${R.phone}`,`Имейл: ${R.mail}`,
-"\nДОКУМЕНТ ЗА САМОЛИЧНОСТ",`Вид: ${R.idt==="pass"?"паспорт":"лична карта"}`,`Номер: ${R.idn||"-"}`,`ЕГН: ${R.egn||"-"}`,`Дата на издаване: ${R.idd?bf(R.idd):"-"}`,`Издаден от: ${R.idp||"-"}`,`Град: ${R.city||"-"}`,`Адрес: ${R.addr||"-"}`,
+"\nДОКУМЕНТ ЗА САМОЛИЧНОСТ",`Вид: ${R.idt==="pass"?"паспорт":"лична карта"}`,`Номер: ${R.idn||"-"}`,`ЕГН: ${R.egn||"-"}`,`Дата на издаване: ${R.idd?bf(R.idd):"-"}`,`Издаден от: ${R.idp||"-"}`,`Област: ${R.reg||"-"}`,`Община: ${R.mun||"-"}`,`Населено място: ${R.city?(R.ptype==="village"?"с. ":R.ptype==="city"?"гр. ":"")+R.city:"-"}`,`Адрес: ${R.addr||"-"}`,`Адрес по документа: ${docAddr(R)||"-"}`,
 "\nШОФЬОРСКА КНИЖКА",`Номер: ${R.dln||"-"}`,`Имена: ${R.dlname||"-"}`,`Дата на издаване: ${R.dld?bf(R.dld):"-"}`,`Издадена от: ${R.dlp||"-"}`,
 R.note?`\nЗабележка: ${R.note}`:"",`\nЕзик на сайта: ${LANG.toUpperCase()}`].filter(Boolean).join("\n")}
 // Всички данни на клиента и резервацията като отделни полета в имейла
@@ -1669,10 +1711,10 @@ async function sendBooking(links){const R=S,c=CARS.find(x=>x.id===R.car),q=c&&ha
 S.berr="";if(!S.rk){S.rk=crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2);store.set(S)}try{const r=await fetch(BOOKINGS_ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({requestKey:S.rk,name:R.name,email:R.mail,phone:R.phone,lang:LANG,car:c?c.name:"",carId:c?c.id:"",startDate:R.d1,endDate:R.d2,startTime:R.t1||"",endTime:R.t2||"",payment:R.pay,invoice:invText(R),
 pickup:bf(R.d1,R.t1)+", "+place(1,"доставка до"),dropoff:bf(R.d2,R.t2)+", "+place(2,"вземане от"),total:q&&!q.err?fmt(q.tot)+(q.pend.length?" (без "+q.pend.join(" и ")+")":""):"",
 attribution:window.adAttribution?window.adAttribution():null,message:buildText()+(Object.keys(links).length?"\n\nСНИМКИ НА ДОКУМЕНТИТЕ\n"+Object.entries(links).map(([l,u])=>l+": "+u).join("\n"):""),contract:contractData(R,q)})});
-const j=await r.json().catch(()=>({}));if(r.status===409)return"busy";if(r.status===400&&j.error==="hours")return"hours";if(!r.ok||!j.id){S.berr=j.detail||j.error||("HTTP "+r.status);return false}S.bid=j.id;S.btok=j.token;S.bst=j.status;S.bnote="";S.rk="";newBid=j.duplicate?"":j.id;return j.notify==="failed"?"unnotified":true}catch(e){S.berr="Няма връзка със сървъра";return false}}
+const j=await r.json().catch(()=>({}));if(r.status===409)return"busy";if(r.status===400&&j.error==="hours")return"hours";if(r.status===400&&j.error==="address")return"address";if(!r.ok||!j.id){S.berr=j.detail||j.error||("HTTP "+r.status);return false}S.bid=j.id;S.btok=j.token;S.bst=j.status;S.bnote="";S.rk="";newBid=j.duplicate?"":j.id;return j.notify==="failed"?"unnotified":true}catch(e){S.berr="Няма връзка със сървъра";return false}}
 // Данни за автоматичното попълване на договора за наем (изпраща се до фирмата като прикачен файл)
 const contractData=(R,q)=>{const ok=q&&!q.err,leg=n=>R["m"+n]==="addr"?{addr:R["a"+n],km:KMS[n],rate:KMS[n]!=null?kmRate(n):null}:null;
-return{citizen:R.cit,idt:R.idt,idn:R.idn,egn:R.egn,idd:R.idd,idp:R.idp,city:R.city,addr:R.addr,dln:R.dln,dld:R.dld,dlp:R.dlp,d1:R.d1,t1:R.t1,d2:R.d2,t2:R.t2,
+return{citizen:R.cit,idt:R.idt,idn:R.idn,egn:R.egn,idd:R.idd,idp:R.idp,region:R.reg||"",municipality:R.mun||"",placeType:R.ptype||"",city:R.city,addr:R.addr,dln:R.dln,dld:R.dld,dlp:R.dlp,d1:R.d1,t1:R.t1,d2:R.d2,t2:R.t2,
 days:ok?q.d:null,rent:ok?q.base:null,seat:ok&&R.seat?SEAT*seatN(R)*q.d:0,seatN:seatN(R),seatDay:R.seat?SEAT*seatN(R):0,del:leg(1),ret:leg(2),abroad:abrSel(R).map(([,name,fee])=>({name,fee}))}};
 const sendSms=()=>{location.href="sms:"+PHONE+"?&body="+encodeURIComponent(buildText())};
 // ===== Снимки на документите: смаляват се в браузъра и се качват при изпращане =====
@@ -1744,16 +1786,16 @@ document.addEventListener("visibilitychange",()=>{if(document.hidden)camClose()}
 async function uploadPhotos(){const out={};for(const[id,l]of Object.entries(PHOTOS)){const r=await fetch(DOCS_ENDPOINT,{method:"POST",headers:{"Content-Type":"image/jpeg"},body:PH[id]});const j=await r.json().catch(()=>({}));if(!r.ok||!j.url)throw 0;out[l]=j.url}return out}
 // Проверка на задължителните полета (без „Допълнително“). Докато има липси, бутонът за изпращане е неактивен.
 const v=i=>$(i).value.trim();
-function formErr(){const c=CARS.find(x=>x.id===S.car),q=c&&hasD()?quote(c,S):null;if(!c)return("Моля, изберете автомобил.");const pe=planErr();if(pe)return(pe);if(!q||q.err)return("Автомобилът не е наличен за избрания период. Изберете друг автомобил или променете датите.");if(!v("#b-name"))return("Моля, въведете име.");if(!v("#b-cit"))return("Моля, попълнете гражданство.");if(v("#b-phone").replace(/\D/g,"").length<9)return("Моля, въведете валиден телефон.");if(!/^\S+@\S+\.\S+$/.test(v("#b-mail")))return("Моля, въведете валиден имейл.");if(!v("#b-idn"))return("Моля, попълнете номера на документа за самоличност.");if(idt()==="id"&&!v("#b-egn"))return("Моля, попълнете ЕГН.");if(!v("#b-idd"))return("Моля, попълнете датата на издаване на документа за самоличност.");if(!v("#b-idp"))return("Моля, попълнете от кого е издаден документът за самоличност.");if(!v("#b-city")||!v("#b-addr"))return("Моля, попълнете град и адрес.");if(!PH["p-idf"]||!PH["p-idb"])return("Моля, приложете снимки на документа за самоличност от двете страни.");if(!v("#b-dln"))return("Моля, попълнете номера на шофьорската книжка.");if(!v("#b-dlname"))return("Моля, попълнете имената от шофьорската книжка.");if(!v("#b-dld"))return("Моля, попълнете датата на издаване на шофьорската книжка.");if(!v("#b-dlp"))return("Моля, попълнете от кого е издадена шофьорската книжка.");if(!PH["p-dlf"]||!PH["p-dlb"])return("Моля, приложете снимки на шофьорската книжка от двете страни.");if(!pay())return("Моля, изберете начин на плащане.");if(pay()==="bank"&&(!v("#b-icn")||!v("#b-ieik")||!v("#b-iaddr")))return("Моля, попълнете име на фирмата, ЕИК и адрес за фактурата.");if(!$("#b-ok").checked)return("Моля, потвърдете, че сте запознат с Общите условия и информацията за защита на личните данни.");return""}
+function formErr(){const c=CARS.find(x=>x.id===S.car),q=c&&hasD()?quote(c,S):null;if(!c)return("Моля, изберете автомобил.");const pe=planErr();if(pe)return(pe);if(!q||q.err)return("Автомобилът не е наличен за избрания период. Изберете друг автомобил или променете датите.");if(!v("#b-name"))return("Моля, въведете име.");if(!v("#b-cit"))return("Моля, попълнете гражданство.");if(v("#b-phone").replace(/\D/g,"").length<9)return("Моля, въведете валиден телефон.");if(!/^\S+@\S+\.\S+$/.test(v("#b-mail")))return("Моля, въведете валиден имейл.");if(!v("#b-idn"))return("Моля, попълнете номера на документа за самоличност.");if(idt()==="id"&&!v("#b-egn"))return("Моля, попълнете ЕГН.");if(!v("#b-idd"))return("Моля, попълнете датата на издаване на документа за самоличност.");if(!v("#b-idp"))return("Моля, попълнете от кого е издаден документът за самоличност.");if(!ptype())return("Моля, изберете дали населеното място е град или село.");if(!v("#b-city")||!v("#b-addr"))return("Моля, попълнете населеното място и адреса.");if(admReq(v("#b-cit"),idt())&&(!v("#b-reg")||!v("#b-mun")))return("Моля, попълнете областта и общината по документа.");if(!PH["p-idf"]||!PH["p-idb"])return("Моля, приложете снимки на документа за самоличност от двете страни.");if(!v("#b-dln"))return("Моля, попълнете номера на шофьорската книжка.");if(!v("#b-dlname"))return("Моля, попълнете имената от шофьорската книжка.");if(!v("#b-dld"))return("Моля, попълнете датата на издаване на шофьорската книжка.");if(!v("#b-dlp"))return("Моля, попълнете от кого е издадена шофьорската книжка.");if(!PH["p-dlf"]||!PH["p-dlb"])return("Моля, приложете снимки на шофьорската книжка от двете страни.");if(!pay())return("Моля, изберете начин на плащане.");if(pay()==="bank"&&(!v("#b-icn")||!v("#b-ieik")||!v("#b-iaddr")))return("Моля, попълнете име на фирмата, ЕИК и адрес за фактурата.");if(!$("#b-ok").checked)return("Моля, потвърдете, че сте запознат с Общите условия и информацията за защита на личните данни.");return""}
 let sending=false;
 function syncSubmit(){if(sending)return;const er=formErr(),n=$("#b-need");$("#bk button[type=submit]").disabled=!!er;n.textContent=er?"За да изпратите резервацията, попълнете всички задължителни полета и приемете Общите условия.":"";n.hidden=!er}
 ["input","change"].forEach(t=>$("#bk").addEventListener(t,()=>setTimeout(syncSubmit)));
 $("#bk").addEventListener("submit",async e=>{e.preventDefault();$("#b-err").hidden=true;
-const er=formErr();if(er)return fail(er);
-S=Object.assign(S,Object.fromEntries(Object.entries(fields).map(([k,s])=>[k,v(s)])),{idt:idt(),pay:pay(),done:"",bid:"",btok:"",bst:"",bnote:""});store.set(S);
+tidyAdm();const er=formErr();if(er)return fail(er);
+S=Object.assign(S,Object.fromEntries(Object.entries(fields).map(([k,s])=>[k,v(s)])),{idt:idt(),ptype:ptype(),pay:pay(),done:"",bid:"",btok:"",bst:"",bnote:""});store.set(S);
 if(BOOKING_ENDPOINT){const b=$("#bk button[type=submit]"),m=$("#b-msg");sending=b.disabled=true;m.textContent="Изпращаме резервацията…";
-let r="err";newBid="";try{const links=await uploadPhotos(),sb=await sendBooking(links);r=sb==="busy"||sb==="hours"?sb:sb===true?"sent":sb?(await sendAlert(),"sent"):await sendReq(links)}catch(x){}
-sending=b.disabled=false;m.textContent="";syncSubmit();if(r==="hours")return fail("Часът на получаване или връщане е извън работното време: пн–пт 08:00–20:00, сб–нд 09:00–19:00.");if(r==="busy"){loadAvail();return fail("Автомобилът вече е резервиран за част от избрания период. Изберете други дати или друг автомобил.")}if(r!=="sent")return fail("Резервацията не беше изпратена. Опитайте отново или се обадете на +359877748693.");S.done="sent";if(newBid&&S.bid===newBid&&window.metaLead)metaLead(newBid)}else S.done="sms";
+let r="err";newBid="";try{const links=await uploadPhotos(),sb=await sendBooking(links);r=sb==="busy"||sb==="hours"||sb==="address"?sb:sb===true?"sent":sb?(await sendAlert(),"sent"):await sendReq(links)}catch(x){}
+sending=b.disabled=false;m.textContent="";syncSubmit();if(r==="address")return fail("Моля, проверете адреса по документа: изберете град или село и попълнете населеното място и адреса (за българска лична карта – и областта и общината).");if(r==="hours")return fail("Часът на получаване или връщане е извън работното време: пн–пт 08:00–20:00, сб–нд 09:00–19:00.");if(r==="busy"){loadAvail();return fail("Автомобилът вече е резервиран за част от избрания период. Изберете други дати или друг автомобил.")}if(r!=="sent")return fail("Резервацията не беше изпратена. Опитайте отново или се обадете на +359877748693.");S.done="sent";if(newBid&&S.bid===newBid&&window.metaLead)metaLead(newBid)}else S.done="sms";
 store.set(S);location.hash="blagodarim";if(S.done==="sms")sendSms()});
 // ===== Втора страница: данни за резервацията, автомобили и цени =====
 const today=new Intl.DateTimeFormat("en-CA",{timeZone:"Europe/Sofia",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());$("#b-d1").min=$("#b-d2").min=today;

@@ -15,7 +15,7 @@ const PIXEL = "1089565650382038";
 const GIF = Buffer.from("R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7", "base64");
 const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAFklEQVR4nGP8z8DAQAxgYhhVSF+FAMWKAh8Yq0QdAAAAAElFTkSuQmCC", "base64");
 const BID = "SYNBOOKING7", TOK = "syntoken0123456789", DOC = "/api/documents/syndoc-abcdef";
-const SECRET = { name: "ТЕСТ Пиксел", mail: "pixel-test@example.com", phone: "359000000000", egn: "8001019999", idn: "TESTID123456", addr: "ул. Тестова 99", city: "Тестоград", dln: "TESTDL987654", bid: BID, tok: TOK, doc: "syndoc", hash: "blagodarim", cars: "avtomobili" };
+const SECRET = { name: "ТЕСТ Пиксел", mail: "pixel-test@example.com", phone: "359000000000", egn: "8001019999", idn: "TESTID123456", addr: "ул. Тестова 99", city: "Тестоград", reg: "Тестообласт", mun: "Тестообщина", dln: "TESTDL987654", bid: BID, tok: TOK, doc: "syndoc", hash: "blagodarim", cars: "avtomobili" };
 const results = [];
 const check = (n, ok, info = "") => { results.push(ok); console.log(`${ok ? "PASS" : "FAIL"} | ${n}${info ? " | " + info : ""}`); };
 const leaks = (s) => Object.entries(SECRET).filter(([, v]) => s.includes(v) || s.includes(encodeURIComponent(v))).map(([k]) => k);
@@ -61,9 +61,10 @@ async function fill(page) {
   // Без sessionStorage началното състояние не се зарежда – избира се автомобил и период в самата страница.
   if (!(await page.evaluate(() => !!S.car))) await page.evaluate(() => { Object.assign(S, { car: "ka", d1: "2029-04-01", t1: "10:00", d2: "2029-04-03", t2: "10:00", m1: "office", m2: "office", open: true }); writePlan(); $("#plan").hidden = false; renderCars(); renderPick(); });
   await page.waitForSelector("#bk", { state: "visible" });
-  const f = { "#b-name": SECRET.name, "#b-cit": "BG", "#b-phone": "+" + SECRET.phone, "#b-mail": SECRET.mail, "#b-idn": SECRET.idn, "#b-egn": SECRET.egn, "#b-idd": "2020-01-01", "#b-idp": "МВР-ТЕСТ", "#b-city": SECRET.city, "#b-addr": SECRET.addr, "#b-dln": SECRET.dln, "#b-dlname": "ТЕСТ", "#b-dld": "2020-01-01", "#b-dlp": "МВР-ТЕСТ" };
+  const f = { "#b-name": SECRET.name, "#b-cit": "BG", "#b-phone": "+" + SECRET.phone, "#b-mail": SECRET.mail, "#b-idn": SECRET.idn, "#b-egn": SECRET.egn, "#b-idd": "2020-01-01", "#b-idp": "МВР-ТЕСТ", "#b-reg": SECRET.reg, "#b-mun": SECRET.mun, "#b-city": SECRET.city, "#b-addr": SECRET.addr, "#b-dln": SECRET.dln, "#b-dlname": "ТЕСТ", "#b-dld": "2020-01-01", "#b-dlp": "МВР-ТЕСТ" };
   for (const [sel, v] of Object.entries(f)) if (await page.$(sel)) await page.fill(sel, v).catch(() => {});
   for (const id of ["p-idf", "p-idb", "p-dlf", "p-dlb"]) await page.setInputFiles("#" + id, { name: "test.png", mimeType: "image/png", buffer: PNG });
+  await page.check('input[name="ptype"][value="village"]').catch(() => {});
   await page.check("#b-ok").catch(() => {});
   const pay = await page.$('input[name="pay"][value="cash"]'); if (pay) await pay.check();
   await page.waitForTimeout(600);
