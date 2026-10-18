@@ -199,7 +199,7 @@ ${blocked || b.stage === "docs" ? "" : `<button class="ok" name="action" value="
       : `<p>Решението е взето${b.decidedAt ? " на " + esc(b.decidedAt.toLocaleString("bg-BG", { timeZone: "Europe/Sofia" })) : ""}. Клиентът вижда статуса на сайта.</p>` + lifecycle(b);
   return page(
     "Резервация – " + b.name,
-    `<h1>Резервация</h1><span class="badge ${b.status}">${STATUS_BG[b.status] || b.status}</span>${b.stage && b.status === "pending" ? ` <span class="badge pending">${esc(STAGE_LABEL[b.stage] || b.stage)}</span>` : ""}${msg ? `<p><b>${esc(msg)}</b></p>` : ""}${warn}${stageInfo(b)}<div class="kv">${kv}</div><p><a href="${esc(contractLink(origin, b))}" style="display:block;text-align:center;background:#0f1b2d;color:#fff;padding:14px 22px;border-radius:999px;font-weight:700;text-decoration:none;margin-top:16px">📄 Изтегли попълнения договор за наем</a></p>${actions}${kmForm(cd)}`,
+    `<h1>Резервация</h1><span class="badge ${b.status}">${STATUS_BG[b.status] || b.status}</span>${b.stage && b.status === "pending" ? ` <span class="badge pending">${esc(STAGE_LABEL[b.stage] || b.stage)}</span>` : ""}${msg ? `<p><b>${esc(msg)}</b></p>` : ""}${warn}${stageInfo(b)}<div class="kv">${kv}</div><p><a href="${esc(contractLink(origin, b))}" style="display:block;text-align:center;background:#0f1b2d;color:#fff;padding:14px 22px;border-radius:999px;font-weight:700;text-decoration:none;margin-top:16px">📄 Изтегли попълнения договор за наем</a></p>${actions}<p><a href="${esc(origin)}/admin/bookings/${b.id}">Управлявай резервацията в админ панела</a> — отмяна, промяна на часовете и документи (след вход).</p>${kmForm(cd)}`,
   );
 }
 

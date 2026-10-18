@@ -935,6 +935,7 @@ button.btn-ghost{background:transparent}
 <form id="bk" novalidate>
 <fieldset class="fbox"><legend><span class="fn">1</span>Лични данни</legend>
 <div data-flow1><label for="b-name">Имена (както са в личната карта)</label><input id="b-name" autocomplete="name" placeholder="Име, презиме, фамилия" required></div>
+<div><label for="b-mail">Имейл</label><input id="b-mail" type="email" autocomplete="email" placeholder="ivan@example.com" required></div>
 <div data-flow2>
 <div><label for="b-mail-confirm">Потвърди имейл</label><input id="b-mail-confirm" type="email" autocomplete="off" placeholder="ivan@example.com" aria-describedby="email-match" required><small id="email-match" class="hint" role="status"></small></div>
 <div class="row"><div><label for="b-first">Име</label><input id="b-first" autocomplete="given-name" placeholder="Иван" required></div><div><label for="b-middle">Презиме</label><input id="b-middle" autocomplete="additional-name" placeholder="Петров" required></div><div><label for="b-last">Фамилия</label><input id="b-last" autocomplete="family-name" placeholder="Иванов" required></div></div>
@@ -943,7 +944,6 @@ button.btn-ghost{background:transparent}
 </div>
 <div><label for="b-cit">Гражданство</label><input id="b-cit" autocomplete="country-name" value="България" placeholder="напр. България" required></div>
 <div class="row" data-flow1><div><label for="b-phone">Телефон</label><input id="b-phone" type="tel" autocomplete="tel" required></div></div>
-<div><label for="b-mail">Имейл</label><input id="b-mail" type="email" autocomplete="email" placeholder="ivan@example.com" required></div>
 <div data-flow1><label for="b-seat-count">Брой столчета</label><select id="b-seat-count" aria-describedby="b-seat-hint"><option value="0">Без детско столче</option><option value="1">1 столче</option><option value="2">2 столчета</option></select><small class="hint" id="b-seat-hint">Брой столчета (3 € / ден за всяко)</small></div>
 <div class="seg" role="radiogroup" aria-label="Кой ще шофира" data-flow2><label class="opt"><input type="radio" name="rdrv" value="1" checked><span>Аз ще шофирам</span></label><label class="opt"><input type="radio" name="rdrv" value="0"><span>Ще шофира друг човек</span></label></div>
 <div id="main-driver-names" class="row" data-flow2 hidden><div><label for="b-dfirst">Име на водача</label><input id="b-dfirst" placeholder="Георги"></div><div><label for="b-dmiddle">Презиме на водача</label><input id="b-dmiddle" placeholder="Петров"></div><div><label for="b-dlast">Фамилия на водача</label><input id="b-dlast" placeholder="Иванов"></div></div>
@@ -1068,6 +1068,7 @@ const I18N={
 "Ден":["Day","Tag"],
 "Месец":["Month","Monat"],
 "Година":["Year","Jahr"],
+"Тестова версия: реални имейли не се изпращат. Заявката се управлява от админ панела; тази страница показва текущия етап.":["Test version: real emails are disabled. Manage the request in the admin panel; this page shows the current stage.","Testversion: E-Mails sind deaktiviert. Verwalten Sie die Anfrage im Adminbereich; diese Seite zeigt den aktuellen Schritt."],
 "Потвърди имейл":["Confirm email","E-Mail bestätigen"],
 "Телефонен код":["Calling code","Telefonvorwahl"],
 "Име на водача":["Driver first name","Vorname des Fahrers"],
@@ -1956,16 +1957,17 @@ R.note?`\nЗабележка: ${R.note}`:"",`\nЕзик на сайта: ${LANG.
 function fallbackNotice(d){const t=(v,n)=>String(v==null?"":v).replace(/[\r\n\t]+/g," ").trim().slice(0,n||120)||"-",
 ref=/^[A-F0-9]{6}$/.test(d.ref||"")?d.ref:"",place=m=>m==="addr"?"до/от адрес на клиента – уточнете по телефона":"в офиса",
 mail=/^[^\s@<>"]+@[^\s@<>"]+\.[^\s@<>"]+$/.test(d.email||"")?String(d.email).slice(0,200):"";
-const L=ref?["Заявка № "+ref+" е записана в системата. Имейлът с бутоните „Потвърди“ / „Откажи“ и договора не беше изпратен веднага и се изпраща отново автоматично."]
+const L=ref?["Заявка № "+ref+" е записана в системата. Това е резервно известие. За одобрение, отказ или последваща отмяна отворете резервацията в админ панела. В тестовия Preview основните писма до фирмата и клиента са изключени; в production неуспешните писма се опитват отново автоматично."]
 :["ВНИМАНИЕ: сайтът не получи потвърждение, че заявката е записана в системата (сървърът не отговори). Свържете се с клиента, за да я приемете. Ако по-късно пристигне и имейл с бутоните за същата заявка, това е същата заявка."];
 L.push("","Автомобил: "+t(d.car),"Получаване: "+t(d.from,40)+" ("+place(d.m1)+")","Връщане: "+t(d.to,40)+" ("+place(d.m2)+")","Общо за услугите: "+t(d.total,80),"",
 "Клиент: "+t(d.name),"Телефон: "+t(d.phone,40));if(!ref)L.push("Имейл: "+(mail||"-"));
+if(ref&&/^[a-f0-9]{32}$/.test(d.id||"")&&/^https:\/\/(?:rentacar-ptb\.com|(?:deploy-preview-\d+--)?rentacarptb\.netlify\.app)$/.test(d.site||""))L.push("","Управлявай резервацията (след вход в админ панела): "+d.site+"/admin/bookings/"+d.id);
 L.push("","Лични документи, ЕГН, адреси и снимки не се изпращат по този път.");
-return{subject:ref?"Нова заявка № "+ref+" – имейлът с бутоните ще пристигне по-късно":"Нова заявка (без потвърден запис): "+t(d.car)+" – "+t(d.name,60),
+return{subject:ref?"Нова заявка № "+ref+" – резервно известие, управление в панела":"Нова заявка (без потвърден запис): "+t(d.car)+" – "+t(d.name,60),
 from_name:"Rent a Car PTB – сайт",...(mail&&!ref?{replyto:mail}:{}),message:L.join("\n")}}
 /* fallback-notice:end */
 function noticeData(R){const c=CARS.find(x=>x.id===R.car),q=c&&hasD()?quote(c,R):null;
-return{ref:(R.bid||"").slice(0,6).toUpperCase(),car:c?c.name:"",from:R.d1?bf(R.d1,R.t1):"",to:R.d2?bf(R.d2,R.t2):"",m1:R.m1,m2:R.m2,
+return{id:R.bid||"",site:location.origin,ref:(R.bid||"").slice(0,6).toUpperCase(),car:c?c.name:"",from:R.d1?bf(R.d1,R.t1):"",to:R.d2?bf(R.d2,R.t2):"",m1:R.m1,m2:R.m2,
 total:qOk()?Q.d.total:"",name:R.name,phone:R.phone,email:R.mail}}
 const postNotice=async d=>{const r=await fetch(BOOKING_ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({access_key:WEB3FORMS_KEY,...fallbackNotice(d)})});
 const j=await r.json().catch(()=>({}));if(!r.ok||j.success===false)throw 0};
@@ -2197,6 +2199,7 @@ const st=S.bst,stg=V.stage,set=(h,sub,step)=>{$("#th-h").textContent=h;$("#th-su
 if(st==="pending"&&stg==="request")set("Заявката е получена","Проверяваме наличността на автомобила. След одобрение ще получите имейл с линк към тази страница, за да подадете документите на водача.","Одобрение от нас");
 else if(st==="pending"&&stg==="docs"){set("Заявката е одобрена – подайте документите","Попълнете данните и приложете снимки на документите на водача. След проверката ще получите окончателно потвърждение.","Документи");renderDocs(V)}
 else if(st==="pending"&&stg==="review")set("Получени документи — очакват проверка","Благодарим! Проверяваме документите и ще ви изпратим окончателно потвърждение по имейл.","Проверка на документите");
+if(V.mailEnabled===false)$("#th-sub").textContent=tr("Тестова версия: реални имейли не се изпращат. Заявката се управлява от админ панела; тази страница показва текущия етап.");
 const c=CARS.find(x=>x.id===V.carId),row=(k,v)=>v?`<div><span>${esc(k)}</span><b>${esc(v)}</b></div>`:"";
 $("#th-sum").innerHTML=`<h2>Вашата резервация</h2><div class="kv">${row("Заявител",V.name)}${row("Телефон",V.phone)}${row("Автомобил",c?c.name:V.car)}${row("Получаване",V.pickup)}${row("Връщане",V.dropoff)}${row("Общо за услугите",V.total)}${PAY[V.payment]?row("Плащане",PAY[V.payment]):""}${V.drivers?row("Водачи",V.drivers.count===2?"2 (основен и допълнителен)":"1"):""}</div>`}
 // ===== Документи на водачите (етап „docs“): данни, снимки, RENTY10 → POST /api/bookings/:id/documents =====

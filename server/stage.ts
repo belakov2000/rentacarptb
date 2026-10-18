@@ -9,10 +9,10 @@ import { and, eq, isNotNull, isNull, lte } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { bookingEvents, bookings, priceQuotes } from "../db/schema.js";
 import { addressError, docAddress, parseContract, type ContractData } from "../contract/index.js";
-import { btn, esc, mailFooter, mailRow, OWNER_EMAIL, PHONE, wrapMail, type Attachment } from "../mail/index.js";
+import { btn, esc, mailFooter, mailRow, mailAllowed, OWNER_EMAIL, PHONE, wrapMail, type Attachment } from "../mail/index.js";
 import { contracts, saveContract } from "./contracts.js";
 import { sendLogged } from "./email.js";
-import { fmtCents, type Line } from "./pricing.js";
+import { fmtCents, priceLines, type Line } from "./pricing.js";
 import { contractWithPrice, type QuoteInput } from "./quote.js";
 import { deployContext, store } from "./stores.js";
 
@@ -51,7 +51,7 @@ export function couponState(b: Booking, now = new Date()) {
 export function statusView(b: Booking, now = new Date()) {
   const d = driversInfo(b);
   return {
-    status: b.status, note: b.note, stage: b.stage, name: b.name, phone: b.phone, car: b.car, carId: b.carId,
+    mailEnabled: mailAllowed(), status: b.status, note: b.note, stage: b.stage, name: b.name, phone: b.phone, car: b.car, carId: b.carId,
     startDate: b.startDate, startTime: b.startTime, endDate: b.endDate, endTime: b.endTime, pickup: b.pickup, dropoff: b.dropoff,
     total: b.total, totalCents: b.totalCents, payment: b.payment, lines: (b.priceCheck as any)?.server?.lines ?? null,
     ...(d ? { drivers: { count: d.count, requesterDrives: d.requesterDrives, names: d.names } } : {}),
@@ -107,8 +107,10 @@ function appendix(b: Booking, d: Drivers, list: DriverDocs[], lines: Line[], tot
   out.push(`Начин на плащане: ${b.payment === "cash" ? "В брой на място с касов бон" : "По банков път"}.`);
   if (b.invoice) out.push(`Данни за фактура: ${b.invoice}`);
   if (d.comment) out.push(`Коментар към заявката: ${d.comment}`);
+  out.push(`Имена в шофьорската книжка на основния водач: ${list[0].dlname}.`);
+  if (s) out.push(`Имена в шофьорската книжка на втория водач: ${s.dlname}.`);
   if (!out.length) return [];
-  return ["Приложение – допълнителни условия по заявката", ...out, `Обща сума за услугите: ${fmtCents(totalCents)} (гаранционният депозит не е включен).`];
+  return ["Приложение – допълнителни условия по заявката", ...out, ...priceLines({ days: (b.priceCheck as any).server.days, lines, totalCents, depositCents: (b.priceCheck as any).server.depositCents }), `Обща сума за услугите: ${fmtCents(totalCents)} (гаранционният депозит не е включен).`];
 }
 
 export async function submitDocuments(b: Booking, body: any, now = new Date()): Promise<{ ok: true; booking: Booking } | { ok: false; error: DocsError; field?: string; index?: number }> {

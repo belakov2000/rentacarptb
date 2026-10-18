@@ -19,12 +19,13 @@ const row = async (id: string) => (await t.db.select().from(schema.bookings).whe
 const sentTo = (re: RegExp) => mail.sent.filter((m) => re.test(m.subject));
 let k = 0;
 const DEL = "ул. Тестова 3, Пловдив";
+const RET = "ул. Връщане 7, Пловдив";
 async function create(o: { d1: string; d2: string; extras?: any; requesterDrives?: boolean; mkt?: boolean }) {
   k++;
   const body: any = bookingBody(`TS${k}`, o.d1, "10:00", o.d2, "10:00", {
     carId: "golf", car: "golf", requestKey: `two-stage-${k}-key`, flow: 2, drivers: { requesterDrives: o.requesterDrives ?? true }, marketingConsent: !!o.mkt,
     ...(o.extras ? { extras: o.extras } : {}),
-    contract: { ...contractData(o.d1, "10:00", o.d2, "10:00"), del: { addr: DEL, km: 1, rate: 1 } },
+    contract: { ...contractData(o.d1, "10:00", o.d2, "10:00"), del: { addr: DEL, km: 1, rate: 1 }, ret: { addr: RET, km: 1, rate: 1 } },
   });
   body.emailConfirmation = body.email; body.termsAccepted = true;
   body.requester = { first: "ТЕСТ", middle: "Заявител", last: "Иванов", birthDate: "1990-01-01", phoneCountry: "BG", citizen: "България" };
@@ -73,6 +74,13 @@ check("1.2 кратка заявка без документи и снимки: 
   `${A.status} ${a0?.stage}`);
 const own = sentTo(/Нова заявка \(първо одобрение\)/).at(-1);
 check("1.3 служебен имейл: „Одобри и покани за документи“ и линк за управление; без автоматично одобрение", !!own && /Одобри и покани за документи/.test(own.html) && /не одобрява нищо/.test(own.html) && !/Потвърди резервацията/.test(own.html));
+check("1.3b трите служебни бутона и клиентско писмо за получената заявка", !!own && /Одобри и покани/.test(own.html) && /Откажи/.test(own.html) && /Управление на резервацията/.test(own.html) && mail.sent.some(m=>m.to===a0.email));
+setContext("deploy-preview", { cookies: jar, ip: "203.0.113.9" });
+const customerPage = await adminBookingsFn(new Request(`${O}/api/admin/bookings/${a0.id}?view=customer`), { params: { id: a0.id } } as any);
+check("1.3c вписан администратор отваря клиентската страница за текущата среда",customerPage.status===303&&customerPage.headers.get("Location")===`${O}/?b=${a0.id}&t=${a0.viewToken}#blagodarim`);
+setContext("deploy-preview");
+const noCustomerPage=await adminBookingsFn(new Request(`${O}/api/admin/bookings/${a0.id}?view=customer`),{params:{id:a0.id}} as any);
+check("1.3d без вход няма достъп до клиентския линк",noCustomerPage.status===401);
 const v1 = await view(a0.id, a0.viewToken);
 check("1.4 страница на заявката: етап request, сума, водачи; без данни от документи", v1.stage === "request" && v1.status === "pending" && v1.total === a0.total && v1.drivers.count === 2 && !("egn" in v1), JSON.stringify(v1).slice(0, 160));
 const svc = await bookingsFn(new Request(`${O}/api/bookings`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ chains: true }) }), { params: {} } as any);
@@ -169,6 +177,7 @@ check("6.3 приложение: вериги, втори водач с доку
 
 check("6.4 основният договор използва наема след отстъпката, не само приложението", has((rentCents * 0.9 / 100).toFixed(2).replace(".", ",")));
 
+check("6.5 договорът съдържа връщане от адрес, дати, часове, книжки и цялата ценова разбивка",has(RET)&&has("07.09.2028")&&has("10:00")&&has("TEST0002")&&has("DL0002")&&has("Гаранционен депозит")&&has("Доставка до адрес:")&&has("Връщане от адрес:"));
 // ===== 7. Окончателно потвърждение от панела =====
 const md = mail.sent.length;
 const fin = await admin(a0.id, { action: "confirm", notify: true });
@@ -194,4 +203,21 @@ await bookingsFn(new Request(prefUrl), { params: { id: b0.id } } as any);
 check("9.1 opening marketing preference link does not change consent", (await row(b0.id)).marketingConsent);
 await bookingsFn(new Request(prefUrl, { method: "POST" }), { params: { id: b0.id } } as any);
 check("9.2 promotional email opt-out preserves reservation", !(await row(b0.id)).marketingConsent && (await row(b0.id)).stage === "docs");
+// Поправка на часове след окончателно потвърждение: стойността остава,
+// адресите се пазят, а Word договорът се обновява с нова версия.
+const beforeTime=await row(a0.id);
+const ct=await admin(a0.id,{action:"change_times",startTime:"11:00",endTime:"11:00",expectedUpdatedAt:beforeTime.updatedAt?.toISOString()||""});
+const afterTime=await row(a0.id);
+const changedXml=strFromU8(unzipSync(new Uint8Array(stores.get("deploypreview-contracts")!.get(a0.id)!.data))["word/document.xml"]).replace(/<[^>]+>/g,"");
+check("10.1 часовете се поправят; цената, адресите, водачите и услугите се запазват в новия договор",ct.status===200&&ct.json.contract==="saved"&&afterTime.startTime==="11:00"&&afterTime.endTime==="11:00"&&changedXml.includes(DEL)&&changedXml.includes(RET)&&afterTime.totalCents===beforeTime.totalCents&&changedXml.includes("11:00")&&!changedXml.includes("10:00")&&changedXml.includes("TEST0002")&&changedXml.includes("Вериги за сняг"), JSON.stringify({status:ct.status,contract:ct.json.contract,start:afterTime.startTime,end:afterTime.endTime,old:changedXml.includes("10:00"),del:changedXml.includes(DEL),ret:changedXml.includes(RET)}));
+const staleTime=await admin(a0.id,{action:"change_times",startTime:"12:00",endTime:"12:00",expectedUpdatedAt:beforeTime.updatedAt?.toISOString()||""});
+check("10.2 остарял формуляр не презаписва часовете",staleTime.status===409&&staleTime.json.error==="changed");
+const reprice=await admin(a0.id,{action:"change_times",startTime:"10:00",endTime:"12:00",expectedUpdatedAt:afterTime.updatedAt?.toISOString()||""});
+check("10.3 допълнителен платен ден изисква нова цена",reprice.status===409&&reprice.json.error==="reprice"&&(await row(a0.id)).startTime==="11:00");
+await t.q("insert into car_blocks(car_id,start_date,end_date,start_time,end_time,reason,created_by) values ('golf','2028-09-07','2028-09-07','13:00','15:00','test','test')");
+const busyTime=await admin(a0.id,{action:"change_times",startTime:"12:30",endTime:"12:30",expectedUpdatedAt:afterTime.updatedAt?.toISOString()||""});
+check("10.4 конфликт с буфера отказва промяната",busyTime.status===409&&busyTime.json.error==="busy");
+await t.q("update bookings set handed_over_at=now() where id=$1",[a0.id]);
+const handedTime=await admin(a0.id,{action:"change_times",startTime:"12:00",endTime:"12:00",expectedUpdatedAt:afterTime.updatedAt?.toISOString()||""});
+check("10.5 часове не се променят след предаване",handedTime.status===409&&handedTime.json.error==="state");
 await finish();

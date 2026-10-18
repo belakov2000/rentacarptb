@@ -6,6 +6,8 @@ import { parseAmountCents } from "../../db/money.js";
 import { json, requireAdmin } from "../../server/auth.js";
 import {
   act, allowed, confirmBlock, decide, extendRental, pickupAt, quoteExtension, readContractData, REASONS, returnRental, type Action, inviteDocs } from "../../server/booking-actions.js";
+import { changeTimes } from "../../server/change-times.js";
+import { statusLink } from "../../server/stage.js";
 import { findConflict } from "../../server/conflicts.js";
 import { finance } from "../../server/payments.js";
 import { LIST, PAGE, searchWhere, SORTS, sortRows, STATUS_FILTER, viewRows, VIEWS, type ListRow, type View } from "../../server/admin-lists.js";
@@ -76,10 +78,20 @@ export default async (req: Request, context: Context) => {
   }
   if (!ID_RE.test(id)) return json({ error: "not_found" }, 404);
   if (req.method === "GET") {
+    if (new URL(req.url).searchParams.get("view") === "customer") {
+      const [b] = await db.select().from(bookings).where(eq(bookings.id, id));
+      if (!b) return json({ error: "not_found" }, 404);
+      return new Response(null, { status: 303, headers: { Location: statusLink(b, new URL(req.url).origin), "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" } });
+    }
     const d = await detail(id);
     return d ? json(d) : json({ error: "not_found" }, 404);
   }
   const body = await req.json().catch(() => null);
+  if (body?.action === "change_times") {
+    const r = await changeTimes(id, str(body.startTime, 5), str(body.endTime, 5), str(body.expectedUpdatedAt, 40), admin.email);
+    if (!r.ok) return json(r, r.error === "not_found" ? 404 : 409);
+    return json({ ok: true, contract: r.contract, ...(await detail(id)) });
+  }
   if (body?.action === "confirm" || body?.action === "reject") {
     const r = await decide(id, body.action, { actor: admin.email, internalNote: typeof body?.note === "string" ? body.note : "", notify: body?.notify === true });
     if (!r.ok) return json({ error: r.error, ...(r.booking ? await detail(id) : {}) }, r.error === "not_found" ? 404 : 409);

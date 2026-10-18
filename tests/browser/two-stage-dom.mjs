@@ -29,6 +29,7 @@ for(const lang of ['bg','en','de']){
  const $=s=>w.document.querySelector(s),fill=(s,v)=>{const e=$(s);e.value=v;e.dispatchEvent(new w.Event('input',{bubbles:true}));e.dispatchEvent(new w.Event('change',{bubbles:true}));};
  check(lang+': script initialises',!!w.__test&&errors.length===0);
  check(lang+': no initial document fields',[...w.document.querySelectorAll('#bk [data-flow1]')].every(e=>e.hidden));
+ check(lang+': email immediately precedes confirmation',$('#b-mail').parentElement.nextElementSibling.querySelector('input').id==='b-mail-confirm');
  check(lang+': phone country defaults to BG',$('#b-phone-country').value==='BG'&&$('#b-phone-country').options.length>200);
  check(lang+': marketing consent unchecked',!$('#b-mkt').checked);
  for(const [id,v]of Object.entries({'#b-first':'ТЕСТ','#b-middle':'Петров','#b-last':'Иванов','#b-mail':'dom-'+lang+'@example.com','#b-mail-confirm':'wrong@example.com','#b-phone-local':'877123456','#b-bday':'1','#b-bmonth':'1','#b-byear':'1990'}))fill(id,v);
@@ -48,6 +49,7 @@ for(const lang of ['bg','en','de']){
  $('#b-company').checked=false;$('#b-company').dispatchEvent(new w.Event('change',{bubbles:true}));
  $('input[name=pay2][value=cash]').checked=true;$('input[name=pay2][value=cash]').dispatchEvent(new w.Event('change',{bubbles:true}));$('#b-ok').checked=true;
  await poll(()=>w.__test.Q.st==='ok');check(lang+': full form valid with server quote',w.__test.formErr()==='');
+ fill('#b-mail-confirm','different@example.com');await poll(()=>$('#bk button[type=submit]').disabled);check(lang+': submit disabled for different emails',$('#bk button[type=submit]').disabled);fill('#b-mail-confirm','dom-'+lang+'@example.com');await poll(()=>!$('#bk button[type=submit]').disabled);check(lang+': submit enabled for matching emails',!$('#bk button[type=submit]').disabled);
  $('#bk').dispatchEvent(new w.Event('submit',{bubbles:true,cancelable:true}));await poll(()=>w.location.hash==='#blagodarim');
  const rows=await(await fetch(B+'/__e2e/sql?q='+encodeURIComponent("select id,stage,name,phone,drivers,admin_token,view_token from bookings where email='dom-"+lang+"@example.com'"))).json();
  check(lang+': initial submission saved real server/SQL',rows.length===1&&rows[0].stage==='request'&&rows[0].name==='ТЕСТ Петров Иванов'&&rows[0].phone==='+359877123456'&&rows[0].drivers.requester.birthDate==='1990-01-01');
