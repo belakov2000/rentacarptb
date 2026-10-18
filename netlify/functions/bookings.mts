@@ -3,7 +3,6 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { and, eq, gte, sql } from "drizzle-orm";
 import { db } from "../../db/index.js";
 import { bookingEvents, bookings, cars } from "../../db/schema.js";
-import { parseTotalCents, totalReviewOf } from "../../db/money.js";
 import { minutes } from "../../db/slots.js";
 import { sofiaToday, withinHours } from "../../db/hours.js";
 import { addressError, kmRate, parseContract, type ContractData } from "../../contract/index.js";
@@ -16,12 +15,13 @@ import { findConflict, lock, type Conflict } from "../../server/conflicts.js";
 import { parseAttribution } from "../../server/attribution.js";
 import { documentsOf } from "../../server/documents.js";
 import { ownerNewKey, receivedKey, saveOwnerOutbox, sendCustomerReceived, sendOwnerNew } from "../../server/notify.js";
-import { ownerRequestText } from "../../server/request-text.js";
-import { observe } from "../../server/pricing.js";
-import { routeTo } from "../../server/route.js";
+import { ownerRequestText, withServerPrice } from "../../server/request-text.js";
+import { fmtCents, priceLines } from "../../server/pricing.js";
+import { bookingInput, checkInput, claimQuote, contractWithPrice, priceSnapshot, verifyQuote, type QuoteFail } from "../../server/quote.js";
 
 // Резервации с потвърждение от фирмата.
-// POST /api/bookings                 – записва заявката, праща имейл до фирмата с бутони „Потвърди“ / „Откажи“ и потвърждение до клиента, че заявката е получена
+// POST /api/bookings                 – записва заявката, праща имейл до фирмата с бутони „Потвърди“ / „Откажи“ и потвърждение до клиента, че заявката е получена.
+//                                       Цената е само от валидна сървърна оферта (/api/quote, server/quote.ts) – сумата от браузъра не се приема.
 // GET  /api/bookings/:id?t=…         – статус на заявката за страницата „Благодарим“ на клиента
 // GET  /api/bookings/:id/manage?key=… – страница за фирмата с данните и бутоните (линкът е само в имейла)
 // POST /api/bookings/:id/manage?key=… – потвърждава или отказва и праща имейл до клиента; поправя километрите в договора;
@@ -187,22 +187,14 @@ ${blocked ? "" : `<button class="ok" name="action" value="confirm">✓ Потв�
   );
 }
 
-// Наблюдение на цената (server/pricing.ts): записва изчислението и сравнението само в колоните price_check* на резервацията
-// (не в историята booking_events – тя остава историята на действията).
-// Грешка тук никога не спира заявката. Адресите не се записват – само км, тарифа и източник на маршрута.
-async function checkPrice(b: Booking, contract: unknown) {
-  try {
-    const route = async (addr: string) => {
-      const r = await routeTo(addr);
-      return typeof r === "string" ? r : { km: r.km, rate: r.rate, source: r.source };
-    };
-    const c = await observe(b, contract, route);
-    await db.update(bookings).set({ priceCheck: c, priceCheckStatus: c.status, priceCheckedAt: new Date() }).where(eq(bookings.id, b.id));
-  } catch (e) {
-    console.error("Price check failed", (e as Error)?.message);
-    await db.update(bookings).set({ priceCheckStatus: "error", priceCheckedAt: new Date() }).where(eq(bookings.id, b.id)).catch(() => null);
-  }
-}
+// Защо подаването без валидна оферта не е прието (показва се от сайта; по-старите версии на страницата получават 409)
+const QUOTE_MSG: Record<QuoteFail, string> = {
+  quote_required: "Сайтът е обновен. Презаредете страницата и потвърдете цената отново – попълнените данни се пазят.",
+  quote_expired: "Офертата е изтекла. Цената се изчислява отново – проверете я и потвърдете.",
+  quote_mismatch: "Данните за резервацията са променени след изчисляването на цената. Проверете новата цена и потвърдете.",
+  quote_used: "Тази оферта вече е използвана. Цената се изчислява отново – проверете я и потвърдете.",
+  price_changed: "Цената е променена. Проверете новата сума и потвърдете отново.",
+};
 
 export default (req: Request, context: Context) => {
   const url = new URL(req.url);
@@ -226,7 +218,6 @@ async function handle(req: Request, context: Context) {
       car: str(body.car, 120),
       pickup: str(body.pickup),
       dropoff: str(body.dropoff),
-      total: str(body.total, 200),
       carId: CAR_RE.test(str(body.carId, 40)) ? str(body.carId, 40) : "",
       startDate: DATE_RE.test(str(body.startDate, 10)) ? str(body.startDate, 10) : null,
       endDate: DATE_RE.test(str(body.endDate, 10)) ? str(body.endDate, 10) : null,
@@ -260,9 +251,30 @@ async function handle(req: Request, context: Context) {
       return Response.json({ error: "busy" }, { status: 409 });
     }
     const requestKey = REQUEST_KEY_RE.test(str(body.requestKey, 100)) ? str(body.requestKey, 100) : null;
+    // Сървърна цена: входните данни (автомобил, дати, часове, столчета, адреси, държави) трябва да съвпадат с офертата.
+    // Сумите, тарифите и километрите от браузъра не се ползват. Вериги и втори водач още не се предлагат (service).
+    const qi = bookingInput({ carId: b.carId, startDate: b.startDate, startTime: b.startTime, endDate: b.endDate, endTime: b.endTime }, body);
+    const qiErr = "error" in qi ? qi.error : checkInput(qi.input);
+    if (qiErr || "error" in qi) return Response.json({ error: "invalid_services", detail: qiErr }, { status: 400 });
+    const vq = await verifyQuote(body.quote, qi.input, body.quoteTotalCents);
+    if (!vq.ok) {
+      // Повторно изпращане на вече записана заявка (същият requestKey) връща записаната резервация, дори офертата вече да е използвана
+      const [prev] = requestKey ? await db.select().from(bookings).where(eq(bookings.requestKey, requestKey)) : [];
+      if (prev && prev.email.toLowerCase() === b.email.toLowerCase()) return Response.json({ id: prev.id, token: prev.viewToken, status: prev.status, duplicate: true }, { status: 200 });
+      // Само кодът – без данни за клиента (броят на quote_required показва колко отворени по-стари страници засяга преходът)
+      console.warn("Booking rejected", vq.error);
+      const cur = "currentCents" in vq && vq.currentCents != null ? { currentCents: vq.currentCents, currentTotal: fmtCents(vq.currentCents) } : {};
+      return Response.json({ error: vq.error, detail: QUOTE_MSG[vq.error], ...cur }, { status: 409 });
+    }
+    const q = vq.row;
     // Рекламен източник (UTM) – само проверени стойности от едно посещение; при невалиден или липсващ – без източник (server/attribution.ts)
     const utm = parseAttribution(body.attribution);
-    const row = { id: rnd(1), viewToken: rnd(2), adminToken: rnd(2), ...b, requestKey, totalCents: parseTotalCents(b.total), totalReview: totalReviewOf(b.total), ...utm, documents: documentsOf(message, url.origin) };
+    const row = {
+      id: rnd(1), viewToken: rnd(2), adminToken: rnd(2), ...b, requestKey,
+      total: fmtCents(q.totalCents), totalCents: q.totalCents, totalReview: "",
+      priceCheck: priceSnapshot(q), priceCheckStatus: "server", priceCheckedAt: new Date(),
+      ...utm, documents: documentsOf(message, url.origin),
+    };
 
     // Повторно или едновременно изпращане на същата заявка връща вече записаната резервация – без втора резервация и без нови имейли.
     // 1) същият requestKey (уникален индекс в базата); 2) за по-стари страници без ключ – същият клиент, автомобил и период в последните 10 минути.
@@ -292,6 +304,8 @@ async function handle(req: Request, context: Context) {
               .limit(1)
           : [];
       if (same) return { saved: same, duplicate: true };
+      // Една оферта – една резервация (едновременно подаване със същата оферта и различен ключ)
+      if (!(await claimQuote(tx, q.id, row.id))) return { saved: null, duplicate: false };
       const [ins] = await tx.insert(bookings).values(row).returning();
       // Състоянието на известията се записва заедно с резервацията – ако функцията прекъсне, email-retry ги изпраща
       await queueEmail(tx, "owner-new", ownerNewKey(ins.id), ins.id, OWNER_EMAIL);
@@ -299,6 +313,7 @@ async function handle(req: Request, context: Context) {
       await tx.insert(bookingEvents).values({ bookingId: ins.id, actor: "customer", action: "booking.created", details: utm ? { utm: true } : {} });
       return { saved: ins, duplicate: false };
     });
+    if (!saved) return Response.json({ error: "quote_used", detail: QUOTE_MSG.quote_used }, { status: 409 });
     if (duplicate) {
       if (saved.email.toLowerCase() !== b.email.toLowerCase()) return Response.json({ error: "Invalid request" }, { status: 400 });
       return Response.json({ id: saved.id, token: saved.viewToken, status: saved.status, duplicate: true }, { status: 200 });
@@ -311,7 +326,7 @@ async function handle(req: Request, context: Context) {
     try {
       const data = parseContract(body.contract, b.name, b.carId);
       if (!data) console.error("Contract data missing in the booking request");
-      else hasContract = !!(await saveContract(saved.id, data, "customer", "Заявка от сайта"));
+      else hasContract = !!(await saveContract(saved.id, contractWithPrice(data, qi.input, q), "customer", "Заявка от сайта"));
     } catch (e) {
       console.error("Contract could not be generated", (e as Error)?.message);
     }
@@ -328,7 +343,8 @@ async function handle(req: Request, context: Context) {
           // Без ЕГН, номера на документи, адрес по документа и линкове към снимките (server/request-text.ts) –
           // те са в прикачения договор и в админ панела след вход. Снимките не се прикачват и не се изпращат като линкове.
           (photos ? `<p>🪪 <b>Снимки на документите: ${photos}</b> – отварят се само след вход в админ панела.</p><p>${btn(`${url.origin}/admin/bookings/${saved.id}`, "Отвори в админ панела", "#0f1b2d")}</p>` : "") +
-          `<pre style="white-space:pre-wrap;font-family:Arial,sans-serif;background:#f3f5f9;padding:16px;border-radius:12px">${esc(ownerRequestText(message))}</pre>`,
+          // Цената в писмото е сървърната (разбивка от офертата) – редовете за сумите от браузъра се махат
+          `<pre style="white-space:pre-wrap;font-family:Arial,sans-serif;background:#f3f5f9;padding:16px;border-radius:12px">${esc(ownerRequestText(withServerPrice(message, priceLines(vq.price))))}</pre>`,
       );
     const subject = `Нова заявка за наем: ${b.car} – ${b.name}`;
     // Резервацията остава записана и при неуспешен имейл: писмото се пази за повторен опит, а сайтът праща и резервното известие
@@ -339,10 +355,6 @@ async function handle(req: Request, context: Context) {
     } catch (e) {
       console.error("Owner email failed, it will be retried", (e as Error)?.message);
     }
-    // Сървърна проверка на цената – само наблюдение: не променя сумата, договора и писмата и не забавя отговора
-    const check = checkPrice(saved, body.contract);
-    if (context.waitUntil) context.waitUntil(check);
-    else await check;
     // Потвърждение до клиента, че заявката е получена – ако не стигне, се опитва отново по-късно; заявката остава валидна
     await sendCustomerReceived(saved).catch((e) => console.error("Request-received email failed, it will be retried", (e as Error)?.message));
     return Response.json({ id: saved.id, token: saved.viewToken, status: "pending", ...(notified ? {} : { notify: "failed" }) }, { status: 201 });

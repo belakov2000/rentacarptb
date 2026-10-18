@@ -1,18 +1,18 @@
 // Сървърно изчисление на цената по действащите правила на сайта (index.html – CARS/tiers, SEAT, ABROAD, KM, span(), quote()).
-// Етап 1 – само наблюдение (observe): сървърът изчислява цената и я сравнява с подадената от браузъра, но НЕ я налага.
-// Записаната резервация, сумата total, договорът и писмата остават по данните от браузъра. Наблюдението още НЕ защитава
-// от подадена неправилна цена – само показва разликите (bookings.price_check / price_check_status).
+// Етап 2 – сървърът определя цената: /api/quote (server/quote.ts) изчислява офертата, а /api/bookings записва само
+// сума и разбивка от валидна сървърна оферта. Сумата от браузъра не се приема. Записаната резервация (total / totalCents),
+// договорът, писмата и админ панелът ползват тази сума. Старите резервации не се преизчисляват.
 // Константите тук трябва да съвпадат с index.html – проверява го tests/pricing.test.ts.
 // Всички суми са цели евроцентове.
 
-export const PRICING_VERSION = "2026-10-18.1";
+export const PRICING_VERSION = "2026-10-18.2";
 
 // Дневна цена (евро) по брой дни: 1–15 / 16–30 / над 30. Цените вече са крайните (промоцията „−20%“ е само надпис).
 const T20 = [20, 18, 15], T25 = [25, 23, 20];
 export const TIERS: Record<string, readonly number[]> = { punto: T20, ka: T20, ibiza: T25, golf: T25, passat: T25 };
 export const SEAT_DAY = 3; // детско столче, за брой на ден
 export const MAX_SEATS = 2; // формата предлага 1 или 2
-// Вътрешни правила за следващите етапи – още не се предлагат на клиентите и не идват от формата
+// Вътрешни правила за следващите етапи – още не се предлагат на клиентите: /api/quote и /api/bookings ги отказват
 export const CHAINS_DAY = 3.5; // зимни вериги, един комплект за автомобила, на ден
 export const SECOND_DRIVER_DAY = 3; // втори (допълнителен) водач, на ден
 export const DEPOSIT = 100; // гаранционен депозит – не влиза в сумата
@@ -68,77 +68,24 @@ export function price(i: PriceInput): Price {
   return { ok: true, days: d, dailyCents: cents(r), rentCents: cents(r) * d, lines, totalCents: lines.reduce((t, l) => t + l.cents, 0), depositCents: cents(DEPOSIT) };
 }
 
-// ===== Наблюдение: сравнение със заявката от браузъра =====
-// status: match – еднакво; mismatch – има разлика (reasons); incomplete – сравнението не може да бъде завършено
-// (напр. маршрутът не е изчислен на сървъра – тогава НЕ се приема нито нулева доставка, нито стойността от браузъра);
-// error – неочаквана грешка. Адресите не се записват – само км, тарифа и източник на маршрута.
-export type RouteFn = (addr: string) => Promise<{ km: number; rate: number; source: string } | string>;
-export type Check = {
-  version: string; status: "match" | "mismatch" | "incomplete" | "error"; reasons: string[];
-  // Сума от браузъра − сървърна сума (центове); null – няма с какво да се сравни
-  diffCents: number | null;
-  server: { days: number; dailyCents: number; rentCents: number; lines: Line[]; totalCents: number } | null;
-  client: { totalCents: number | null; days: number | null; rentCents: number | null; seats: number; del: Leg; ret: Leg };
-  route: { del?: { km: number; rate: number; source: string } | string; ret?: { km: number; rate: number; source: string } | string };
+// ===== Текст на сумите (същият формат като fmt() на сайта и db/money.ts: „50 €“, „12,40 €“) =====
+export const fmtCents = (c: number) => {
+  const s = (c / 100).toFixed(2).replace(".", ",");
+  return (s.endsWith(",00") ? s.slice(0, -3) : s) + " €";
 };
+const kmTxt = (km: number) => String(km).replace(".", ",");
+const rateTxt = (r: number) => r.toFixed(2).replace(".", ",") + " €/км";
+export const countryName = (code: string) => ABROAD.find(([k]) => k === code)?.[1] || code;
 
-type Booking = { carId: string; startDate: string | null; startTime: string; endDate: string | null; endTime: string; totalCents: number | null };
-const numOrNull = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : null);
-const legOf = (v: any): { addr: string; km: number | null; rate: number | null } | null =>
-  v && typeof v === "object" && typeof v.addr === "string" && v.addr.trim() ? { addr: v.addr.trim().slice(0, 200), km: numOrNull(v.km), rate: numOrNull(v.rate) } : null;
-
-export async function observe(b: Booking, contract: unknown, route: RouteFn, o: { timeoutMs?: number } = {}): Promise<Check> {
-  const c = (contract && typeof contract === "object" ? contract : null) as Record<string, any> | null;
-  const reasons: string[] = [];
-  const seats = c ? Math.floor(numOrNull(c.seatN) ?? 0) * (numOrNull(c.seat) || numOrNull(c.seatDay) ? 1 : 0) : 0;
-  const del = c ? legOf(c.del) : null, ret = c ? legOf(c.ret) : null;
-  const client: Check["client"] = {
-    totalCents: b.totalCents, days: c ? numOrNull(c.days) : null, rentCents: c && numOrNull(c.rent) != null ? cents(c.rent) : null, seats,
-    del: del && del.km != null && del.rate != null ? { km: del.km, rate: del.rate } : null,
-    ret: ret && ret.km != null && ret.rate != null ? { km: ret.km, rate: ret.rate } : null,
-  };
-  const out = (status: Check["status"], server: Check["server"] = null, routeInfo: Check["route"] = {}): Check => ({
-    version: PRICING_VERSION, status, reasons, server, client, route: routeInfo,
-    diffCents: server && client.totalCents != null ? client.totalCents - server.totalCents : null,
+// Разбивката като редове текст – за известието до фирмата (без адреси и лични данни)
+export function priceLines(p: { days: number; lines: Line[]; totalCents: number; depositCents: number }) {
+  const out = p.lines.map((l) => {
+    if (l.code === "rent") return `Наем: ${p.days} ${p.days === 1 ? "ден" : "дни"} × ${fmtCents(l.unitCents!)} = ${fmtCents(l.cents)}`;
+    if (l.code === "seats") return `Детско столче: ${l.qty! / p.days} бр. × ${p.days} ${p.days === 1 ? "ден" : "дни"} × ${fmtCents(l.unitCents!)} = ${fmtCents(l.cents)}`;
+    if (l.code === "delivery") return `Доставка до адрес: ${kmTxt(l.km!)} км × ${rateTxt(l.rate!)} = ${fmtCents(l.cents)}`;
+    if (l.code === "return") return `Връщане от адрес: ${kmTxt(l.km!)} км × ${rateTxt(l.rate!)} = ${fmtCents(l.cents)}`;
+    if (l.code === "abroad") return `Пътуване в чужбина – ${countryName(l.country!)}: ${fmtCents(l.cents)}`;
+    return `${l.code}: ${fmtCents(l.cents)}`;
   });
-  if (!c) return reasons.push("no_contract"), out("incomplete");
-  if (!b.startDate || !b.endDate) return reasons.push("no_dates"), out("incomplete");
-
-  // Държави – по името от формата (браузърът праща имената); непознато име е разлика, не се пропуска
-  const abroad: string[] = [];
-  for (const a of Array.isArray(c.abroad) ? c.abroad.slice(0, 20) : []) {
-    const hit = ABROAD.find(([, n]) => n === String(a?.name ?? "").trim());
-    if (hit) abroad.push(hit[0]);
-    else reasons.push("unknown_country");
-  }
-
-  // Маршрутите се изчисляват отново на сървъра; при неуспех – incomplete (без нула и без стойността от браузъра)
-  const routeInfo: Check["route"] = {};
-  const timeout = o.timeoutMs ?? 10_000;
-  const legs: Record<"del" | "ret", Leg> = { del: null, ret: null };
-  for (const [k, l] of [["del", del], ["ret", ret]] as const) {
-    if (!l) continue;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const r = await Promise.race([route(l.addr).catch(() => "error"), new Promise<string>((res) => (timer = setTimeout(() => res("timeout"), timeout)))]);
-    clearTimeout(timer);
-    routeInfo[k] = r;
-    if (typeof r === "string") reasons.push(`route_${k}_${r}`);
-    else legs[k] = { km: r.km, rate: r.rate };
-  }
-  if ((del && !legs.del) || (ret && !legs.ret)) return out("incomplete", null, routeInfo);
-
-  const p = price({ carId: b.carId, startDate: b.startDate, startTime: b.startTime, endDate: b.endDate, endTime: b.endTime, seats, del: legs.del, ret: legs.ret, abroad });
-  if (!p.ok) return reasons.push(`server_${p.error}`), out(p.error === "seats" || p.error === "country" ? "mismatch" : "incomplete", null, routeInfo);
-  const server = { days: p.days, dailyCents: p.dailyCents, rentCents: p.rentCents, lines: p.lines, totalCents: p.totalCents };
-  // Браузърът е показал сума без доставката (разстоянието не е било изчислено) – сумата не може да бъде сравнена
-  if (b.totalCents == null) return reasons.push("client_total_unparsed"), out("incomplete", server, routeInfo);
-  if (client.days !== p.days) reasons.push("days");
-  if (client.rentCents !== p.rentCents) reasons.push("rent");
-  for (const k of ["del", "ret"] as const) {
-    const s = legs[k], cl = client[k];
-    if (s && (!cl || cl.km !== s.km)) reasons.push(`km_${k}`);
-    if (s && cl && cl.rate !== s.rate) reasons.push(`rate_${k}`);
-  }
-  if (b.totalCents !== p.totalCents) reasons.push("total");
-  return out(reasons.length ? "mismatch" : "match", server, routeInfo);
+  return [...out, `Общо за услугите: ${fmtCents(p.totalCents)}`, `Гаранционен депозит (не е част от сумата): ${fmtCents(p.depositCents)}`];
 }

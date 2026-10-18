@@ -7,6 +7,8 @@ import jpeg from "jpeg-js";
 import { readdirSync, readFileSync } from "node:fs";
 import * as schema from "../../db/schema.ts";
 import { state } from "./stubs/db.ts";
+import quoteFn from "../../netlify/functions/quote.mts";
+import { bookingInput } from "../../server/quote.ts";
 
 export { schema };
 export const MIG = "netlify/database/migrations";
@@ -105,7 +107,7 @@ export function bookingBody(s: string, d1: string, t1: string, d2: string, t2: s
   };
 }
 export const contractData = (d1: string, t1: string, d2: string, t2: string) => ({
-  citizen: "BG", idt: "id", idn: "000", egn: "0000000000", d1, t1, d2, t2, days: 2, rent: 50, seat: 0, seatN: 0, del: { addr: "тест", km: 5, rate: 1 }, ret: null, abroad: [],
+  citizen: "BG", idt: "id", idn: "000", egn: "0000000000", d1, t1, d2, t2, days: 2, rent: 50, seat: 0, seatN: 0, del: { addr: "ул. Тестова 1", km: 5, rate: 1 }, ret: null, abroad: [],
 });
 
 // ===== Фалшив Netlify Identity (GoTrue): /token, /user, /logout – както ги вика @netlify/identity на сървъра =====
@@ -118,7 +120,27 @@ export const identity = {
 export function fakeJwt(email: string, roles: string[] = [], exp = Math.floor(Date.now() / 1000) + 3600) {
   return `${b64({ alg: "HS256", typ: "JWT" })}.${b64({ sub: "u-" + email, email, exp, app_metadata: { roles } })}.${b64("sig-" + Math.random())}`;
 }
+// ===== Симулирани маршрути (OpenStreetMap / OSRM) – без реални заявки и без ключ за Google =====
+// Адрес с „Мрежа“ → мрежова грешка; „Няма“ → адресът не е намерен; „Далеч“ → извън зоната на Пловдив (150 км, 0,70 €/км);
+// иначе 5 км в зоната (1,00 €/км). routes.calls брои заявките за търсене на адрес (платените в реалната среда).
+// delayMs – забавяне на отговора на доставчика (за проверката на едновременни заявки за един адрес)
+export const routes = { calls: 0, delayMs: 0, urls: [] as string[] };
+const fakeRoute = async (url: string) => {
+  if (url.includes("nominatim.openstreetmap.org")) {
+    routes.calls++;
+    routes.urls.push(url);
+    if (routes.delayMs) await new Promise((r) => setTimeout(r, routes.delayMs));
+    const q = decodeURIComponent(url);
+    if (q.includes("Мрежа")) throw new TypeError("fetch failed");
+    if (q.includes("Няма")) return Response.json([]);
+    return Response.json([q.includes("Далеч") ? { lat: "42.70", lon: "23.32", display_name: "Синтетично място далеч" } : { lat: "42.15", lon: "24.75", display_name: "Синтетично място, Пловдив" }]);
+  }
+  if (url.includes("router.project-osrm.org")) return Response.json({ code: "Ok", routes: [{ distance: url.includes("23.32,42.7") ? 150000 : 5000 }] });
+  return null;
+};
 http.handler = async (url, init) => {
+  const fr = await fakeRoute(url);
+  if (fr) return fr;
   const m = /\/\.netlify\/identity(\/[a-z]+)/.exec(url);
   if (!m) return null;
   identity.calls.push(m[1]);
@@ -152,4 +174,19 @@ export function adminJar(email = "admin@example.com", roles = ["admin"]) {
   identity.tokens.set(tok, email);
   jar.set({ name: "nf_jwt", value: tok });
   return jar;
+}
+
+// ===== Сървърна оферта (/api/quote) за тестова заявка =====
+// Входните данни се вземат от тялото на заявката по същото правило като на сървъра (server/quote.ts → bookingInput);
+// ако офертата не може да бъде изчислена, тялото се връща без нея (тестът проверява отговора на /api/bookings).
+export async function quoteFor(body: any, ip = "203.0.113.50") {
+  const i = bookingInput({ carId: body.carId, startDate: body.startDate, startTime: body.startTime, endDate: body.endDate, endTime: body.endTime }, body);
+  if ("error" in i) return { status: 400, json: { error: i.error } as any };
+  const { del, ret, ...rest } = i.input;
+  const r = await quoteFn(new Request(O + "/api/quote", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...rest, delivery: del, return: ret }) }), { ip } as any);
+  return { status: r.status, json: (await r.json()) as any };
+}
+export async function withQuote(body: any) {
+  const q = await quoteFor(body);
+  return q.status === 200 ? { ...body, quote: q.json.quote, quoteTotalCents: q.json.totalCents } : body;
 }

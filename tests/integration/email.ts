@@ -1,6 +1,6 @@
 // Имейли: успех, отказ на Brevo, изтекло време, изгубен отговор след приемане, повторни опити, изчерпване, лог и дублиране.
 import { eq, sql } from "drizzle-orm";
-import { bookingBody, check, contractData, finish, freshDb, mail, O, setContext, schema } from "./harness.ts";
+import { bookingBody, check, contractData, finish, freshDb, mail, O, setContext, schema, withQuote } from "./harness.ts";
 import { stores } from "./stubs/blobs.ts";
 import { MAX_ATTEMPTS, sendLogged, dueEmails } from "../../server/email.ts";
 import bookingsFn from "../../netlify/functions/bookings.mts";
@@ -60,7 +60,7 @@ check("Изгубен отговор (клиент): 1 доставено пис
 
 // 6. Нова заявка при недостъпен Brevo: резервацията се пази, писмата се опитват отново
 mail.fail = () => "Brevo error 503: temporary";
-const res = await bookingsFn(new Request(`${O}/api/bookings`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(bookingBody("Down", "2028-07-01", "10:00", "2028-07-02", "10:00", { requestKey: "email-down-0001", contract: contractData("2028-07-01", "10:00", "2028-07-02", "10:00") })) }), { params: {} } as any);
+const res = await bookingsFn(new Request(`${O}/api/bookings`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(await withQuote(bookingBody("Down", "2028-07-01", "10:00", "2028-07-02", "10:00", { requestKey: "email-down-0001", contract: contractData("2028-07-01", "10:00", "2028-07-02", "10:00") }))) }), { params: {} } as any);
 const j = await res.json();
 const [bk] = await t.db.select().from(schema.bookings).where(eq(schema.bookings.id, j.id));
 check("Brevo недостъпен: заявката е записана (201, notify=failed)", res.status === 201 && j.notify === "failed" && !!bk, `HTTP ${res.status}`);
@@ -68,7 +68,7 @@ check("…договорът е свързан със записаната ре�
 check("…писмото до фирмата чака в mail-outbox", stores.get("deploypreview-mail-outbox")!.has(`owner-new/${j.id}`), "");
 check("…в лога: owner-new и customer-received са failed", (await log(`owner-new:${j.id}`)).status === "failed" && (await log(`customer-received:${j.id}`)).status === "failed", "");
 // Повторно изпращане на формата при недостъпен Brevo → същата резервация, без нови писма
-const again = await bookingsFn(new Request(`${O}/api/bookings`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(bookingBody("Down", "2028-07-01", "10:00", "2028-07-02", "10:00", { requestKey: "email-down-0001" })) }), { params: {} } as any);
+const again = await bookingsFn(new Request(`${O}/api/bookings`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(await withQuote(bookingBody("Down", "2028-07-01", "10:00", "2028-07-02", "10:00", { requestKey: "email-down-0001" }))) }), { params: {} } as any);
 const cnt = (await t.q("select count(*)::int n from bookings where email='test-down@example.com'")).rows[0].n;
 check("Повторен опит от клиента не създава нова резервация", (await again.json()).id === j.id && cnt === 1, `резервации: ${cnt}`);
 // Brevo се възстановява
@@ -85,7 +85,7 @@ check("…mail-outbox е изчистен след изпращане", !stores.
 
 // 7. Изгубен отговор за писмото до фирмата: повтаря се с отбелязана тема
 mail.network = (m) => (m.subject.includes("ТЕСТ Lost") ? "lost" : null);
-const res2 = await bookingsFn(new Request(`${O}/api/bookings`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(bookingBody("Lost", "2028-08-01", "10:00", "2028-08-02", "10:00", { requestKey: "email-lost-0001" })) }), { params: {} } as any);
+const res2 = await bookingsFn(new Request(`${O}/api/bookings`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(await withQuote(bookingBody("Lost", "2028-08-01", "10:00", "2028-08-02", "10:00", { requestKey: "email-lost-0001" }))) }), { params: {} } as any);
 const j2 = await res2.json();
 reset();
 check("Изгубен отговор (фирма): заявката е записана, notify=failed, статус unknown", res2.status === 201 && j2.notify === "failed" && (await log(`owner-new:${j2.id}`)).status === "unknown", "");

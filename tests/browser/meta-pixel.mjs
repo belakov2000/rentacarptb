@@ -7,6 +7,7 @@
 // Само синтетични данни.
 import { readFileSync } from "node:fs";
 import { chromium } from "playwright-core";
+import { fulfillQuote } from "./quote-stub.mjs";
 
 const B = (process.argv[2] || "").replace(/\/$/, "");
 if (!/^(https:\/\/[\w-]+--rentacarptb\.netlify\.app|http:\/\/(localhost|127\.0\.0\.1):\d+)$/.test(B)) { console.error("Задайте адреса на Deploy Preview или локален сървър (не production)."); process.exit(1); }
@@ -34,6 +35,7 @@ async function session({ consent, storageFails = false, path = "/", booking = "o
     if (u.pathname === "/api/availability") return r.fulfill({ json: { cars: {}, buffer: 0 } });
     if (u.pathname === "/api/documents" && m === "POST") return r.fulfill({ json: { url: B + DOC + Math.random().toString(36).slice(2, 6) } });
     if (u.pathname === "/api/route") return r.fulfill({ json: { km: 10, rate: 0.5 } });
+    if (u.pathname === "/api/quote" && m === "POST") return fulfillQuote(r);
     if (u.pathname === "/api/bookings" && m === "POST") {
       api.push(st.booking);
       if (st.booking === "busy") return r.fulfill({ status: 409, json: { error: "busy" } });

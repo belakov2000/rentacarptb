@@ -1,6 +1,6 @@
 // Изолация на Netlify Blobs: функциите в Deploy Preview не четат и не променят продукционните хранилища.
 import { randomBytes } from "node:crypto";
-import { adminJar, bookingBody, check, contractData, finish, freshDb, O, setContext, schema, syntheticJpeg } from "./harness.ts";
+import { adminJar, bookingBody, check, contractData, finish, freshDb, O, setContext, schema, syntheticJpeg, withQuote } from "./harness.ts";
 import { fingerprint, getStore, stores } from "./stubs/blobs.ts";
 import { storeName } from "../../server/stores.ts";
 import bookingsFn from "../../netlify/functions/bookings.mts";
@@ -31,7 +31,7 @@ await getStore("deploypreview-backups").set("db/deploy-preview/2020-01-01.json",
 const call = (url: string, init: RequestInit = {}, params: Record<string, string> = {}) => bookingsFn(new Request(url, init), { params } as any);
 // Заявката идва „към продукционния домейн“ с подправени заглавки – изборът не зависи от тях
 const forged = { "Content-Type": "application/json", Host: "rentacar-ptb.com", "X-Nf-Deploy-Context": "production", "X-Forwarded-Host": "rentacar-ptb.com" };
-const r = await call("https://rentacar-ptb.com/api/bookings", { method: "POST", headers: forged, body: JSON.stringify(bookingBody("ISO", "2027-04-01", "10:00", "2027-04-03", "10:00", { requestKey: "iso-test-0001", contract: contractData("2027-04-01", "10:00", "2027-04-03", "10:00") })) });
+const r = await call("https://rentacar-ptb.com/api/bookings", { method: "POST", headers: forged, body: JSON.stringify(await withQuote(bookingBody("ISO", "2027-04-01", "10:00", "2027-04-03", "10:00", { requestKey: "iso-test-0001", contract: contractData("2027-04-01", "10:00", "2027-04-03", "10:00") }))) });
 const { id } = await r.json();
 const [b] = await t.db.select().from(schema.bookings);
 await call(`${O}/api/bookings/${id}/manage?key=${b.adminToken}`, { method: "POST", body: new URLSearchParams({ action: "km", kmDel: "9", kmDelRate: "1" }) }, { id }); // промяна
@@ -58,7 +58,7 @@ check("В продукционните хранилища няма нов клю
 
 // 4. Същите операции в продукция пишат в продукционните хранилища (контролна проверка, че тестът различава средите)
 setContext("production");
-const r2 = await call(`${O}/api/bookings`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(bookingBody("PROD", "2027-05-01", "10:00", "2027-05-03", "10:00", { requestKey: "iso-test-0002", contract: contractData("2027-05-01", "10:00", "2027-05-03", "10:00") })) });
+const r2 = await call(`${O}/api/bookings`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(await withQuote(bookingBody("PROD", "2027-05-01", "10:00", "2027-05-03", "10:00", { requestKey: "iso-test-0002", contract: contractData("2027-05-01", "10:00", "2027-05-03", "10:00") }))) });
 const id2 = (await r2.json()).id;
 check("Контрола: в продукция договорът отива в продукционното хранилище", stores.get("contracts")!.has(id2) && !stores.get("deploypreview-contracts")!.has(id2), "");
 await finish();

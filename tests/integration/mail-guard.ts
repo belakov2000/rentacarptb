@@ -1,13 +1,13 @@
 // Писма извън продукция: в Deploy Preview не се изпращат (BREVO_API_KEY е зададен за всички среди), заявката се записва,
 // писмото е в email_log като неуспешно, а отговорът към сайта е notify: "failed" (сайтът показва резервното известие).
 // В продукция писмата се изпращат. Само синтетични данни; Brevo е подменен (harness.ts).
-import { bookingBody, check, finish, freshDb, mail, O, setContext } from "./harness.ts";
+import { bookingBody, check, finish, freshDb, mail, O, setContext, withQuote } from "./harness.ts";
 import bookingsFn from "../../netlify/functions/bookings.mts";
 import { mailAllowed } from "../../mail/index.ts";
 
 const t = await freshDb("mailguard");
 t.use();
-const post = (n: string) => bookingsFn(new Request(`${O}/api/bookings`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(bookingBody(n, "2029-09-01", "10:00", "2029-09-03", "10:00", { carId: "ka", requestKey: `guard-${n}-key1` })) }), { params: {} } as any);
+const post = async (n: string) => bookingsFn(new Request(`${O}/api/bookings`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(await withQuote(bookingBody(n, "2029-09-01", "10:00", "2029-09-03", "10:00", { carId: "ka", requestKey: `guard-${n}-key1` }))) }), { params: {} } as any);
 
 delete process.env.MAIL_OUTSIDE_PRODUCTION;
 for (const ctx of ["deploy-preview", "branch-deploy", "dev", undefined]) {

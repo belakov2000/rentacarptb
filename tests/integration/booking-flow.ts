@@ -2,7 +2,7 @@
 // повторни заявки и откази при изпращане на имейли. Резултатите се сравняват с първоначалния отчет.
 import { eq, sql } from "drizzle-orm";
 import { strFromU8, unzipSync } from "fflate";
-import { bookingBody, check, contractData, finish, freshDb, mail, O, setContext, schema } from "./harness.ts";
+import { bookingBody, check, contractData, finish, freshDb, mail, O, setContext, schema, withQuote } from "./harness.ts";
 import { stores } from "./stubs/blobs.ts";
 import bookingsFn from "../../netlify/functions/bookings.mts";
 import retryFn from "../../netlify/functions/email-retry.mts";
@@ -13,7 +13,7 @@ const t = await freshDb("flow");
 t.use();
 const C = () => stores.get("deploypreview-contracts")!;
 const call = (url: string, init: RequestInit = {}, id = "") => bookingsFn(new Request(url, init), { params: id ? { id } : {} } as any);
-const create = async (body: any) => { const r = await call(`${O}/api/bookings`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }); return { status: r.status, json: await r.json().catch(() => ({})) }; };
+const create = async (body: any) => { const r = await call(`${O}/api/bookings`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(await withQuote(body)) }); return { status: r.status, json: await r.json().catch(() => ({})) }; };
 const row = async (id: string) => (await t.db.select().from(schema.bookings).where(eq(schema.bookings.id, id)))[0];
 const manage = async (id: string, action?: string, extra: Record<string, string> = {}) => {
   const b = await row(id);
@@ -29,7 +29,8 @@ const cnt = async () => (await t.q("select count(*)::int n from bookings")).rows
 let n0 = mail.sent.length;
 const A = await create(req("A", "2027-03-01", "10:00", "2027-03-03", "10:00", true));
 const a = await row(A.json.id);
-check("1. Нова заявка се записва", A.status === 201 && a.status === "pending" && a.total === "50 €" && a.totalCents === 5000, `HTTP ${A.status}, total_cents ${a.totalCents}`);
+// Сумата е сървърната: 2 дни × 25 € + доставка 5 км × 1,00 € (симулиран маршрут) = 55 €; „50 €“ от браузъра не се приема
+check("1. Нова заявка се записва (със сървърната сума)", A.status === 201 && a.status === "pending" && a.total === "55 €" && a.totalCents === 5500 && a.priceCheckStatus === "server", `HTTP ${A.status}, total_cents ${a.totalCents}`);
 const m = mail.sent.slice(n0);
 check("2. Имейли при нова заявка (фирма с договор + клиент)", m.length === 2 && m[0].attachments === 1 && m[1].to === "test-a@example.com", m.map((x) => x.subject.slice(0, 30)).join(" | "));
 const st = await call(`${O}/api/bookings/${a.id}?t=${a.viewToken}`, {}, a.id);

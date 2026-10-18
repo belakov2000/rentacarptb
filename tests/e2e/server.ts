@@ -29,6 +29,7 @@ const ROUTES: [RegExp, any, string[]][] = [
   [/^\/api\/availability$/, F.availability, []],
   [/^\/api\/documents(?:\/([a-f0-9]{64}))?$/, F.documents, ["id"]],
   [/^\/api\/bookings(?:\/([a-f0-9]{32})(?:\/(?:manage|contract))?)?$/, F.bookings, ["id"]],
+  [/^\/api\/quote$/, F.quote, []],
 ];
 const TYPES: Record<string, string> = { ".html": "text/html; charset=utf-8", ".png": "image/png", ".jpg": "image/jpeg", ".js": "text/javascript", ".txt": "text/plain", ".xml": "application/xml" };
 

@@ -2,7 +2,7 @@
 // Само синтетични данни и тестови получатели (@example.com); имейлите към Brevo се прихващат (harness.ts).
 import { eq } from "drizzle-orm";
 import { readFileSync } from "node:fs";
-import { bookingBody, check, contractData, cookieJar, finish, freshDb, identity, O, schema, setContext } from "./harness.ts";
+import { bookingBody, check, contractData, cookieJar, finish, freshDb, identity, O, schema, setContext, withQuote } from "./harness.ts";
 import bookingsFn from "../../netlify/functions/bookings.mts";
 import authFn from "../../netlify/functions/admin-auth.mts";
 import adminBookingsFn from "../../netlify/functions/admin-bookings.mts";
@@ -22,7 +22,7 @@ const ad = (content: string, at = new Date().toISOString(), extra: Record<string
 const row = async (id: string) => (await t.db.select().from(schema.bookings).where(eq(schema.bookings.id, id)))[0];
 const create = async (s: string, d: string, extra: Record<string, unknown>) => {
   setContext("deploy-preview");
-  const r = await bookingsFn(new Request(`${O}/api/bookings`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(bookingBody(s, d, "10:00", d, "18:00", { requestKey: `ads-${s}-key`, contract: contractData(d, "10:00", d, "18:00"), ...extra })) }), { params: {} } as any);
+  const r = await bookingsFn(new Request(`${O}/api/bookings`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(await withQuote(bookingBody(s, d, "10:00", d, "18:00", { requestKey: `ads-${s}-key`, contract: contractData(d, "10:00", d, "18:00"), ...extra }))) }), { params: {} } as any);
   return { status: r.status, json: await r.json().catch(() => ({})) };
 };
 

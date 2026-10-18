@@ -1,7 +1,7 @@
-// Етап 1: сървърна проверка на цената (само наблюдение), защитени снимки на документите и известие до фирмата без
+// Етап 1: цена (вече етап 2 – виж quote.ts), защитени снимки на документите и известие до фирмата без
 // лични идентификатори. Синтетични данни; маршрутите, Brevo и Identity са прихванати (harness.ts).
 import { eq } from "drizzle-orm";
-import { adminJar, bookingBody, check, cookieJar, finish, freshDb, http, mail, O, schema, setContext, syntheticJpeg } from "./harness.ts";
+import { adminJar, bookingBody, check, cookieJar, finish, freshDb, http, mail, O, schema, setContext, syntheticJpeg, withQuote } from "./harness.ts";
 import { stores } from "./stubs/blobs.ts";
 import bookingsFn from "../../netlify/functions/bookings.mts";
 import documentsFn, { UPLOAD_LIMITS } from "../../netlify/functions/documents.mts";
@@ -46,37 +46,22 @@ async function create(o: { total?: string; contract?: unknown; d1?: string; d2?:
   k++;
   const d1 = o.d1 || `2027-05-${String(2 * k + 1).padStart(2, "0")}`, d2 = o.d2 || `2027-05-${String(2 * k + 2).padStart(2, "0")}`;
   const body = bookingBody(`S${k}`, d1, "10:00", d2, "10:00", { requestKey: `stage1-${k}-key`, total: o.total ?? "25 €", message, ...(o.contract !== undefined ? { contract: o.contract } : {}) });
-  const r = await bookingsFn(new Request(`${O}/api/bookings`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }), { params: {} } as any);
+  const r = await bookingsFn(new Request(`${O}/api/bookings`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(await withQuote(body)) }), { params: {} } as any);
   const j = await r.json();
   return { status: r.status, id: j.id as string, name: body.name };
 }
 
-// ===== 1. Наблюдение на цената =====
-const m1 = await create({ contract: contract({ days: 1, rent: 25 }) });
+// ===== 1. Цена =====
+// Етапът „наблюдение“ (1.1–1.7: сравнение със сумата от браузъра, без да я променя) е заменен от етап 2 – сървърът определя
+// цената (подробните проверки са в tests/integration/quote.ts). Тук: сумата от браузъра не се записва.
+const m1 = await create({ total: "1 €", contract: contract({ days: 1, rent: 1 }) });
 const r1 = await row(m1.id);
-check("1.1 сумата съвпада → price_check_status = match; историята на действията остава без нов запис", m1.status === 201 && r1.priceCheckStatus === "match" && (r1.priceCheck as any).server.totalCents === 2500 && r1.priceCheckedAt != null && (await events(m1.id, "price.observe")).length === 0, `${r1.priceCheckStatus}`);
-const m2 = await create({ total: "1 €", contract: contract({ days: 1, rent: 1 }) });
-const r2 = await row(m2.id);
-const cd2 = JSON.parse(Buffer.from(stores.get("deploypreview-contracts")!.get(m2.id + ".json")!.data).toString());
-check("1.2 подадена неправилна сума → mismatch, но observe НЕ я променя (total, total_cents и договорът са от браузъра)",
-  r2.priceCheckStatus === "mismatch" && r2.total === "1 €" && r2.totalCents === 100 && cd2.rent === 1 && (r2.priceCheck as any).reasons.includes("total"), JSON.stringify((r2.priceCheck as any).reasons));
-const pc2 = r2.priceCheck as any;
-check("1.3 записът на проверката е без лични данни: статус, причини и разлика в центове", pc2.diffCents === 100 - 2500 && !/ТЕСТ|example|Документ|8001010000/.test(JSON.stringify(pc2)), JSON.stringify(pc2.reasons));
-const m3 = await create({ total: "37,40 €", contract: contract({ days: 1, rent: 25, del: { addr: "ул. Синтетична 1", km: 12.4, rate: 1 } }) });
-const r3 = await row(m3.id);
-check("1.4 доставка: маршрутът се изчислява отново на сървъра → match; адресът не се записва", r3.priceCheckStatus === "match" && !JSON.stringify(r3.priceCheck).includes("Синтетична") && (r3.priceCheck as any).route.del.km === 12.4, JSON.stringify((r3.priceCheck as any).reasons));
-const m4 = await create({ total: "26 €", contract: contract({ days: 1, rent: 25, del: { addr: "ул. Синтетична 2", km: 1, rate: 1 } }) });
-check("1.5 доставка с други км от браузъра → mismatch (km_del, total)", (await row(m4.id)).priceCheckStatus === "mismatch", JSON.stringify(((await row(m4.id)).priceCheck as any).reasons));
-const m5 = await create({ total: "37,40 €", contract: contract({ days: 1, rent: 25, del: { addr: "ул. Мрежа 3", km: 12.4, rate: 1 } }) });
-const r5 = await row(m5.id);
-check("1.6 маршрутът не може да се изчисли → incomplete; без сървърна цена (не се приема нито нула, нито км от браузъра)", r5.priceCheckStatus === "incomplete" && (r5.priceCheck as any).server === null && r5.status === "pending" && r5.total === "37,40 €", JSON.stringify((r5.priceCheck as any).reasons));
-const m6 = await create({ contract: null });
-check("1.7 стара страница без данни за договора → incomplete (no_contract), заявката е приета", m6.status === 201 && (await row(m6.id)).priceCheckStatus === "incomplete", "");
+check("1.1 етап 2: подадената от браузъра сума (1 €) не се записва – сумата е сървърната (1 ден × 25 € = 25 €), статус server", m1.status === 201 && r1.priceCheckStatus === "server" && r1.total === "25 €" && r1.totalCents === 2500 && (await events(m1.id, "price.observe")).length === 0, `${r1.priceCheckStatus} ${r1.total}`);
 const old = await row("0".repeat(32));
 check("1.8 стара резервация не се преизчислява", old.priceCheck === null && old.priceCheckStatus === null && old.total === "1 €", "");
 const route = await routeFn(new Request(`${O}/api/route?destination=${encodeURIComponent("ул. Синтетична 9")}`));
 const rj = await route.json();
-check("1.9 /api/route (браузърът) – същият отговор след изнасянето на логиката в server/route.ts", route.status === 200 && rj.km === 12.4 && rj.rate === 1 && rj.local === true && rj.source === "osm" && "place" in rj, JSON.stringify(Object.keys(rj)));
+check("1.9 /api/route (за по-стари отворени страници) – същият отговор, вече през кеша на маршрутите", route.status === 200 && rj.km === 12.4 && rj.rate === 1 && rj.local === true && rj.source === "osm" && "place" in rj, JSON.stringify(Object.keys(rj)));
 
 // ===== 2. Известие до фирмата =====
 const owner = mail.sent.find((m) => /Нова заявка за наем/.test(m.subject) && m.subject.includes(m1.name))!;

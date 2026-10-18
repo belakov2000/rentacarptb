@@ -70,7 +70,7 @@ const desk = await context(false);
 }
 const [bk] = await (await fetch(B + "/__e2e/sql?q=" + encodeURIComponent("select id, total, total_cents, jsonb_array_length(documents) docs from bookings"))).json();
 const ID = bk.id, REF = ID.slice(0, 6).toUpperCase();
-check("1b. Заявката е в базата със сумата и 4 снимки на документите", !!ID && bk.total_cents > 0 && bk.docs === 4, JSON.stringify(bk));
+check("1b. Заявката е в базата със сървърната сума (2 дни × 25 € = 50 €) и 4 снимки на документите", !!ID && bk.total_cents === 5000 && bk.total === "50 €" && bk.docs === 4, JSON.stringify(bk));
 
 // 1c–1e. Линк към снимка от по-старо писмо: без вход → вход в панела → обратно към снимката; с вход – директно (нов раздел)
 {
@@ -104,7 +104,7 @@ await login(page);
 // 3. Потвърждаване
 await navTo(page, `/admin/bookings/${ID}`, "[data-ask=confirm]");
 check("3. Детайли: „Създадена на“ отделно от получаване/връщане", /Създадена на\s+\d{2}\.\d{2}\.\d{4}, \d{2}:\d{2} ч\./.test(await text(page)) && (await text(page)).includes(dmy(D1)), "");
-check("3p. Детайли: сървърната проверка на цената (само наблюдение) се показва", /Сървърна проверка на цената \(само наблюдение\)\s+Съвпада \(50,00 €\)/.test(await text(page)), ((await text(page)).match(/Сървърна проверка[^\n]*\n?[^\n]*/) || [""])[0]);
+check("3p. Детайли: цената е определена от сървъра (разбивка, депозитът – отделно)", /Цена на сървъра\s+Определена от сървъра: 50,00 € \(Наем 2 × 25,00 € = 50,00 €\)\. Депозитът \(100,00 €\) е отделно\./.test(await text(page)), ((await text(page)).match(/Цена на сървъра[^\n]*\n?[^\n]*/) || [""])[0]);
 await page.click("[data-ask=confirm]"); await page.click("[data-do=confirm]");
 await page.waitForSelector(".msg.ok");
 check("3a. Потвърдена от панела", /потвърдена/i.test(await text(page, ".msg.ok")), await text(page, ".msg.ok"));

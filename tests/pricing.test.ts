@@ -5,7 +5,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import vm from "node:vm";
-import { ABROAD, CHAINS_DAY, DEPOSIT, observe, price, PRICING_VERSION, SEAT_DAY, SECOND_DRIVER_DAY, TIERS } from "../server/pricing.ts";
+import { ABROAD, CHAINS_DAY, DEPOSIT, fmtCents, price, priceLines, PRICING_VERSION, SEAT_DAY, SECOND_DRIVER_DAY, TIERS } from "../server/pricing.ts";
+
 
 const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
 const grab = (re: RegExp) => {
@@ -110,47 +111,12 @@ test("невалидни входни данни не дават цена", () =
   assert.deepEqual(price({ ...base, startTime: "" }), { ok: false, error: "dates" });
 });
 
-// ===== Наблюдение =====
-const b = (o: Record<string, unknown> = {}) => ({ carId: "passat", startDate: "2027-03-01", startTime: "10:00", endDate: "2027-03-03", endTime: "10:00", totalCents: 5000, ...o });
-const contract = (o: Record<string, unknown> = {}) => ({ days: 2, rent: 50, seat: 0, seatN: 0, seatDay: 0, del: null, ret: null, abroad: [], ...o });
-const noRoute = async () => { throw new Error("route must not be called"); };
-
-test("observe: еднаква сума → match", async () => {
-  const c = await observe(b(), contract(), noRoute);
-  assert.equal(c.status, "match");
-  assert.equal(c.server!.totalCents, 5000);
-});
-
-test("observe: подадена неправилна сума → mismatch (само записва – не налага сумата)", async () => {
-  const c = await observe(b({ totalCents: 100 }), contract(), noRoute);
-  assert.equal(c.status, "mismatch");
-  assert.ok(c.reasons.includes("total"));
-  assert.equal(c.client.totalCents, 100);
-});
-
-test("observe: неуспешен маршрут → incomplete; не се приема нито нула, нито км от браузъра", async () => {
-  for (const r of [async () => "not_found", async () => "no_route", async () => { throw new Error("network"); }, () => new Promise<never>(() => {})]) {
-    const c = await observe(b({ totalCents: 6240 }), contract({ del: { addr: "ул. Тестова 1", km: 12.4, rate: 1 } }), r as any, { timeoutMs: 50 });
-    assert.equal(c.status, "incomplete");
-    assert.equal(c.server, null);
-    assert.ok(c.reasons.some((x) => x.startsWith("route_del_")), c.reasons.join());
-  }
-});
-
-test("observe: маршрут на сървъра с различни км → mismatch; същите → match", async () => {
-  const route = async () => ({ km: 12.4, rate: 1, source: "osm" });
-  const same = await observe(b({ totalCents: 6240 }), contract({ del: { addr: "ул. Тестова 1", km: 12.4, rate: 1 } }), route);
-  assert.equal(same.status, "match", same.reasons.join());
-  const other = await observe(b({ totalCents: 5100 }), contract({ del: { addr: "ул. Тестова 1", km: 1, rate: 1 } }), route);
-  assert.equal(other.status, "mismatch");
-  assert.ok(other.reasons.includes("km_del") && other.reasons.includes("total"));
-  assert.ok(!JSON.stringify(other).includes("Тестова"), "адресът не се записва");
-});
-
-test("observe: сума без доставката, стари страници без договор, непозната държава", async () => {
-  assert.equal((await observe(b({ totalCents: null }), contract(), noRoute)).status, "incomplete");
-  assert.deepEqual((await observe(b(), null, noRoute)).reasons, ["no_contract"]);
-  const c = await observe(b({ totalCents: 15000 }), contract({ abroad: [{ name: "Гърция", fee: 100 }, { name: "Марс", fee: 0 }] }), noRoute);
-  assert.equal(c.status, "mismatch");
-  assert.ok(c.reasons.includes("unknown_country"));
+test("текстът на цената за известието до фирмата и форматът на сумите", () => {
+  const p = price({ carId: "ka", startDate: "2027-03-01", startTime: "10:00", endDate: "2027-03-03", endTime: "10:00", seats: 1, del: { km: 12.4, rate: 1 }, ret: null, abroad: ["gr"] });
+  assert.ok(p.ok);
+  if (!p.ok) return;
+  assert.deepEqual(priceLines(p), ["Наем: 2 дни × 20 € = 40 €", "Детско столче: 1 бр. × 2 дни × 3 € = 6 €", "Доставка до адрес: 12,4 км × 1,00 €/км = 12,40 €", "Пътуване в чужбина – Гърция: 100 €", "Общо за услугите: 158,40 €", "Гаранционен депозит (не е част от сумата): 100 €"]);
+  assert.equal(fmtCents(5000), "50 €");
+  assert.equal(fmtCents(15840), "158,40 €");
+  assert.equal(fmtCents(5), "0,05 €");
 });

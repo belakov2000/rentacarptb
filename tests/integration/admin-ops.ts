@@ -3,7 +3,7 @@
 // за договори и снимки. Само синтетични данни; имейлите и Netlify Identity се симулират (harness.ts).
 import { eq } from "drizzle-orm";
 import { readFileSync } from "node:fs";
-import { bookingBody, check, contractData, cookieJar, fakeJwt, finish, freshDb, identity, mail, O, setContext, schema } from "./harness.ts";
+import { bookingBody, check, contractData, cookieJar, fakeJwt, finish, freshDb, identity, mail, O, setContext, schema, withQuote } from "./harness.ts";
 import { stores } from "./stubs/blobs.ts";
 import bookingsFn from "../../netlify/functions/bookings.mts";
 import adminBookingsFn from "../../netlify/functions/admin-bookings.mts";
@@ -53,7 +53,7 @@ const usr = cookieJar(); const utok = fakeJwt("user@example.com"); identity.toke
 const post = (id: string, body: unknown) => req(`/api/admin/bookings/${id}`, { method: "POST", body });
 
 async function request(s: string, carId: string, d1: string, t1: string, d2: string, t2: string, extra: Record<string, unknown> = {}) {
-  const r = await bookingsFn(new Request(`${O}/api/bookings`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(bookingBody(s, d1, t1, d2, t2, { carId, car: carId, requestKey: `ops-${s}-${uniq()}`, ...extra })) }), { params: {} } as any);
+  const r = await bookingsFn(new Request(`${O}/api/bookings`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(await withQuote(bookingBody(s, d1, t1, d2, t2, { carId, car: carId, requestKey: `ops-${s}-${uniq()}`, ...extra }))) }), { params: {} } as any);
   const j = await r.json();
   return { status: r.status, id: j.id as string };
 }
@@ -191,7 +191,8 @@ async function insert(extra: Partial<typeof schema.bookings.$inferInsert> & { ca
 let EXT = "";
 {
   mail.sent.length = 0;
-  const cd = contractData("2028-10-02", "10:00", "2028-10-04", "10:00");
+  // Без доставка: сървърната сума е само наемът 2 × 25 € = 50 € (с доставката от contractData сървърът добавя 5 км × 1 €)
+  const cd = { ...contractData("2028-10-02", "10:00", "2028-10-04", "10:00"), del: null };
   const r = await request("E1", "passat", "2028-10-02", "10:00", "2028-10-04", "10:00", { contract: cd, total: "50 €" });
   EXT = r.id;
   await post(EXT, { action: "confirm" });

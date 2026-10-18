@@ -3,6 +3,11 @@
 // rate е цената на км: 1,00 € в Пловдив и околните села (вкл. летище Пловдив и Асеновград), 0,70 € извън тази зона.
 // Основно се ползва Google Maps (Routes API) – същото разстояние като в Google Maps. Нужна е променлива GOOGLE_MAPS_API_KEY.
 // Без ключ (или ако Google не отговори) адресът се намира с OpenStreetMap (Nominatim), а маршрутът – с OSRM.
+// cachedRoute() пази резултатите в базата (route_cache) и при едновременни заявки за един адрес пита доставчика само веднъж.
+// В логовете няма адреси и отговори на доставчика – само кодове на грешки.
+import { createHash, randomUUID } from "node:crypto";
+import { sql } from "drizzle-orm";
+import { db } from "../db/index.js";
 const OFFICE_ADDRESS = "бул. Дунав 10, Пловдив, България";
 // Координати на бул. Дунав 10, Пловдив (началната точка за доставка и връщане от адрес)
 const BASE = { lat: 42.1622, lon: 24.7366 };
@@ -84,7 +89,8 @@ async function googleKm(dest: string): Promise<{ km: number; place: string; end:
   type LatLng = { latitude?: number; longitude?: number };
   const j = (await r.json().catch(() => null)) as { routes?: { distanceMeters?: number; legs?: { endLocation?: { latLng?: LatLng } }[] }[] } | null;
   if (!r.ok) {
-    console.error("Google Routes error", r.status, JSON.stringify(j).slice(0, 300));
+    // Само кодът на грешката – отговорът може да съдържа адреса
+    console.error("Google Routes error", r.status, String((j as any)?.error?.status || "").slice(0, 40));
     return null;
   }
   const m = j?.routes?.[0]?.distanceMeters;
@@ -98,7 +104,7 @@ export type RouteError = "not_found" | "no_route";
 
 // Разстояние до адреса или причината да няма такова. Мрежовите грешки се пропускат нагоре (извикващият решава).
 export async function routeTo(dest: string): Promise<Route | RouteError> {
-  const g = await googleKm(dest).catch((e) => (console.error(e), null));
+  const g = await googleKm(dest).catch((e) => (console.error("Google Routes failed", (e as Error)?.name), null));
   if (g) {
     // Ако Google не върне координати на адреса, зоната се определя чрез OpenStreetMap
     const end = g.end || (await findPlace(dest).catch(() => null));
@@ -114,4 +120,73 @@ export async function routeTo(dest: string): Promise<Route | RouteError> {
   if (!r.ok || j?.code !== "Ok" || !j.routes?.length) return "no_route";
   const km = Math.round(j.routes[0].distance / 100) / 10;
   return { km, place: p.name, ...zone(p), source: "osm" };
+}
+
+// ===== Проверка на адреса преди търсене при доставчика =====
+// 5–200 знака, поне 3 букви, без управляващи знаци, адреси на сайтове и HTML. Невалидният адрес не стига до доставчика.
+export const normAddr = (a: string) => String(a || "").trim().replace(/\s+/g, " ").slice(0, 200);
+export function validAddr(a: unknown) {
+  if (typeof a !== "string" || a.length > 300) return false;
+  const n = normAddr(a);
+  return n.length >= 5 && n.length <= 200 && (n.match(/\p{L}/gu) || []).length >= 3 && !/[\u0000-\u001f\u007f<>{}]|https?:|www\./i.test(n);
+}
+
+// ===== Кеш и едно търсене за адрес =====
+// Ключ: хеш на нормализирания адрес (без значение на главни/малки букви) и версията на правилата. В базата са само
+// км, тарифа, зона и източник – без адреса и без намереното място.
+// Едновременни заявки за един адрес (и от различни инстанции на функциите): първата „заема“ търсенето (status pending),
+// останалите изчакват резултата ѝ. Заето търсене, което не е завършило за CLAIM_MS (прекъсната функция), може да бъде заето
+// отново. Едно търсене може да направи няколко заявки към доставчиците (Google + OpenStreetMap за зоната или резервния път).
+// Грешките се помнят кратко (FAIL_TTL_MS), за да не се повтарят веднага, но повторен опит след това пита отново.
+const CACHE_VERSION = "1";
+export const ROUTE_CACHE = { okTtlMs: 24 * 3600_000, failTtlMs: 15_000, errorTtlMs: 5_000, claimMs: 20_000, waitMs: 12_000, pollMs: 150 };
+const cacheKey = (dest: string) => "v" + CACHE_VERSION + "/" + createHash("sha256").update(normAddr(dest).toLowerCase()).digest("hex");
+const secs = (ms: number) => ms / 1000;
+const rowsOf = (r: any): any[] => (Array.isArray(r) ? r : r?.rows ?? []);
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+export type CacheResult = Route | RouteError | "limited" | "timeout" | "error";
+
+export async function cachedRoute(dest: string, o: { budget?: () => Promise<boolean> } = {}): Promise<CacheResult> {
+  if (!validAddr(dest)) return "not_found";
+  const key = cacheKey(dest);
+  const deadline = Date.now() + ROUTE_CACHE.waitMs;
+  for (;;) {
+    const [row] = rowsOf(await db.execute(sql`select status, km, rate, local, source, reason, expires_at > now() as fresh from route_cache where key = ${key}`));
+    if (row?.fresh && row.status === "ok") return { km: Number(row.km), rate: Number(row.rate), local: !!row.local, source: row.source, place: "" };
+    if (row?.fresh && row.status === "fail") return row.reason as RouteError | "error";
+    if (!row?.fresh) {
+      // Опит да бъде заето търсенето: успява само една заявка (нов ред или изтекъл / изоставен ред)
+      const token = randomUUID();
+      const claimed = rowsOf(await db.execute(sql`
+        insert into route_cache (key, status, claim_token, claimed_at, expires_at) values (${key}, 'pending', ${token}, now(), now() + make_interval(secs => ${secs(ROUTE_CACHE.claimMs)}))
+        on conflict (key) do update set status = 'pending', claim_token = excluded.claim_token, claimed_at = now(), expires_at = excluded.expires_at, km = null, rate = null, local = null, source = null, reason = null
+        where route_cache.expires_at <= now()
+        returning key`)).length > 0;
+      if (claimed) return lookup(key, token, dest, o.budget);
+    }
+    if (Date.now() >= deadline) return "timeout";
+    await sleep(ROUTE_CACHE.pollMs);
+  }
+}
+
+async function lookup(key: string, token: string, dest: string, budget?: () => Promise<boolean>): Promise<CacheResult> {
+  const save = (status: "ok" | "fail", ttlMs: number, v: { km?: number; rate?: number; local?: boolean; source?: string; reason?: string }) =>
+    db.execute(sql`update route_cache set status = ${status}, km = ${v.km ?? null}, rate = ${v.rate ?? null}, local = ${v.local ?? null}, source = ${v.source ?? null},
+      reason = ${v.reason ?? null}, expires_at = now() + make_interval(secs => ${secs(ttlMs)}) where key = ${key} and claim_token = ${token}`).catch(() => null);
+  // Бюджетът се отчита само от заявката, която наистина ще пита доставчика
+  if (budget && !(await budget())) {
+    await db.execute(sql`delete from route_cache where key = ${key} and claim_token = ${token} and status = 'pending'`).catch(() => null);
+    return "limited";
+  }
+  let r: Route | RouteError;
+  try {
+    r = await routeTo(normAddr(dest));
+  } catch (e) {
+    console.error("Route lookup failed", (e as Error)?.name);
+    await save("fail", ROUTE_CACHE.errorTtlMs, { reason: "error" });
+    return "error";
+  }
+  if (typeof r === "string") await save("fail", ROUTE_CACHE.failTtlMs, { reason: r });
+  else await save("ok", ROUTE_CACHE.okTtlMs, { km: r.km, rate: r.rate, local: r.local, source: r.source });
+  return r;
 }
