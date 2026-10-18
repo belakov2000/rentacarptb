@@ -44,7 +44,8 @@ const seed = { car: "golf", d1: D1, t1: "10:00", d2: D2, t2: "10:00", m1: "addr"
   await page.check('input[name="pay2"][value="cash"]'); await page.check("#b-ok"); await page.check("#b-mkt");
   await page.waitForFunction(() => !document.querySelector("#bk button[type=submit]").disabled, null, { timeout: 10000 });
   await page.click("#bk button[type=submit]");
-  await page.waitForFunction(() => location.hash === "#blagodarim" && /Заявката е получена/.test(document.querySelector("#th-h").innerText), null, { timeout: 20000 }).catch(async e => { console.error("SUBMIT STATE", await page.evaluate(() => ({ hash: location.hash, heading: document.querySelector("#th-h")?.textContent, error: document.querySelector("#b-err")?.textContent, progress: document.querySelector("#b-msg")?.textContent, hidden: document.hidden }))); throw e; });
+  await page.waitForFunction(() => location.hash === "#blagodarim" && /Заявката е получена/.test(document.querySelector("#th-h").textContent), null, { timeout: 20000 }).catch(async e => { console.error("SUBMIT STATE", await page.evaluate(() => ({ hash: location.hash, heading: document.querySelector("#th-h")?.textContent, error: document.querySelector("#b-err")?.textContent, progress: document.querySelector("#b-msg")?.textContent, hidden: document.hidden }))); throw e; });
+  check("1.2a статусът е видим", await page.isVisible("#th-h"));
   const [b] = await sql("select id, stage, chains, second_driver, marketing_consent, drivers, documents, total_cents from bookings order by created_at desc limit 1");
   check("1.3 изпратена заявка → страница „Заявката е получена“; в базата: етап request, вериги, втори водач, съгласие, заявителят не шофира, без снимки, 68 €",
     b && b.stage === "request" && b.chains && b.second_driver && b.marketing_consent && b.drivers.requesterDrives === false && b.documents === null && b.total_cents === 6800 && page.errs.length === 0, JSON.stringify(b).slice(0, 200));
@@ -64,7 +65,7 @@ const [bk] = await sql("select id, admin_token, view_token from bookings order b
   const { ctx, page } = await open(null, { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
   await page.goto(`${B}/?b=${bk.id}&t=${bk.view_token}#blagodarim`, { waitUntil: "load" });
   await page.waitForSelector("#docs-f", { timeout: 15000 });
-  const h = await page.locator("#th-h").innerText(), legends = await page.$$eval("#docs-f legend", (l) => l.map((x) => x.innerText));
+  const h = await page.locator("#th-h").textContent(), legends = await page.$$eval("#docs-f legend", (l) => l.map((x) => x.textContent));
   check("3.1 линкът от имейла (нов браузър, телефон): „Заявката е одобрена – подайте документите“; два водача; без плащане, столчета и коментар",
     /подайте документите/.test(h) && legends.length === 2 && /наемател/.test(legends[0]) && !(await page.$("#docs-f [name=pay]")) && !(await page.$("#docs-f #b-note")), legends.join(" | "));
   await page.click("#docs-f button[type=submit]");
@@ -77,14 +78,14 @@ const [bk] = await sql("select id, admin_token, view_token from bookings order b
   }
   await page.waitForFunction(() => document.querySelectorAll("[id$='-m']").length && [...document.querySelectorAll("#docs-f small[id$='-m']")].every((m) => /готова/.test(m.textContent)), null, { timeout: 15000 });
   await page.check("#d-consent"); await page.tap("#docs-f button[type=submit]");
-  await page.waitForFunction(() => /Получени документи — очакват проверка/.test(document.querySelector("#th-h").innerText), null, { timeout: 20000 });
+  await page.waitForFunction(() => /Получени документи — очакват проверка/.test(document.querySelector("#th-h").textContent), null, { timeout: 20000 });
   const [s] = await sql(`select stage, jsonb_array_length(documents) docs, drivers from bookings where id='${bk.id}'`);
   check("3.3 подадени документи → „Получени документи — очакват проверка“; 8 снимки, имената на двамата водачи; без грешки",
     s.stage === "review" && s.docs === 8 && s.drivers.names.join() === "ТЕСТ Основен Водач,ТЕСТ Втори Водач" && page.errs.length === 0, JSON.stringify(s).slice(0, 160));
   // 4. Окончателно потвърждение от имейла → страницата показва потвърдена резервация
   await fetch(`${B}/api/bookings/${bk.id}/manage?key=${bk.admin_token}`, { method: "POST", body: new URLSearchParams({ action: "confirm" }) });
   await page.reload({ waitUntil: "load" });
-  await page.waitForFunction(() => /Резервацията е потвърдена/.test(document.querySelector("#th-h").innerText), null, { timeout: 15000 });
+  await page.waitForFunction(() => /Резервацията е потвърдена/.test(document.querySelector("#th-h").textContent), null, { timeout: 15000 });
   const [f] = await sql(`select status, stage from bookings where id='${bk.id}'`);
   check("4. окончателно потвърждение → потвърдена (status confirmed, stage done) и страницата го показва", f.status === "confirmed" && f.stage === "done");
   await ctx.close();
