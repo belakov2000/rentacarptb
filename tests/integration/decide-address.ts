@@ -209,7 +209,9 @@ const v1 = await addrRequest({ citizen: "България", idt: "id", region: "
 const vd = cdOf(v1.id);
 check("29. село: заявката е приета, данните на договора пазят област, община и вида", v1.status === 201 && vd.region === "Пловдив" && vd.municipality === "Марица" && vd.placeType === "village" && vd.city === "Труд" && vd.addr === "ул. Тестова 7", JSON.stringify([vd.region, vd.placeType, vd.city]));
 check("30. договор: „обл. Пловдив, общ. Марица, с. Труд, ул. Тестова 7“", docXml(v1.id).includes("обл. Пловдив, общ. Марица, с. Труд, ул. Тестова 7"), "");
-check("31. писмо до фирмата: адресът по документа както в договора", !!ownerMailOf(v1.name)?.html.includes("Адрес по документа (както в договора):</b> обл. Пловдив, общ. Марица, с. Труд, ул. Тестова 7"), "");
+// Етап 1 (защита на данните): адресът по документа вече НЕ е в известителното писмо – остава в договора (30) и в панела
+const om = ownerMailOf(v1.name);
+check("31. писмо до фирмата: без адреса по документа, договорът остава прикачен", !!om && !om.html.includes("Адрес по документа") && !om.html.includes("ул. Тестова 7") && om.attachments === 1, "");
 const c1 = await addrRequest({ citizen: "BG", idt: "id", region: "обл. Пловдив", municipality: "община Пловдив", placeType: "city", city: "гр. Пловдив", addr: "бул. Тестов 1, вх. А, ап. 2" }, "golf");
 check("32. град с написани представки: „гр.“, „обл.“ и „общ.“ не се дублират", c1.status === 201 && docXml(c1.id).includes("обл. Пловдив, общ. Пловдив, гр. Пловдив, бул. Тестов 1, вх. А, ап. 2") && !/гр\. гр\.|обл\. обл\.|общ\. общ\./.test(docXml(c1.id) + ownerMailOf(c1.name)!.html), "");
 const f1 = await addrRequest({ citizen: "Germany", idt: "pass", region: "", municipality: "", placeType: "city", city: "München", addr: "Leopoldstraße 12" }, "ibiza");

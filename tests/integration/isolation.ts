@@ -1,6 +1,6 @@
 // Изолация на Netlify Blobs: функциите в Deploy Preview не четат и не променят продукционните хранилища.
 import { randomBytes } from "node:crypto";
-import { bookingBody, check, contractData, finish, freshDb, O, setContext, schema } from "./harness.ts";
+import { adminJar, bookingBody, check, contractData, finish, freshDb, O, setContext, schema, syntheticJpeg } from "./harness.ts";
 import { fingerprint, getStore, stores } from "./stubs/blobs.ts";
 import { storeName } from "../../server/stores.ts";
 import bookingsFn from "../../netlify/functions/bookings.mts";
@@ -35,10 +35,13 @@ const r = await call("https://rentacar-ptb.com/api/bookings", { method: "POST", 
 const { id } = await r.json();
 const [b] = await t.db.select().from(schema.bookings);
 await call(`${O}/api/bookings/${id}/manage?key=${b.adminToken}`, { method: "POST", body: new URLSearchParams({ action: "km", kmDel: "9", kmDelRate: "1" }) }, { id }); // промяна
-const up = await documentsFn(new Request(`${O}/api/documents`, { method: "POST", headers: { "Content-Type": "image/jpeg" }, body: new Uint8Array([0xff, 0xd8, 1, 2, 3]) }), { params: {} } as any);
+const up = await documentsFn(new Request(`${O}/api/documents`, { method: "POST", headers: { "Content-Type": "image/jpeg" }, body: syntheticJpeg() }), { params: {}, ip: "203.0.113.9" } as any);
 const docUrl = (await up.json()).url as string;
+// Снимките се показват само на вписан администратор (етап 1) – четенето се проверява с администраторска сесия
+setContext("deploy-preview", { cookies: adminJar() });
 const docGet = await documentsFn(new Request(docUrl), { params: { id: docUrl.split("/").pop()! } } as any);
 const prodDocGet = await documentsFn(new Request(`${O}/api/documents/${"d".repeat(63)}0`), { params: { id: "d".repeat(63) + "0" } } as any);
+setContext("deploy-preview");
 await runBackup(true); // копие + изтриване на старите копия (ретенция) – трие
 await backupBlobs(60_000);
 const v = await verifyBackup(100);

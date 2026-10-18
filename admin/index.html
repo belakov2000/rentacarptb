@@ -107,7 +107,8 @@ if(!r.ok)throw 0;history.replaceState(null,"",location.pathname);showLogin();say
 catch(_){history.replaceState(null,"",location.pathname);say("Връзката е невалидна или изтекла. Поискайте нова.")}}}
 
 // ===== Панел =====
-function start(){const sec=location.pathname.split("/")[2]||"dashboard";
+// Линк към снимка на документ от по-старо писмо (/api/documents/…): без вход сървърът праща тук с ?doc=; след вход – обратно към снимката
+function start(){const doc=qs().get("doc");if(/^[a-f0-9]{64}$/.test(doc||""))return location.replace("/api/documents/"+doc);const sec=location.pathname.split("/")[2]||"dashboard";
 $("#root").innerHTML=`<div class="app"><nav id="nav"><div class="brand"><img src="/images/logo-mark.png" alt="">Rent a Car PTB</div>
 ${SECTIONS.map(([k,t])=>`<a href="/admin/${k}" data-k="${k}">${esc(t)}</a>`).join("")}<a href="/admin/backups" data-k="backups">Резервни копия</a><a href="/admin/emails" data-k="emails">Имейли</a>
 <div class="who">${esc(ME.email)}<br><button class="link" id="out" style="color:#c9d2e0">Изход</button></div></nav><main><div id="alerts"></div><div id="main"></div></main></div>`;
@@ -206,11 +207,14 @@ return`<div class="grid" style="margin:10px 0"><div class="stat"><small>Дого
 <div class="stat"${f.securityHeld>0?' style="background:#fff4cc"':""}><small>Гаранционен депозит (не е приход)</small><b>${esc(eur(f.securityHeld))}</b><small>получен ${esc(eur(f.securityReceived))} · възстановен ${esc(eur(f.securityRefunded))} · оставащ ${esc(eur(f.securityHeld))}</small></div>
 <div class="stat"><small>Очаквани (още не са получени)</small><b>${esc(eur(f.expected))}</b></div></div>`}
 const MANUAL_BG={no_contract:"няма данни за договора (дневна цена и брой дни)",contract_mismatch:"датите или броят дни в договора не съвпадат с резервацията",child_seat:"има детско столче с дневна цена – допълнителната сума се определя ръчно",rate:"дневната цена не е цяло число евроцентове",partial_day:"новият край не е в същия час – удължаването не е в цели дни",no_total:"договорената обща сума не е определена"};
+// Наблюдение на цената (етап 1): сървърът сравнява своето изчисление със сумата от заявката, без да я променя
+const PRICE_CHECK=b=>{const p=b.priceCheck,st=b.priceCheckStatus;if(!st)return"";const sv=p&&p.server?eur(p.server.totalCents):"";
+return st==="match"?"Съвпада ("+sv+")":st==="mismatch"?"Разлика – сървърът изчислява "+(sv||"друга сума")+(p&&p.reasons&&p.reasons.length?" ["+p.reasons.join(", ")+"]":""):st==="incomplete"?"Не може да бъде завършена"+(p&&p.reasons&&p.reasons.length?" ["+p.reasons.join(", ")+"]":""):"Грешка при проверката"};
 async function booking(id,msg,ok){const v=$("#view");if(!msg)v.innerHTML=loading();
 let d;try{d=await api("/api/admin/bookings/"+id)}catch(e){v.innerHTML=e.status===404?`<div class="panel msg err">Резервацията не е намерена.</div>`:failed(e);return}
 d.versions=d.versions||[];d.extensions=d.extensions||[];
 const b=d.booking,c=d.can,closed=b.status==="cancelled"||b.status==="no_show",by=x=>x==="owner-link"?"линк от имейла":x;
-const kv=[["Номер",ref(b.id)],["Създадена на",fmtDT(b.createdAt)],["Автомобил",b.car],["Получаване",b.pickup],["Връщане (договорено)",b.dropoff],["Клиент",b.name],["Телефон",b.phone],["Имейл",b.email],["Общо (текст от заявката / последно удължаване)",b.total],
+const kv=[["Номер",ref(b.id)],["Създадена на",fmtDT(b.createdAt)],["Автомобил",b.car],["Получаване",b.pickup],["Връщане (договорено)",b.dropoff],["Клиент",b.name],["Телефон",b.phone],["Имейл",b.email],["Общо (текст от заявката / последно удължаване)",b.total],["Сървърна проверка на цената (само наблюдение)",PRICE_CHECK(b)],
 ...(b.decidedAt?[["Решение",when(b.decidedAt)+(b.decidedBy?" ("+by(b.decidedBy)+")":"")]]:[]),["Съобщение до клиента",b.note],["Вътрешна бележка (решение)",b.decisionNote],
 ...(b.handedOverAt?[["Предаден (реално)",when(b.handedOverAt)],["Предаването е въведено",(b.handoverRecordedAt?when(b.handoverRecordedAt):"в момента на предаването")+" от "+by(b.handedOverBy)]]:[]),...(b.returnedAt?[["Върнат (реално)",when(b.returnedAt)],["Връщането е въведено",(b.returnRecordedAt?when(b.returnRecordedAt):"в момента на връщането")+" от "+b.returnedBy],["Бележка при връщане",b.returnNote]]:[]),
 ...(closed?[["Причина",REASON[b.closeReason]||b.closeReason],["Закрита",when(b.closedAt)+" ("+by(b.closedBy)+")"],["Вътрешна бележка",b.closeNote]]:[])]

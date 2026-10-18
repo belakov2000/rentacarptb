@@ -62,6 +62,8 @@ export default async (req: Request, context: Context) => {
   headers.delete("content-length");
   headers.delete("etag");
   headers.set("content-type", "text/html; charset=UTF-8");
+  // Същата политика като за основната страница (netlify.toml)
+  headers.set("referrer-policy", "strict-origin-when-cross-origin");
   return new Response(html, { status: 200, headers });
 };
 

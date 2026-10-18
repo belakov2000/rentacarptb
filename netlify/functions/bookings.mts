@@ -6,7 +6,7 @@ import { bookingEvents, bookings, cars } from "../../db/schema.js";
 import { parseTotalCents, totalReviewOf } from "../../db/money.js";
 import { minutes } from "../../db/slots.js";
 import { sofiaToday, withinHours } from "../../db/hours.js";
-import { addressError, docAddress, kmRate, parseContract, type ContractData } from "../../contract/index.js";
+import { addressError, kmRate, parseContract, type ContractData } from "../../contract/index.js";
 import { btn, esc, OWNER_EMAIL, wrapMail } from "../../mail/index.js";
 import { contractDataKey, contracts, saveContract } from "../../server/contracts.js";
 import { maskEmail, queueEmail } from "../../server/email.js";
@@ -16,6 +16,9 @@ import { findConflict, lock, type Conflict } from "../../server/conflicts.js";
 import { parseAttribution } from "../../server/attribution.js";
 import { documentsOf } from "../../server/documents.js";
 import { ownerNewKey, receivedKey, saveOwnerOutbox, sendCustomerReceived, sendOwnerNew } from "../../server/notify.js";
+import { ownerRequestText } from "../../server/request-text.js";
+import { observe } from "../../server/pricing.js";
+import { routeTo } from "../../server/route.js";
 
 // Резервации с потвърждение от фирмата.
 // POST /api/bookings                 – записва заявката, праща имейл до фирмата с бутони „Потвърди“ / „Откажи“ и потвърждение до клиента, че заявката е получена
@@ -184,6 +187,23 @@ ${blocked ? "" : `<button class="ok" name="action" value="confirm">✓ Потв�
   );
 }
 
+// Наблюдение на цената (server/pricing.ts): записва изчислението и сравнението само в колоните price_check* на резервацията
+// (не в историята booking_events – тя остава историята на действията).
+// Грешка тук никога не спира заявката. Адресите не се записват – само км, тарифа и източник на маршрута.
+async function checkPrice(b: Booking, contract: unknown) {
+  try {
+    const route = async (addr: string) => {
+      const r = await routeTo(addr);
+      return typeof r === "string" ? r : { km: r.km, rate: r.rate, source: r.source };
+    };
+    const c = await observe(b, contract, route);
+    await db.update(bookings).set({ priceCheck: c, priceCheckStatus: c.status, priceCheckedAt: new Date() }).where(eq(bookings.id, b.id));
+  } catch (e) {
+    console.error("Price check failed", (e as Error)?.message);
+    await db.update(bookings).set({ priceCheckStatus: "error", priceCheckedAt: new Date() }).where(eq(bookings.id, b.id)).catch(() => null);
+  }
+}
+
 export default (req: Request, context: Context) => {
   const url = new URL(req.url);
   return REQ.run({ lang: langOf(url.searchParams.get("lang")), url }, () => handle(req, context));
@@ -288,17 +308,14 @@ async function handle(req: Request, context: Context) {
     // Попълненият договор за наем се пази на сървъра (линк в имейла) и се прикача към имейла.
     // Ако не може да се генерира, заявката пак се изпраща.
     let hasContract = false;
-    let docAddr = "";
     try {
       const data = parseContract(body.contract, b.name, b.carId);
       if (!data) console.error("Contract data missing in the booking request");
-      else {
-        docAddr = docAddress(data);
-        hasContract = !!(await saveContract(saved.id, data, "customer", "Заявка от сайта"));
-      }
+      else hasContract = !!(await saveContract(saved.id, data, "customer", "Заявка от сайта"));
     } catch (e) {
       console.error("Contract could not be generated", (e as Error)?.message);
     }
+    const photos = Array.isArray(saved.documents) ? saved.documents.length : 0;
     const ownerMail = (attached: boolean) =>
       wrapMail(
         `<p style="font-size:17px"><b>Нова заявка за наем от сайта.</b> Потвърдете или откажете – клиентът ще получи имейл и ще види решението на сайта.</p>` +
@@ -308,9 +325,10 @@ async function handle(req: Request, context: Context) {
             ? `<p>📄 <b>Договорът за наем е попълнен</b> с данните на клиента и автомобила – готов за печат.${attached ? " Прикачен е към този имейл." : ""}</p>` +
               `<p>${btn(contractLink(url.origin, saved), "Изтегли договора за наем", "#0f1b2d")}</p>`
             : `<p>Договорът за наем не можа да бъде попълнен автоматично за тази заявка.</p>`) +
-          // Адресът по документа така, както е записан в договора (проверен и подреден на сървъра)
-          (docAddr ? `<p><b>Адрес по документа (както в договора):</b> ${esc(docAddr)}</p>` : "") +
-          `<pre style="white-space:pre-wrap;font-family:Arial,sans-serif;background:#f3f5f9;padding:16px;border-radius:12px">${esc(message).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1">$1</a>')}</pre>`,
+          // Без ЕГН, номера на документи, адрес по документа и линкове към снимките (server/request-text.ts) –
+          // те са в прикачения договор и в админ панела след вход. Снимките не се прикачват и не се изпращат като линкове.
+          (photos ? `<p>🪪 <b>Снимки на документите: ${photos}</b> – отварят се само след вход в админ панела.</p><p>${btn(`${url.origin}/admin/bookings/${saved.id}`, "Отвори в админ панела", "#0f1b2d")}</p>` : "") +
+          `<pre style="white-space:pre-wrap;font-family:Arial,sans-serif;background:#f3f5f9;padding:16px;border-radius:12px">${esc(ownerRequestText(message))}</pre>`,
       );
     const subject = `Нова заявка за наем: ${b.car} – ${b.name}`;
     // Резервацията остава записана и при неуспешен имейл: писмото се пази за повторен опит, а сайтът праща и резервното известие
@@ -321,6 +339,10 @@ async function handle(req: Request, context: Context) {
     } catch (e) {
       console.error("Owner email failed, it will be retried", (e as Error)?.message);
     }
+    // Сървърна проверка на цената – само наблюдение: не променя сумата, договора и писмата и не забавя отговора
+    const check = checkPrice(saved, body.contract);
+    if (context.waitUntil) context.waitUntil(check);
+    else await check;
     // Потвърждение до клиента, че заявката е получена – ако не стигне, се опитва отново по-късно; заявката остава валидна
     await sendCustomerReceived(saved).catch((e) => console.error("Request-received email failed, it will be retried", (e as Error)?.message));
     return Response.json({ id: saved.id, token: saved.viewToken, status: "pending", ...(notified ? {} : { notify: "failed" }) }, { status: 201 });

@@ -1,13 +1,15 @@
 // Целият път в браузъра (настолен компютър и телефон) срещу локалния e2e сървър (tests/e2e/run.mjs):
 // публична заявка → вход в панела → табло → потвърждаване → предаване → удължаване → приключване → календар,
 // автомобили, клиенти, договори (изтегляне), настройки; на телефон – карти, календар като списък, без хоризонтално превъртане.
+import jpeg from "jpeg-js";
 import { chromium } from "playwright-core";
 
 const B = (process.argv[2] || "").replace(/\/$/, "");
 if (!/^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(B)) { console.error("Само локален e2e сървър."); process.exit(1); }
 const results = [];
 const check = (n, ok, info = "") => { results.push(ok); console.log(`${ok ? "PASS" : "FAIL"} | ${n}${info ? " | " + info : ""}`); };
-const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAFklEQVR4nGP8z8DAQAxgYhhVSF+FAMWKAh8Yq0QdAAAAAElFTkSuQmCC", "base64");
+// Синтетична „снимка на документ“ 640×400 (сървърът декодира изображението и отказва по-малки от 200 px – етап 1)
+const PNG = (() => { const w = 640, h = 400, d = Buffer.alloc(w * h * 4); for (let i = 0; i < w * h; i++) d.set([i % 251, (i * 3) % 253, 90, 255], i * 4); return Buffer.from(jpeg.encode({ data: d, width: w, height: h }, 80).data); })();
 const day = (n) => new Date(Date.now() + n * 864e5).toLocaleDateString("sv-SE", { timeZone: "Europe/Sofia" });
 const dmy = (d) => d.split("-").reverse().join(".");
 const D1 = day(10), D2 = day(12), D3 = day(14);
@@ -55,7 +57,7 @@ const desk = await context(false);
   await page.waitForSelector("#bk", { state: "visible" });
   const f = { "#b-name": "ТЕСТ Е2Е Клиент", "#b-cit": "BG", "#b-phone": "+359000000123", "#b-mail": "e2e-client@example.com", "#b-idn": "TESTID1", "#b-egn": "8001019999", "#b-idd": "2020-01-01", "#b-idp": "МВР-ТЕСТ", "#b-reg": "ТЕСТ-област", "#b-mun": "ТЕСТ-община", "#b-city": "Тестоград", "#b-addr": "ул. Тестова 1", "#b-dln": "TESTDL1", "#b-dlname": "ТЕСТ", "#b-dld": "2020-01-01", "#b-dlp": "МВР-ТЕСТ" };
   for (const [sel, v] of Object.entries(f)) if (await page.$(sel)) await page.fill(sel, v).catch(() => {});
-  for (const id of ["p-idf", "p-idb", "p-dlf", "p-dlb"]) await page.setInputFiles("#" + id, { name: "test.png", mimeType: "image/png", buffer: PNG });
+  for (const id of ["p-idf", "p-idb", "p-dlf", "p-dlb"]) await page.setInputFiles("#" + id, { name: "test.jpg", mimeType: "image/jpeg", buffer: PNG });
   await page.check('input[name="ptype"][value="village"]').catch(() => {});
   await page.check("#b-ok").catch(() => {});
   const pay = await page.$('input[name="pay"][value="cash"]'); if (pay) await pay.check();
@@ -69,6 +71,24 @@ const desk = await context(false);
 const [bk] = await (await fetch(B + "/__e2e/sql?q=" + encodeURIComponent("select id, total, total_cents, jsonb_array_length(documents) docs from bookings"))).json();
 const ID = bk.id, REF = ID.slice(0, 6).toUpperCase();
 check("1b. Заявката е в базата със сумата и 4 снимки на документите", !!ID && bk.total_cents > 0 && bk.docs === 4, JSON.stringify(bk));
+
+// 1c–1e. Линк към снимка от по-старо писмо: без вход → вход в панела → обратно към снимката; с вход – директно (нов раздел)
+{
+  const [d] = await (await fetch(B + "/__e2e/sql?q=" + encodeURIComponent("select documents->0->>'id' id from bookings"))).json();
+  const docUrl = B + "/api/documents/" + d.id;
+  const anon = await context(false);
+  const p1 = await newPage(anon);
+  const r1 = await p1.goto(docUrl, { waitUntil: "load" });
+  check("1c. Снимка без вход: не се показва, браузърът е пренасочен към входа в панела", p1.url().startsWith(B + "/admin/?doc=") && !(r1.headers()["content-type"] || "").includes("image") && (await p1.$("#e")) !== null, p1.url().replace(B, ""));
+  await p1.fill("#e", "admin@example.com"); await p1.fill("#p", "admin-pass-123"); await p1.click("#f button.btn");
+  await p1.waitForURL((u) => u.pathname.startsWith("/api/documents/"), { timeout: 15000 });
+  const img = await p1.evaluate(() => document.contentType);
+  check("1d. След вход – обратно към същата снимка (image/jpeg)", p1.url() === docUrl && img === "image/jpeg", `${p1.url().replace(B, "")} ${img}`);
+  const p2 = await anon.newPage();
+  const r2 = await p2.goto(docUrl, { waitUntil: "load" });
+  check("1e. Вписан администратор: линкът в нов раздел отваря снимката директно", r2.status() === 200 && (r2.headers()["content-type"] || "") === "image/jpeg" && (r2.headers()["referrer-policy"] || "") === "no-referrer", String(r2.status()));
+  await anon.close();
+}
 
 const page = await newPage(desk);
 await login(page);
@@ -84,6 +104,7 @@ await login(page);
 // 3. Потвърждаване
 await navTo(page, `/admin/bookings/${ID}`, "[data-ask=confirm]");
 check("3. Детайли: „Създадена на“ отделно от получаване/връщане", /Създадена на\s+\d{2}\.\d{2}\.\d{4}, \d{2}:\d{2} ч\./.test(await text(page)) && (await text(page)).includes(dmy(D1)), "");
+check("3p. Детайли: сървърната проверка на цената (само наблюдение) се показва", /Сървърна проверка на цената \(само наблюдение\)\s+Съвпада \(50,00 €\)/.test(await text(page)), ((await text(page)).match(/Сървърна проверка[^\n]*\n?[^\n]*/) || [""])[0]);
 await page.click("[data-ask=confirm]"); await page.click("[data-do=confirm]");
 await page.waitForSelector(".msg.ok");
 check("3a. Потвърдена от панела", /потвърдена/i.test(await text(page, ".msg.ok")), await text(page, ".msg.ok"));
