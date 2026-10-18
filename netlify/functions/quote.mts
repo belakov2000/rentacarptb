@@ -9,9 +9,10 @@ import { inflight, lookupBudget, quoteLimit, readJson, tooMany, who } from "../.
 // 409: { error: "car_inactive" }
 // 413: { error: "too_large" }
 // 429: { error: "rate_limited", scope, retryAfter } – твърде много заявки (server/limits.ts); заглавка Retry-After
-// 502: { error: "route", leg: "del" | "ret", reason } – разстоянието не може да бъде изчислено (reason: not_found | ambiguous | imprecise | no_route | …);
+// 502: { error: "route", leg: "del" | "ret", reason } – разстоянието не може да бъде изчислено (reason: not_found | ambiguous | imprecise | terminal | no_route | …);
 //      няма оферта и няма нулева доставка. ambiguous – намерени са само места в друго населено място / на друга улица
 //      imprecise – намерена е само улицата / населеното място, не въведеният номер (няма цена до произволна точка)
+//      terminal – Летище София без посочен терминал (браузърът предлага избор на Терминал 1 / 2)
 // Офертата не блокира автомобила. Адресите не се записват и не се пишат в логовете.
 const json = (b: object, status = 200) => Response.json(b, { status, headers: { "Cache-Control": "no-store", "X-Robots-Tag": "noindex" } });
 

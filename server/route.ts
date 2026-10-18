@@ -8,12 +8,14 @@
 // Цена се изчислява само до потвърдена сграда (точност „house“ – въведеният номер е намерен на въведената улица).
 // Намерена само улица (номерът липсва или не е въведен) или само населено място → „imprecise“: няма оферта,
 // клиентът уточнява адреса или се обажда. Адресът не се заменя с точка от улицата или центъра на селото.
+// Проверени обекти без улица и номер (Летище София – Терминал 1 / 2, Летище Пловдив; server/geocode.ts → matchPoi): маршрутът
+// е до автомобилната точка пред терминала; при неясен терминал → „terminal“ (клиентът избира терминала).
 // cachedRoute() пази резултатите в базата (route_cache) и при едновременни заявки за един адрес пита доставчика само веднъж.
 // В логовете няма адреси и отговори на доставчика – само кодове на грешки.
 import { createHash, randomUUID } from "node:crypto";
 import { sql } from "drizzle-orm";
 import { db } from "../db/index.js";
-import { endPrecision, pickPlace, queriesFor, type NomResult, type Place, type Precision } from "./geocode.js";
+import { endPrecision, matchPoi, pickPlace, queriesFor, type NomResult, type Place, type Precision } from "./geocode.js";
 // Началната точка за доставка и връщане от адрес – обектът „Рента ПТБ Строй – Rent a Car Plovdiv“, бул. Дунав 10, Пловдив.
 // Източник: точката (pin) на обекта в Google Maps, предоставена от собственика – https://maps.app.goo.gl/EfXpFUUBAbxecxue8
 // (параметрите !3d / !4d на мястото, не центърът на картата @…). Ширина, дължина. Предишната точка 42.1622, 24.7366 беше
@@ -95,8 +97,8 @@ async function findPlace(addr: string): Promise<Place | "ambiguous" | null> {
   return pickPlace(addr, await geocode(addr, false));
 }
 
-// Разстояние по маршрута, който Google Maps предлага по подразбиране
-async function googleKm(dest: string): Promise<{ km: number; place: string; end: { lat: number; lon: number } | null } | null> {
+// Разстояние по маршрута, който Google Maps предлага по подразбиране – до адрес или до точка (проверен обект)
+async function googleKm(dest: string | { lat: number; lon: number }): Promise<{ km: number; place: string; end: { lat: number; lon: number } | null } | null> {
   const key = process.env.GOOGLE_MAPS_API_KEY;
   if (!key) return null;
   const r = await fetch("https://routes.googleapis.com/directions/v2:computeRoutes", {
@@ -104,7 +106,7 @@ async function googleKm(dest: string): Promise<{ km: number; place: string; end:
     headers: { "Content-Type": "application/json", "X-Goog-Api-Key": key, "X-Goog-FieldMask": "routes.distanceMeters,routes.legs.endLocation" },
     body: JSON.stringify({
       origin: { location: { latLng: { latitude: BASE.lat, longitude: BASE.lon } } },
-      destination: { address: withCity(dest) },
+      destination: typeof dest === "string" ? { address: withCity(dest) } : { location: { latLng: { latitude: dest.lat, longitude: dest.lon } } },
       travelMode: "DRIVE",
       languageCode: "bg",
       regionCode: "bg",
@@ -120,16 +122,37 @@ async function googleKm(dest: string): Promise<{ km: number; place: string; end:
   const m = j?.routes?.[0]?.distanceMeters;
   const ll = j?.routes?.[0]?.legs?.at(-1)?.endLocation?.latLng;
   const end = typeof ll?.latitude === "number" && typeof ll?.longitude === "number" ? { lat: ll.latitude, lon: ll.longitude } : null;
-  return typeof m === "number" ? { km: Math.round(m / 100) / 10, place: dest, end } : null;
+  return typeof m === "number" ? { km: Math.round(m / 100) / 10, place: typeof dest === "string" ? dest : "", end } : null;
 }
 
-// precision е винаги "house" – разстояние се връща само до потвърдена сграда
-export type Route = { km: number; place: string; local: boolean; rate: number; source: "google" | "osm"; precision: Precision };
-// imprecise – намерена е само улицата или населеното място, не въведеният номер (или номер не е въведен)
-export type RouteError = "not_found" | "no_route" | "ambiguous" | "imprecise";
+// precision: "house" – потвърдена сграда; "poi" – проверен обект (poi – името му, напр. „Летище София, Терминал 2“)
+export type Route = { km: number; place: string; local: boolean; rate: number; source: "google" | "osm"; precision: Precision; poi?: string };
+// imprecise – намерена е само улицата или населеното място, не въведеният номер (или номер не е въведен);
+// terminal – Летище София без надеждно посочен терминал (клиентът избира Терминал 1 или 2)
+export type RouteError = "not_found" | "no_route" | "ambiguous" | "imprecise" | "terminal";
+
+// Маршрут с OSRM от офиса до точка (ред „дължина,ширина“)
+async function osrmKm(p: { lat: number; lon: number }): Promise<number | null> {
+  const r = await fetch(
+    `https://router.project-osrm.org/route/v1/driving/${BASE.lon},${BASE.lat};${p.lon},${p.lat}?overview=false`,
+    { headers: { "User-Agent": UA } },
+  );
+  const j = (await r.json().catch(() => null)) as { code?: string; routes?: { distance: number }[] } | null;
+  if (!r.ok || j?.code !== "Ok" || !j.routes?.length) return null;
+  return Math.round(j.routes[0].distance / 100) / 10;
+}
 
 // Разстояние до адреса или причината да няма такова. Мрежовите грешки се пропускат нагоре (извикващият решава).
 export async function routeTo(dest: string): Promise<Route | RouteError> {
+  // Проверен обект: без търсене на адрес – маршрут до автомобилната точка на обекта (Google, иначе OSRM)
+  const poi = matchPoi(dest);
+  if (poi === "terminal" || poi === "ambiguous") return poi;
+  if (poi) {
+    const pg = await googleKm(poi).catch((e) => (console.error("Google Routes failed", (e as Error)?.name), null));
+    const km = pg ? pg.km : await osrmKm(poi);
+    if (km == null) return "no_route";
+    return { km, place: poi.name, ...zone(poi), source: pg ? "google" : "osm", precision: "poi", poi: poi.name };
+  }
   const g = await googleKm(dest).catch((e) => (console.error("Google Routes failed", (e as Error)?.name), null));
   if (g) {
     // Разстоянието от Google се приема само ако крайната му точка (обратно търсене) е въведеният номер в посоченото
@@ -145,13 +168,8 @@ export async function routeTo(dest: string): Promise<Route | RouteError> {
   if (p === "ambiguous") return p;
   if (!p) return "not_found";
   if (p.precision !== "house") return "imprecise";
-  const r = await fetch(
-    `https://router.project-osrm.org/route/v1/driving/${BASE.lon},${BASE.lat};${p.lon},${p.lat}?overview=false`,
-    { headers: { "User-Agent": UA } },
-  );
-  const j = (await r.json().catch(() => null)) as { code?: string; routes?: { distance: number }[] } | null;
-  if (!r.ok || j?.code !== "Ok" || !j.routes?.length) return "no_route";
-  const km = Math.round(j.routes[0].distance / 100) / 10;
+  const km = await osrmKm(p);
+  if (km == null) return "no_route";
   return { km, place: p.name, ...zone(p), source: "osm", precision: p.precision };
 }
 
@@ -171,11 +189,11 @@ export function validAddr(a: unknown) {
 // останалите изчакват резултата ѝ. Заето търсене, което не е завършило за CLAIM_MS (прекъсната функция), може да бъде заето
 // отново. Едно търсене може да направи няколко заявки към доставчиците (Google + OpenStreetMap за зоната или резервния път).
 // Грешките се помнят кратко (FAIL_TTL_MS), за да не се повтарят веднага, но повторен опит след това пита отново.
-// Версия 3: цена само до потвърден номер (версия 2 приемаше и точка от улицата); проверка на населеното място и улицата;
+// Версия 4: проверени обекти (летищата, отделни терминали); версия 3: цена само до потвърден номер (версия 2 приемаше и точка от улицата); проверка на населеното място и улицата;
 // точната начална точка (pin на офиса).
-// Началната точка е част от ключа – при нова точка старите разстояния не се използват. Записите от версии 1 и 2 не се четат
+// Началната точка е част от ключа – при нова точка старите разстояния не се използват. Записите от версии 1–3 не се четат
 // (не се изтриват – изтичат сами след 24 ч).
-const CACHE_VERSION = "3";
+const CACHE_VERSION = "4";
 export const ROUTE_VERSION = `${CACHE_VERSION}@${BASE.lat},${BASE.lon}`;
 export const ROUTE_CACHE = { okTtlMs: 24 * 3600_000, failTtlMs: 15_000, errorTtlMs: 5_000, claimMs: 20_000, waitMs: 12_000, pollMs: 150 };
 const cacheKey = (dest: string) => "v" + CACHE_VERSION + "/" + createHash("sha256").update(ROUTE_VERSION + "\n" + normAddr(dest).toLowerCase()).digest("hex");
@@ -190,7 +208,11 @@ export async function cachedRoute(dest: string, o: { budget?: () => Promise<bool
   const deadline = Date.now() + ROUTE_CACHE.waitMs;
   for (;;) {
     const [row] = rowsOf(await db.execute(sql`select status, km, rate, local, source, precision, reason, expires_at > now() as fresh from route_cache where key = ${key}`));
-    if (row?.fresh && row.status === "ok") return { km: Number(row.km), rate: Number(row.rate), local: !!row.local, source: row.source, precision: row.precision, place: "" };
+    if (row?.fresh && row.status === "ok") {
+      // Името на обекта не се пази в базата – определя се отново от текста на адреса (без външни заявки)
+      const poi = row.precision === "poi" ? matchPoi(dest) : null;
+      return { km: Number(row.km), rate: Number(row.rate), local: !!row.local, source: row.source, precision: row.precision, place: "", ...(poi && typeof poi === "object" ? { poi: poi.name } : {}) };
+    }
     if (row?.fresh && row.status === "fail") return row.reason as RouteError | "error";
     if (!row?.fresh) {
       // Опит да бъде заето търсенето: успява само една заявка (нов ред или изтекъл / изоставен ред)

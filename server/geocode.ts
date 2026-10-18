@@ -13,7 +13,8 @@ export type NomResult = {
   lat: string; lon: string; display_name: string; name?: string; addresstype?: string; place_rank?: number;
   address?: Record<string, string>;
 };
-export type Precision = "house" | "street" | "place";
+// "poi" – проверен обект без стандартен адрес (летище / терминал – matchPoi() по-долу)
+export type Precision = "house" | "street" | "place" | "poi";
 export type Place = { lat: number; lon: number; name: string; precision: Precision };
 
 // Сравнение без значение на азбуката, главните букви, кавичките и препинателните знаци („Plovdiv“ = „Пловдив“)
@@ -23,7 +24,9 @@ const LAT: Record<string, string> = {
   і: "i", // кирилско „І“ в римски цифри („Александър І“)
 };
 export const fold = (s: string) =>
-  String(s || "").toLowerCase().replace(/[а-яѝі]/g, (c) => LAT[c] ?? c).replace(/[^a-z0-9]+/g, " ").trim();
+  String(s || "").toLowerCase().replace(/[а-яѝі]/g, (c) => LAT[c] ?? c)
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // „Aéroport“ = „Aeroport“ (кирилицата вече е заменена)
+    .replace(/[^a-z0-9]+/g, " ").trim();
 
 const PLOVDIV = "plovdiv";
 const TOWN_RE = /^(гр|град|с|село|gr|grad|s|selo)(\.\s*|\s+)(.+)$/i;
@@ -147,4 +150,49 @@ export function endPrecision(addr: string, r: NomResult | null): Precision | nul
   if (!townOk(p, r)) return null;
   if (!p.street) return p.number && sameNumber(p.number, r.address.house_number) ? "house" : "place";
   return streetNames(r, p.area).some((n) => sameStreet(p.street!, n)) && p.number && sameNumber(p.number, r.address.house_number) ? "house" : "street";
+}
+
+// ===== Обекти без стандартен адрес =====
+// Проверени обекти без стандартен адрес (улица и номер): летищата. Маршрутът се изчислява на сървъра до автомобилната
+// точка пред входа на терминала (публичния път пред сградата), не до центъра на летището или пистата.
+// Точката е само крайна точка за изчисляване на маршрута – не означава, че там е разрешено спиране или че достъпът е безплатен.
+// Източник: OpenStreetMap (18.10.2026) – сградата на терминала (aeroway=terminal) и входовете ѝ; точката е най-близката точка
+// на път за автомобили пред входа / фасадата, определена с OSRM nearest (3–25 м):
+//   Летище София, Терминал 1 – сграда way/89155443 (южна фасада; входове не са отбелязани в OpenStreetMap);
+//   Летище София, Терминал 2 – сграда way/53563578, вход node/1034001277, път way/89092791;
+//   Летище Пловдив – сграда way/194571760 (източна фасада, откъм публичния път).
+// Терминал 1 и Терминал 2 са на около 1 км един от друг и не са взаимозаменяеми: при неясен терминал → "terminal"
+// (клиентът избира терминала), никога първият резултат. Проверява го tests/places.test.ts.
+
+export type Poi = { id: string; name: string; lat: number; lon: number };
+export const POIS: Record<string, Poi> = {
+  "sof-t1": { id: "sof-t1", name: "Летище София, Терминал 1", lat: 42.689058, lon: 23.402457 },
+  "sof-t2": { id: "sof-t2", name: "Летище София, Терминал 2", lat: 42.688069, lon: 23.414214 },
+  pdv: { id: "pdv", name: "Летище Пловдив", lat: 42.076899, lon: 24.844729 },
+};
+
+// След fold() текстът е на латиница, с малки букви и интервали вместо препинателни знаци
+const POI_AIRPORT = /\b(letishte|letishteto|airport|flughafen|aerogara|aeroport)\b/;
+const POI_SOFIA = /\b(sofiya|sofia|sofija|vasil levski|sof|lbsf)\b/;
+const POI_PLOVDIV = /\b(plovdiv|plowdiw|krumovo|pdv|lbpd)\b/;
+// Посочена улица / квартал → обикновен адрес (строга проверка на улица и номер), не обект
+const POI_STREET = /\b(ul|ulitsa|bul|bulevard|blvd|zhk|kv|kvartal|str|strasse|street)\b/;
+// „Терминал 2“, „Terminal 2“, „Т2“, „T 2“
+const POI_TERMINAL = /\b(?:terminal|terminala|t)\s*(\d+)\b/g;
+
+// Обектът в адреса: Poi; "terminal" – Летище София без надеждно посочен терминал (няма, два или непознат номер);
+// "ambiguous" – посочени са две летища; null – не е обект (обикновен адрес).
+export function matchPoi(addr: string): Poi | "terminal" | "ambiguous" | null {
+  const t = fold(addr);
+  if (!POI_AIRPORT.test(t) || POI_STREET.test(t)) return null;
+  const sof = POI_SOFIA.test(t), pdv = POI_PLOVDIV.test(t);
+  if (sof && pdv) return "ambiguous";
+  if (pdv) return POIS.pdv;
+  if (!sof) return null;
+  const terms = new Set([...t.matchAll(POI_TERMINAL)].map((m) => m[1]));
+  // Всяко друго число в текста („Терминал 1 или 2“) прави терминала неясен
+  const nums = t.match(/\d+/g) || [];
+  if (terms.size !== 1 || nums.some((x) => !terms.has(x))) return "terminal";
+  const n = [...terms][0];
+  return n === "1" ? POIS["sof-t1"] : n === "2" ? POIS["sof-t2"] : "terminal";
 }

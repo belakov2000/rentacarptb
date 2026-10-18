@@ -1481,6 +1481,7 @@ const I18N={
 "Изчисляваме цената на сървъра…":["Calculating the price on our server…","Der Preis wird auf unserem Server berechnet…"],
 "Цената е изчислена от сървъра за тези данни. При промяна се изчислява наново.":["The price was calculated by our server for these details. It is recalculated if anything changes.","Der Preis wurde von unserem Server für diese Angaben berechnet. Bei Änderungen wird er neu berechnet."],
 "Изчисли цената отново":["Recalculate the price","Preis neu berechnen"],
+"Терминал 1":["Terminal 1","Terminal 1"],"Терминал 2":["Terminal 2","Terminal 2"],
 "Обадете се":["Call us","Rufen Sie uns an"],
 "Цената се изчислява след това.":["The price is calculated after that.","Der Preis wird danach berechnet."],
 "Изчакайте изчисляването на цената.":["Please wait until the price has been calculated.","Bitte warten Sie, bis der Preis berechnet ist."],
@@ -1492,6 +1493,10 @@ const I18N_RULES=[
 [/Не успяхме да изчислим разстоянието до адреса за връщане\./,"We could not calculate the distance to the collection address.","Wir konnten die Entfernung zur Abholadresse nicht berechnen."],
 [/Адресът за доставка не беше намерен в посоченото населено място и улица\./,"The delivery address was not found in the given town and street.","Die Lieferadresse wurde im angegebenen Ort und in der angegebenen Straße nicht gefunden."],
 [/Адресът за връщане не беше намерен в посоченото населено място и улица\./,"The collection address was not found in the given town and street.","Die Abholadresse wurde im angegebenen Ort und in der angegebenen Straße nicht gefunden."],
+[/Изберете терминал на Летище София за доставката – Терминал 1 и Терминал 2 са на различни места\./,"Please choose the Sofia Airport terminal for the delivery – Terminal 1 and Terminal 2 are in different places.","Bitte wählen Sie das Terminal am Flughafen Sofia für die Lieferung – Terminal 1 und Terminal 2 liegen an verschiedenen Orten."],
+[/Изберете терминал на Летище София за връщането – Терминал 1 и Терминал 2 са на различни места\./,"Please choose the Sofia Airport terminal for the collection – Terminal 1 and Terminal 2 are in different places.","Bitte wählen Sie das Terminal am Flughafen Sofia für die Abholung – Terminal 1 und Terminal 2 liegen an verschiedenen Orten."],
+[/^до Летище София, Терминал (\d) · /,"to Sofia Airport, Terminal $1 · ","zum Flughafen Sofia, Terminal $1 · "],
+[/^до Летище Пловдив · /,"to Plovdiv Airport · ","zum Flughafen Plowdiw · "],
 [/Не намерихме точния номер на адреса за доставка на картата – цената не може да бъде изчислена до произволна точка от улицата\. Уточнете улицата и номера или се обадете, за да уговорим доставката\./,"We could not find the exact house number of the delivery address on the map – the price cannot be calculated to an arbitrary point on the street. Please specify the street and number or call us to arrange the delivery.","Wir konnten die genaue Hausnummer der Lieferadresse auf der Karte nicht finden – der Preis kann nicht bis zu einem beliebigen Punkt der Straße berechnet werden. Bitte geben Sie Straße und Hausnummer genauer an oder rufen Sie uns an, um die Lieferung zu vereinbaren."],
 [/Не намерихме точния номер на адреса за връщане на картата – цената не може да бъде изчислена до произволна точка от улицата\. Уточнете улицата и номера или се обадете, за да уговорим връщането\./,"We could not find the exact house number of the collection address on the map – the price cannot be calculated to an arbitrary point on the street. Please specify the street and number or call us to arrange the collection.","Wir konnten die genaue Hausnummer der Abholadresse auf der Karte nicht finden – der Preis kann nicht bis zu einem beliebigen Punkt der Straße berechnet werden. Bitte geben Sie Straße und Hausnummer genauer an oder rufen Sie uns an, um die Abholung zu vereinbaren."],
 [/Уточнете адреса \(населено място, улица, номер\)\./,"Please specify the address (town, street, number).","Bitte präzisieren Sie die Adresse (Ort, Straße, Hausnummer)."],
@@ -1637,6 +1642,7 @@ const qKey=R=>JSON.stringify(qInput(R));
 const qOk=()=>Q.st==="ok"&&!!Q.d&&Q.key===qKey(S);
 const Q_ERR={del:"Не успяхме да изчислим разстоянието до адреса за доставка. Проверете адреса (населено място, улица, номер).",ret:"Не успяхме да изчислим разстоянието до адреса за връщане. Проверете адреса (населено място, улица, номер).",
 del_amb:"Адресът за доставка не беше намерен в посоченото населено място и улица. Уточнете адреса (населено място, улица, номер).",ret_amb:"Адресът за връщане не беше намерен в посоченото населено място и улица. Уточнете адреса (населено място, улица, номер).",
+del_term:"Изберете терминал на Летище София за доставката – Терминал 1 и Терминал 2 са на различни места.",ret_term:"Изберете терминал на Летище София за връщането – Терминал 1 и Терминал 2 са на различни места.",
 del_imp:"Не намерихме точния номер на адреса за доставка на картата – цената не може да бъде изчислена до произволна точка от улицата. Уточнете улицата и номера или се обадете, за да уговорим доставката.",ret_imp:"Не намерихме точния номер на адреса за връщане на картата – цената не може да бъде изчислена до произволна точка от улицата. Уточнете улицата и номера или се обадете, за да уговорим връщането.",
 net:"Няма връзка със сървъра и цената не може да бъде изчислена.",car_inactive:"Автомобилът в момента не приема резервации. Изберете друг автомобил.",past:"Датата на получаване е минала. Изберете нова дата.",
 hours:"Часът на получаване или връщане е извън работното време: пн–пт 08:00–20:00, сб–нд 09:00–19:00.",
@@ -1652,14 +1658,16 @@ const key=qKey(S);if(Q.key===key&&(Q.st==="ok"||Q.st==="load"))return;
 const seq=++Q.seq;Q.key=key;Q.st="load";Q.d=null;Q.err="";if(!keep)Q.changed=null;renderPick();
 try{const r=await fetch(QUOTE_ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json",...(CID?{"X-Client-Id":CID}:{})},body:key,cache:"no-store"});const j=await r.json().catch(()=>({}));if(seq!==Q.seq)return;
 if(r.ok&&j.quote&&j.totalCents>=0){Q.st="ok";Q.d=j;[1,2].forEach(n=>{const l=j.legs&&j.legs[n===1?"del":"ret"];KMS[n]=l?l.km:null;KMS.r[n]=l?l.rate:KM_RATE;KMS.st[n]=l?"ok":""})}
-else{Q.st="err";Q.err=r.status===429?"limited":j.error==="route"?(j.leg==="ret"?"ret":"del")+(j.reason==="ambiguous"?"_amb":j.reason==="imprecise"?"_imp":""):j.error||"server"}}
+else{Q.st="err";Q.err=r.status===429?"limited":j.error==="route"?(j.leg==="ret"?"ret":"del")+(j.reason==="ambiguous"?"_amb":j.reason==="imprecise"?"_imp":j.reason==="terminal"?"_term":""):j.error||"server"}}
 catch(e){if(seq!==Q.seq)return;Q.st="err";Q.err="net"}
 renderPick()}
 // Нова оферта след отказ на сървъра или преди изтичане: "same" – същата сума; "changed" – друга сума (иска се потвърждение); "err"
 async function requote(){const prev=Q.d?Q.d.totalCents:Q.changed?Q.changed.to:null;Q.key="";await loadQuote(true);if(!qOk())return"err";
 if(prev!=null&&Q.d.totalCents!==prev){Q.changed={from:prev,to:Q.d.totalCents};renderPick();return"changed"}return"same"}
+// Разпознат обект (летище / терминал) за реда на доставката / връщането – името идва от сървъра
+const poiOf=(d,l)=>{const g=d.legs&&d.legs[l.code==="delivery"?"del":"ret"];return g&&g.poi?"до "+g.poi:""};
 const qLine=(l,d)=>l.code==="rent"?["Цена",`${d.days} × ${fmt(l.unitCents/100)} / ден`]:l.code==="seats"?["Детско столче",`${l.qty/d.days>1?l.qty/d.days+" × ":""}${d.days} × ${fmt(l.unitCents/100)}`]
-:l.code==="delivery"||l.code==="return"?[l.code==="delivery"?"Доставка":"Връщане от адрес",`${String(l.km).replace(".",",")} км × ${rateTxt(l.rate)}`]:l.code==="abroad"?[(ABROAD.find(([k])=>k===l.country)||[,l.country])[1],"Пътуване в чужбина · еднократна такса"]:[l.code,""];
+:l.code==="delivery"||l.code==="return"?[l.code==="delivery"?"Доставка":"Връщане от адрес",`${poiOf(d,l)?poiOf(d,l)+" · ":""}${String(l.km).replace(".",",")} км × ${rateTxt(l.rate)}`]:l.code==="abroad"?[(ABROAD.find(([k])=>k===l.country)||[,l.country])[1],"Пътуване в чужбина · еднократна такса"]:[l.code,""];
 // ===== Компоненти =====
 const whyCard=([i,t,p,hl])=>`<article class="card rv ${hl?"hl":""}"><div class="ico"><svg width="24" height="24" aria-hidden="true"><use href="#${i}"/></svg></div><h3>${t}</h3><p>${p}</p></article>`;
 const carCard=c=>{const[a,b,d]=c.tiers,alt=`${c.color?c.color+" ":""}${c.name} под наем в Пловдив`,q=hasD()?quote(c,S):null,sel=S.car===c.id,na=q&&q.err==="busy";
@@ -1913,12 +1921,12 @@ mil=`<p class="pend" style="color:#c5d0e0">${q.d>2?"Пробег: неогран
 if(qOk()){const d=Q.d;body=per+d.lines.map(l=>{const[a,s]=qLine(l,d);return`<div class="srow"><span>${esc(a)}${s?`<small>${esc(s)}</small>`:""}</span><b>${esc(fmt(l.cents/100))}</b></div>`}).join("")+`<div class="stot"><span>Общо за услугите</span><b>${esc(d.total)}</b></div>`
 +(Q.changed?`<div class="alert">Цената е променена: беше ${esc(fmt(Q.changed.from/100))}, сега е <b>${esc(d.total)}</b>. Проверете разбивката и потвърдете новата сума с бутона за изпращане.</div>`:"")
 +`<p class="pend" style="color:#c5d0e0">Цената е изчислена от сървъра за тези данни. При промяна се изчислява наново.</p>`+mil+dep(d.depositCents)}
-else if(Q.st==="err"&&Q.key===qKey(S))body=per+`<div class="alert" role="alert">${esc(qErrText())}<br><button class="btn btn-dark" type="button" data-requote style="margin-top:10px">Изчисли цената отново</button> <a class="btn btn-dark" href="tel:${PHONE}" style="margin-top:10px">Обадете се</a></div>`+mil+dep(DEPOSIT*100);
+else if(Q.st==="err"&&Q.key===qKey(S))body=per+`<div class="alert" role="alert">${esc(qErrText())}<br>${/_term$/.test(Q.err)?[1,2].map(t=>`<button class="btn btn-acc" type="button" data-term="${Q.err[0]==="r"?2:1}:${t}" style="margin-top:10px">Терминал ${t}</button> `).join(""):""}<button class="btn btn-dark" type="button" data-requote style="margin-top:10px">Изчисли цената отново</button> <a class="btn btn-dark" href="tel:${PHONE}" style="margin-top:10px">Обадете се</a></div>`+mil+dep(DEPOSIT*100);
 else if(planErr())body=per+`<p class="pend"><span>${esc(planErr())}</span> <span>Цената се изчислява след това.</span></p>`+mil+dep(DEPOSIT*100);
 else{body=per+`<p class="pend" aria-busy="true">Изчисляваме цената на сървъра…</p>`+mil+dep(DEPOSIT*100);if(Q.key!==qKey(S))wantQuote()}}
 $("#details").hidden=!ok;syncSubmit();
 el.hidden=false;
-el.innerHTML=`<img src="${IMG[c.id]}" alt="${c.name}"><div><h3>Избрахте ${c.name}</h3>${body}<div class="actions">${ok?`<button class="btn btn-acc" type="button" data-details>Продължи с данните</button>`:""}<button class="btn btn-ghost" type="button" data-unpick>Смени автомобила</button></div><p class="fmsg" id="pick-msg" role="status" style="color:#c5d0e0"></p></div>`}
+el.innerHTML=`<img src="${IMG[c.id]}" alt="${c.name}"><div><h3>Избрахте ${c.name}</h3>${body}<div class="actions">${ok?`<button class="btn btn-acc" type="button" data-details${qOk()?"":` disabled aria-disabled="true" title="Изчакайте изчисляването на цената."`}>Продължи с данните</button>`:""}<button class="btn btn-ghost" type="button" data-unpick>Смени автомобила</button></div><p class="fmsg" id="pick-msg" role="status" style="color:#c5d0e0"></p></div>`}
 // ===== Календар със заетите дни за избрания автомобил =====
 // Червените дни са заети от потвърдени резервации. С клик се избира дата на получаване, а след това – на връщане.
 let calOff=0,calStep=0;
@@ -1958,8 +1966,13 @@ if(pk&&!pk.disabled){S.car=pk.dataset.pick;S.open=true;readPlan();$("#plan").hid
 if(e.target.closest("[data-unpick]")){S.car="";store.set(S);renderCars();renderPick();return}
 if(e.target.closest("[data-sms]")){sendSms();return}
 if(e.target.closest("[data-requote]")){Q.key="";loadQuote(true);return}
+// Избор на терминал на Летище София: адресът се попълва с точното име на терминала и цената се изчислява отново
+{const tb=e.target.closest("[data-term]");if(tb){const[n,t]=tb.dataset.term.split(":"),i=$("#b-a"+n);
+i.value=(LANG==="en"?"Sofia Airport, Terminal ":LANG==="de"?"Flughafen Sofia, Terminal ":"Летище София, Терминал ")+t;planChanged(+n);return}}
 if(e.target.closest("[data-details]")){const m=$("#pick-msg"),er=planErr();
 if(er){m.textContent=er;m.style.color="#ffb4ab";$("#plan").scrollIntoView({behavior:"smooth"});return}
+// Без валидна сървърна оферта не се продължава (бутонът е неактивен; проверка и тук)
+if(!qOk()){m.textContent=Q.st==="err"&&Q.key===qKey(S)?qErrText():"Изчакайте изчисляването на цената.";m.style.color="#ffb4ab";return}
 m.textContent="";$("#details").scrollIntoView({behavior:"smooth",block:"start"})}});
 function renderThanks(){const R=S,c=CARS.find(x=>x.id===R.car),st0=R.bid?R.bst:"",off=st0==="cancelled"||st0==="no_show",st=off?"rejected":st0;
 $("#th-h").textContent=off?"Резервацията е отменена":st==="confirmed"?"Резервацията е потвърдена!":st==="rejected"?"Резервацията не е потвърдена":"Благодарим за доверието!";

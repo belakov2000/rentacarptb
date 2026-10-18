@@ -160,8 +160,10 @@ const fakeRoute = async (url: string) => {
   if (url.includes("router.project-osrm.org")) {
     const [, to] = new URL(url).pathname.split("/driving/")[1].split(";");
     const [lon, lat] = to.split(",").map(Number);
-    // Синтетично разстояние според крайната точка: далечното село 150 км, Бяла река 49,8 км (реалният OSRM), иначе 5 км
-    const distance = lat > 42.6 ? 150000 : lon > 25.2 ? 49809.6 : lon === 24.751 ? 4100 : 5000;
+    // Разстояние според крайната точка: летищата, далечното село 150 км, Бяла река 49,8 км (реалният OSRM), иначе 5 км
+    // Летищата (server/geocode.ts → POIS): реалните разстояния от OSRM от офиса (18.10.2026)
+    const AIRPORTS: Record<string, number> = { "23.402457": 138500, "23.414214": 139300, "24.844729": 19200 };
+    const distance = AIRPORTS[String(lon)] ?? (lat > 42.6 ? 150000 : lon > 25.2 ? 49809.6 : lon === 24.751 ? 4100 : 5000);
     return Response.json({ code: "Ok", routes: [{ distance }], waypoints: [] });
   }
   return null;

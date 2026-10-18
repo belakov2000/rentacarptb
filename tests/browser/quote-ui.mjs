@@ -162,6 +162,45 @@ for (const [lang, amb, imp, total] of [
   check(`8.${lang || "bg/"} потвърден номер: цена 5 км × 1,00 €, обща сума 55 €; без грешки в страницата`, total.test(t3) && page.errs.length === 0, page.errs.join(";"));
   await ctx.close();
 }
+// 9. Летище София без терминал (доставка и връщане) на трите езика: съобщение за избор, бутони „Терминал 1“ / „Терминал 2“,
+// неактивни „Продължи с данните“ и изпращане; избор → адресът е точният терминал, цена от сървъра и активен бутон
+for (const [lang, msgDel, msgRet, t2txt, t1txt, line2, line1] of [
+  ["", /Изберете терминал на Летище София за доставката/, /Изберете терминал на Летище София за връщането/, "Летище София, Терминал 2", "Летище София, Терминал 1", /до Летище София, Терминал 2 · 139,3 км × 0,70 €/, /до Летище София, Терминал 1 · 138,5 км × 0,70 €/],
+  ["en/", /Please choose the Sofia Airport terminal for the delivery/, /Please choose the Sofia Airport terminal for the collection/, "Sofia Airport, Terminal 2", "Sofia Airport, Terminal 1", /to Sofia Airport, Terminal 2 · 139,3 km × 0,70 €/, /to Sofia Airport, Terminal 1 · 138,5 km × 0,70 €/],
+  ["de/", /Bitte wählen Sie das Terminal am Flughafen Sofia für die Lieferung/, /Bitte wählen Sie das Terminal am Flughafen Sofia für die Abholung/, "Flughafen Sofia, Terminal 2", "Flughafen Sofia, Terminal 1", /zum Flughafen Sofia, Terminal 2 · 139,3 km × 0,70 €/, /zum Flughafen Sofia, Terminal 1 · 138,5 km × 0,70 €/],
+]) {
+  const L = lang || "bg/";
+  const { ctx, page } = await open({ m1: "addr", a1: "Летище София" });
+  await page.goto(B + "/" + lang + "#avtomobili", { waitUntil: "load" });
+  await page.waitForSelector("#pick [data-term]", { timeout: 15000 });
+  const t = await page.locator("#pick").innerText();
+  const cont = await page.$eval("#pick [data-details]", (b) => b.disabled);
+  const btns = await page.$$eval("#pick [data-term]", (bs) => bs.map((b) => b.innerText.trim()));
+  check(`9.${L} неясен терминал: съобщение, бутони Терминал 1 / 2, без сума; „Продължи с данните“ е неактивен`, msgDel.test(t) && btns.join("|") === "Terminal 1|Terminal 2".replace(/Terminal/g, lang ? "Terminal" : "Терминал") && cont && !/Общо за услугите|Total for services|Gesamt für/.test(t), `${btns} ${cont} ${t.replace(/\n/g, " / ").slice(0, 200)}`);
+  await page.click("#pick [data-term$=':2']");
+  await page.waitForFunction((re) => new RegExp(re).test(document.querySelector("#pick").innerText), line2.source, { timeout: 15000 });
+  const v = await page.inputValue("#b-a1"), cont2 = await page.$eval("#pick [data-details]", (b) => b.disabled);
+  check(`9.${L} избран Терминал 2: адресът е „${t2txt}“, сървърна цена 139,3 км × 0,70 €; „Продължи“ е активен`, v === t2txt && !cont2 && page.errs.length === 0, `${v} ${cont2} ${page.errs}`);
+  // Връщане от летището без терминал → избор за връщането
+  await page.check('input[name="m2"][value="addr"]');
+  await page.fill("#b-a2", "Sofia Airport");
+  await page.waitForSelector("#pick [data-term^='2:']", { timeout: 15000 });
+  const t3 = await page.locator("#pick").innerText(), cont3 = await page.$eval("#pick [data-details]", (b) => b.disabled);
+  check(`9.${L} връщане без терминал: искане за избор за връщането; „Продължи“ отново е неактивен`, msgRet.test(t3) && cont3, t3.replace(/\n/g, " / ").slice(0, 200));
+  await page.click("#pick [data-term='2:1']");
+  await page.waitForFunction((re) => new RegExp(re).test(document.querySelector("#pick").innerText), line1.source, { timeout: 15000 });
+  const t4 = await page.locator("#pick").innerText();
+  check(`9.${L} връщане от Терминал 1 (138,5 км) и доставка до Терминал 2 (139,3 км): два отделни реда, сума 50 + 97,51 + 96,95 = 244,46 €`, (await page.inputValue("#b-a2")) === t1txt && line2.test(t4) && line1.test(t4) && /244,46 €/.test(t4), t4.replace(/\n/g, " / ").slice(0, 400));
+  // Бутонът „Продължи“ при грешка не премества към данните
+  await page.fill("#b-a1", "гр. Пловдив, пл. Централен 1");
+  await page.waitForSelector("#pick [data-requote]", { timeout: 15000 });
+  const y0 = await page.evaluate(() => scrollY);
+  await page.$eval("#pick [data-details]", (b) => { b.disabled = false; b.click(); }); // дори ако бутонът бъде активиран
+  await page.waitForTimeout(400);
+  const msg = await page.locator("#pick-msg").innerText();
+  check(`9.${L} грешка за адреса: „Продължи“ е неактивен, а принудителното натискане показва причината и не продължава`, msg.length > 0 && Math.abs((await page.evaluate(() => scrollY)) - y0) < 5, msg);
+  await ctx.close();
+}
 await browser.close();
 console.log(`ОБЩО: ${res.filter(Boolean).length} PASS, ${res.filter((x) => !x).length} FAIL`);
 process.exit(res.every(Boolean) ? 0 : 1);

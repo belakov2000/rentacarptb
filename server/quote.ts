@@ -96,8 +96,10 @@ export type RouteFail = { leg: "del" | "ret"; reason: Exclude<CacheResult, objec
 export type RouteFn = (addr: string) => Promise<CacheResult>;
 
 // Маршрутите се изчисляват на сървъра; при неуспех няма оферта (нито нулева доставка, нито км от браузъра)
-async function routeLegs(i: QuoteInput, route: RouteFn, timeoutMs: number): Promise<{ legs: Legs } | RouteFail> {
-  const legs: Legs = {};
+// pois – имената на разпознатите обекти (само за отговора към браузъра; в базата не се записват – там няма адреси)
+type Pois = { del?: string; ret?: string };
+async function routeLegs(i: QuoteInput, route: RouteFn, timeoutMs: number): Promise<{ legs: Legs; pois: Pois } | RouteFail> {
+  const legs: Legs = {}, pois: Pois = {};
   for (const [k, addr] of [["del", i.del], ["ret", i.ret]] as const) {
     if (!addr) continue;
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -108,8 +110,9 @@ async function routeLegs(i: QuoteInput, route: RouteFn, timeoutMs: number): Prom
     clearTimeout(timer);
     if (typeof r === "string") return { leg: k, reason: r };
     legs[k] = { km: r.km, rate: r.rate, source: r.source, precision: r.precision };
+    if (r.poi) pois[k] = r.poi;
   }
-  return { legs };
+  return { legs, pois };
 }
 
 const priceOf = (i: QuoteInput, legs: Legs) =>
@@ -119,14 +122,14 @@ const priceOf = (i: QuoteInput, legs: Legs) =>
   });
 
 type QuoteRow = typeof priceQuotes.$inferSelect;
-const leg = (l: LegRoute) => ({ km: l.km, rate: l.rate, precision: l.precision ?? null });
+const leg = (l: LegRoute, poi?: string) => ({ km: l.km, rate: l.rate, precision: l.precision ?? null, ...(poi ? { poi } : {}) });
 // Отговорът за браузъра: разбивка, сума, депозит (отделно), км и тарифа за всеки адрес и срок на офертата
-export function quoteView(token: string, q: Pick<QuoteRow, "days" | "lines" | "totalCents" | "depositCents" | "legs" | "expiresAt" | "version">) {
+export function quoteView(token: string, q: Pick<QuoteRow, "days" | "lines" | "totalCents" | "depositCents" | "legs" | "expiresAt" | "version">, pois: Pois = {}) {
   const legs = q.legs as Legs;
   return {
     quote: token, version: q.version, expiresAt: q.expiresAt.toISOString(), days: q.days, lines: q.lines as Line[],
     totalCents: q.totalCents, total: fmtCents(q.totalCents), depositCents: q.depositCents,
-    legs: { del: legs.del ? leg(legs.del) : null, ret: legs.ret ? leg(legs.ret) : null },
+    legs: { del: legs.del ? leg(legs.del, pois.del) : null, ret: legs.ret ? leg(legs.ret, pois.ret) : null },
   };
 }
 
@@ -147,7 +150,7 @@ export async function createQuote(i: QuoteInput, o: { route?: RouteFn; budget?: 
     })
     .returning();
   // Автоматично изтриване на изтекли оферти още няма – предложеното правило е в quoteCleanupSql() (изпълнява се ръчно)
-  return { ok: true as const, token, row, view: quoteView(token, row) };
+  return { ok: true as const, token, row, view: quoteView(token, row, r.pois) };
 }
 
 export type QuoteFail = "quote_required" | "quote_expired" | "quote_mismatch" | "quote_used" | "price_changed";

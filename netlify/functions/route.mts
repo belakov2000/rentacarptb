@@ -3,10 +3,11 @@ import { cachedRoute, ROUTE_VERSION, validAddr } from "../../server/route.js";
 import { inflight, lookupBudget, routeLimit, tooMany, who } from "../../server/limits.js";
 
 // GET /api/route?destination=… – разстояние по пътен маршрут от нашия адрес до въведения адрес:
-//   { km: 12.4, rate: 1, local: true, precision: "house", version } – само до потвърден номер на сградата
+//   { km: 12.4, rate: 1, local: true, precision: "house" | "poi", poi?, version } – само до потвърден номер на сградата или до
+//   проверен обект (poi – името му, напр. „Летище София, Терминал 2“)
 // 404 { error: "Address not found" } – няма резултат; 422 { error: "ambiguous" } – намерено е само друго населено място / друга
 // улица; 422 { error: "imprecise" } – намерена е само улицата / населеното място, не номерът (клиентът уточнява адреса);
-// 502 – няма маршрут.
+// 422 { error: "terminal" } – Летище София без посочен терминал (клиентът избира Терминал 1 или 2); 502 – няма маршрут.
 // Изчислението и кешът са в server/route.ts (същите като за сървърната оферта /api/quote).
 // Сайтът вече взема разстоянието от /api/quote; този адрес остава за отворени по-стари версии на страницата.
 // Отговорът е само за показване – /api/bookings не приема километри от браузъра.
@@ -35,9 +36,9 @@ export default async (req: Request, context: Context) => {
       const r = await cachedRoute(raw, { budget: async () => { const b = await lookupBudget(w); if (!b.ok) budgetFail = b; return b.ok; } });
       if (r === "limited") return tooMany(budgetFail || { scope: "lookup", retryAfter: 60 });
       if (r === "not_found") return Response.json({ error: "Address not found" }, { status: 404 });
-      if (r === "ambiguous" || r === "imprecise") return Response.json({ error: r }, { status: 422 });
+      if (r === "ambiguous" || r === "imprecise" || r === "terminal") return Response.json({ error: r }, { status: 422 });
       if (typeof r === "string") return Response.json({ error: "No route" }, { status: 502 });
-      return cached({ km: r.km, place: r.place, local: r.local, rate: r.rate, source: r.source, precision: r.precision, version: ROUTE_VERSION });
+      return cached({ km: r.km, place: r.place, local: r.local, rate: r.rate, source: r.source, precision: r.precision, ...(r.poi ? { poi: r.poi } : {}), version: ROUTE_VERSION });
     }, (retryAfter) => tooMany({ scope: "inflight:ip", retryAfter }));
   } catch (e) {
     console.error("Route failed", (e as Error)?.name);

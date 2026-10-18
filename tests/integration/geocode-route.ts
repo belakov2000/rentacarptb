@@ -106,18 +106,50 @@ http.handler = async (url, init) => { if (url.includes("router.project-osrm.org"
   const v2 = (a: string) => "v2/" + h("2@42.1615692,24.7329252\n" + a.toLowerCase());
   for (const key of ["v1/" + h(norm), "v2/" + h(norm), v2(CENTRAL), v2("ул. Улична 4, Пловдив")])
     await t.q(`insert into route_cache (key, status, km, rate, local, source, claimed_at, expires_at) values ($1, 'ok', 49.8, 0.7, false, 'osm', now(), now() + interval '1 day') on conflict (key) do update set status = 'ok', km = 49.8, rate = 0.7, expires_at = now() + interval '1 day'`, [key]);
-  await t.q("delete from route_cache where key like 'v3/%' and status = 'fail'"); // запомнените грешки от разделите по-горе – търси се отново
+  await t.q("delete from route_cache where key like 'v4/%' and status = 'fail'"); // запомнените грешки от разделите по-горе – търси се отново
   const q = await quote({ delivery: CENTRAL }), r = await route(CENTRAL);
   check("4.1 стари записи с 49,8 км в route_cache (v1, v2) не се четат: /api/quote и /api/route пак искат уточнение", q.status === 502 && q.json.reason === "ambiguous" && r.status === 422, `${q.status} ${r.status}`);
   const sq = await quote({ delivery: "ул. Улична 4, Пловдив" });
   check("4.1б стар запис v2 с цена до точка от улицата не се чете: отказ imprecise", sq.status === 502 && sq.json.reason === "imprecise", `${sq.status} ${sq.json.reason}`);
   const keys = (await t.q("select key from route_cache where status <> 'ok' or km <> 49.8")).rows.map((x: any) => x.key);
-  check("4.2 новите ключове са v3/хеш(версия + начална точка + адрес)", keys.length > 0 && keys.every((k: string) => /^v3\/[a-f0-9]{64}$/.test(k)) && ROUTE_VERSION === "3@42.1615692,24.7329252", ROUTE_VERSION);
+  check("4.2 новите ключове са v4/хеш(версия + начална точка + адрес)", keys.length > 0 && keys.every((k: string) => /^v4\/[a-f0-9]{64}$/.test(k)) && ROUTE_VERSION === "4@42.1615692,24.7329252", ROUTE_VERSION);
   const ok = await route("гр. Пловдив, ул. Тестова 3");
-  check("4.3 CDN кеш на /api/route: етикет route,route-v3 (за изчистване) и версия в отговора; обезсилва се с всеки нов deploy",
-    ok.headers.get("netlify-cache-tag") === "route,route-v3" && /durable/.test(ok.headers.get("netlify-cdn-cache-control") || "") && ok.json.version === ROUTE_VERSION, `${ok.headers.get("netlify-cache-tag")} ${ok.json.version}`);
+  check("4.3 CDN кеш на /api/route: етикет route,route-v4 (за изчистване) и версия в отговора; обезсилва се с всеки нов deploy",
+    ok.headers.get("netlify-cache-tag") === "route,route-v4" && /durable/.test(ok.headers.get("netlify-cdn-cache-control") || "") && ok.json.version === ROUTE_VERSION, `${ok.headers.get("netlify-cache-tag")} ${ok.json.version}`);
   const bad = await route("ул. Няма 9");
   check("4.4 грешките (404 / 422) не се кешират в CDN", !bad.headers.get("netlify-cdn-cache-control"));
+}
+
+// ===== 5. Проверени обекти: Летище София (Терминал 1 / 2 поотделно), Летище Пловдив =====
+{
+  const c0 = routes.calls, o0 = osrm.length;
+  const t2 = await quote({ delivery: "Летище София Терминал 2" }), t1 = await quote({ delivery: "Sofia Airport, Terminal 1" });
+  check("5.1 Терминал 2: 139,3 км × 0,70 € = 97,51 €, точност poi, името на терминала в отговора",
+    t2.status === 200 && t2.json.legs.del.km === 139.3 && t2.json.legs.del.rate === 0.7 && t2.json.legs.del.precision === "poi" && t2.json.legs.del.poi === "Летище София, Терминал 2" && t2.json.lines.find((l: any) => l.code === "delivery").cents === 9751, JSON.stringify(t2.json.legs));
+  check("5.2 Терминал 1 (латиница): друга точка и друго разстояние – 138,5 км; не е заменен с Терминал 2",
+    t1.status === 200 && t1.json.legs.del.km === 138.5 && t1.json.legs.del.poi === "Летище София, Терминал 1", JSON.stringify(t1.json.legs));
+  check("5.3 маршрутите са до автомобилните точки на терминалите (OSRM, дължина,ширина), без търсене на адрес при Nominatim",
+    osrm.slice(o0).some((u) => u.includes(";23.414214,42.688069?")) && osrm.slice(o0).some((u) => u.includes(";23.402457,42.689058?")) && routes.calls === c0, osrm.slice(o0).join(" "));
+  const r2 = await route("Летище София Терминал 2"), rf = await route("Flughafen Sofia, Terminal 2");
+  check("5.4 /api/route за същия терминал: същите км, тарифа и обект като /api/quote", r2.status === 200 && r2.json.km === 139.3 && r2.json.rate === 0.7 && r2.json.precision === "poi" && r2.json.poi === "Летище София, Терминал 2", JSON.stringify(r2.json));
+  check("5.5 друго изписване (немски) на същия терминал → същият резултат", rf.status === 200 && rf.json.km === 139.3 && rf.json.poi === "Летище София, Терминал 2", JSON.stringify(rf.json));
+  const n0 = await nQuotes(), o1 = osrm.length;
+  const und = await quote({ delivery: "Летище София" }), undR = await quote({ return: "Sofia Airport" }), both = await quote({ delivery: "Летище София Терминал 1 или 2" }), ur = await route("Летище София");
+  check("5.6 неясен терминал (доставка и връщане): 502 terminal, /api/route 422 terminal; без оферта, без маршрут, без CDN кеш",
+    und.status === 502 && und.json.reason === "terminal" && und.json.leg === "del" && undR.json.reason === "terminal" && undR.json.leg === "ret" && both.json.reason === "terminal" &&
+    ur.status === 422 && ur.json.error === "terminal" && !ur.headers.get("netlify-cdn-cache-control") && (await nQuotes()) === n0 && osrm.length === o1, `${und.status} ${und.json.reason} ${undR.json.reason} ${both.json.reason} ${ur.status}`);
+  const pdv = await quote({ delivery: "Летище Пловдив", return: "Летище София, Терминал 2" });
+  const ls = pdv.json.lines || [];
+  check("5.7 доставка до Летище Пловдив 19,2 км × 1,00 € (в зоната) и връщане от Терминал 2 139,3 км × 0,70 €; по един ред, без двойно начисляване",
+    pdv.status === 200 && pdv.json.legs.del.poi === "Летище Пловдив" && pdv.json.legs.del.rate === 1 && ls.filter((l: any) => l.code === "delivery").length === 1 && ls.filter((l: any) => l.code === "return").length === 1 &&
+    pdv.json.totalCents === 5000 + 1920 + 9751, JSON.stringify(ls));
+  const rows = (await t.q("select * from route_cache where precision = 'poi'")).rows;
+  check("5.8 кешът пази само км, тарифа и точност – без името на обекта и без адреса", rows.length > 0 && !/Летище|Терминал|Sofia|Airport/i.test(JSON.stringify(rows)));
+  const again = await quote({ delivery: "Летище София Терминал 2" });
+  check("5.9 от кеша: същото разстояние и името на терминала (определено отново от текста)", again.json.legs.del.km === 139.3 && again.json.legs.del.poi === "Летище София, Терминал 2", JSON.stringify(again.json.legs));
+  // Строгите проверки за обикновени адреси остават
+  const plain = await quote({ delivery: "ул. Летище 5, Пловдив" }), c2 = await quote({ delivery: CENTRAL });
+  check("5.10 „ул. Летище 5“ е обикновен адрес (строга проверка); Бяла река пак е отказана", plain.status === 200 && plain.json.legs.del.precision === "house" && !plain.json.legs.del.poi && c2.json.reason === "ambiguous", `${plain.status} ${c2.json.reason}`);
 }
 
 await finish();
