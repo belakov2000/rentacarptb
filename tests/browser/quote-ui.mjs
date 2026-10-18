@@ -136,6 +136,28 @@ for (const [lang, re] of [["", /Направени са твърде много 
   check(`7.${lang || "bg/"} 429: съобщение на езика на страницата, бутонът е неактивен; „Изчисли отново“ след изчакване → цена`, re.test(t) && dis && ok && cid.length > 0 && cid.every((c) => /^[a-f0-9]{32}$/.test(c)) && new Set(cid).size === 1, t.replace(/\n/g, " / ").slice(0, 200));
   await ctx.close();
 }
+// 8. Нееднозначен адрес (регресия Бяла река) и адрес, намерен само до улицата, на трите езика:
+// „гр. Пловдив, пл. Централен 1“ → искане за уточнение, без сума; „ул. Улична 4“ → цена с бележка „приблизително“
+for (const [lang, amb, approx, total] of [
+  ["", /Адресът за доставка не беше намерен в посоченото населено място и улица\. Уточнете адреса/, /Приблизително: номерът не е намерен на картата, разстоянието е до улицата\./, /Общо за услугите\s*54,10 €/],
+  ["en/", /The delivery address was not found in the given town and street\. Please specify the address/, /Approximate: the house number was not found on the map, the distance is to the street\./, /Total for services\s*54,10 €/],
+  ["de/", /Die Lieferadresse wurde im angegebenen Ort und in der angegebenen Straße nicht gefunden\. Bitte präzisieren Sie die Adresse/, /Ungefähr: Die Hausnummer wurde auf der Karte nicht gefunden/, /Gesamt für Leistungen\s*54,10 €/],
+]) {
+  const { ctx, page } = await open({ m1: "addr", a1: "гр. Пловдив, пл. Централен 1" });
+  await page.goto(B + "/" + lang + "#avtomobili", { waitUntil: "load" });
+  await page.waitForSelector("#pick [data-requote]", { timeout: 15000 });
+  await fill(page);
+  const t = await page.locator("#pick").innerText(), dis = await page.$eval("#bk button[type=submit]", (b) => b.disabled);
+  check(`8.${lang || "bg/"} нееднозначен адрес: искане за уточнение, без сума и без 49,8 км; изпращането е неактивно`, amb.test(t) && !/49,8|Общо за услугите|Total for services|Gesamt für/.test(t) && dis, t.replace(/\n/g, " / ").slice(0, 240));
+  await page.fill("#b-a1", "ул. Улична 4");
+  await page.waitForFunction(() => /(Общо за услугите|Total for services|Gesamt für Leistungen)/.test(document.querySelector("#pick").innerText), null, { timeout: 15000 });
+  const t2 = await page.locator("#pick").innerText();
+  check(`8.${lang || "bg/"} само улицата: 4,1 км × 1,00 € с бележка „приблизително“, обща сума 54,10 €`, /4,1 (км|km) × 1,00 €/.test(t2) && approx.test(t2) && total.test(t2) && page.errs.length === 0, t2.replace(/\n/g, " / ").slice(0, 300));
+  await page.fill("#b-a1", "ул. Тестова 1");
+  await page.waitForFunction(() => /5 (км|km) × 1,00 €/.test(document.querySelector("#pick").innerText), null, { timeout: 15000 });
+  check(`8.${lang || "bg/"} намерен номер: без бележка „приблизително“`, !(await page.$("#pick [data-approx]")));
+  await ctx.close();
+}
 await browser.close();
 console.log(`ОБЩО: ${res.filter(Boolean).length} PASS, ${res.filter((x) => !x).length} FAIL`);
 process.exit(res.every(Boolean) ? 0 : 1);

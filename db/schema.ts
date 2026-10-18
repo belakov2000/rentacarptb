@@ -382,6 +382,8 @@ export const routeCache = pgTable(
     rate: doublePrecision(),
     local: boolean(),
     source: text(),
+    // Точност на намереното място: house (номерът е намерен) | street (само улицата – приблизително) | place (населеното място)
+    precision: text(),
     reason: text(),
     claimToken: text("claim_token"),
     claimedAt: timestamp("claimed_at").notNull(),

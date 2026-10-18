@@ -1,6 +1,7 @@
 // Обща среда за интеграционните тестове: реален PostgreSQL (отделна временна база за всеки тест, всички миграции),
 // хранилища Netlify Blobs в паметта и прихванати имейли към Brevo. Не се свързва с Netlify, Brevo или реални данни.
 import { drizzle } from "drizzle-orm/node-postgres";
+import { CENTRAL_TRAP, nom, type Nom } from "../fixtures/nominatim.ts";
 import pg from "pg";
 import { createHash } from "node:crypto";
 import jpeg from "jpeg-js";
@@ -121,21 +122,43 @@ export function fakeJwt(email: string, roles: string[] = [], exp = Math.floor(Da
   return `${b64({ alg: "HS256", typ: "JWT" })}.${b64({ sub: "u-" + email, email, exp, app_metadata: { roles } })}.${b64("sig-" + Math.random())}`;
 }
 // ===== Симулирани маршрути (OpenStreetMap / OSRM) – без реални заявки и без ключ за Google =====
-// Адрес с „Мрежа“ → мрежова грешка; „Няма“ → адресът не е намерен; „Далеч“ → извън зоната на Пловдив (150 км, 0,70 €/км);
-// иначе 5 км в зоната (1,00 €/км). routes.calls брои заявките за търсене на адрес (платените в реалната среда).
+// Отговорите имат формата на Nominatim (format=jsonv2&addressdetails=1): населено място, улица, номер, вид и ранг на мястото.
+// Адрес с „Мрежа“ → мрежова грешка; „Няма“ → няма резултати; „Далеч“ → с. Далеч извън зоната на Пловдив (150 км, 0,70 €/км);
+// „Централен“ → както реалният Nominatim за „гр. Пловдив, пл. Централен 1“: площад в с. Бяла река (обл. Пловдив) и обекти
+// на други улици в Пловдив – нито един не е пл. Централен в гр. Пловдив; „Улична“ → само улицата, без номер (приблизително).
+// Иначе – сградата с въведения номер на въведената улица в посоченото населено място (по подразбиране гр. Пловдив), 5 км в зоната.
+// routes.calls брои заявките за търсене на адрес (платените в реалната среда).
 // delayMs – забавяне на отговора на доставчика (за проверката на едновременни заявки за един адрес)
 export const routes = { calls: 0, delayMs: 0, urls: [] as string[] };
+const fakeGeocode = (u: URL): Nom[] => {
+  const p = u.searchParams;
+  const text = p.get("q") ?? [p.get("street"), p.get("city")].filter(Boolean).join(", ");
+  if (text.includes("Мрежа")) throw new TypeError("fetch failed");
+  if (text.includes("Няма")) return [];
+  if (text.includes("Централен")) return CENTRAL_TRAP;
+  if (text.includes("Далеч")) return [nom(42.7, 23.32, "village", 19, "Далеч", { village: "Далеч", municipality: "Синтетична", state: "София" })];
+  const parts = text.split(",").map((x) => x.trim());
+  const town = parts.map((x) => /^(?:гр|с)\.\s*(.+)$/.exec(x)?.[1] || (/^(Пловдив|Plovdiv)$/i.test(x) ? "Пловдив" : "")).find(Boolean) || "Пловдив";
+  const st = parts.find((x) => /\d/.test(x) && !/^(вх|ет|ап|бл)\b/i.test(x)) || parts[0];
+  const m = /^(.*?)\s+(\d+[а-яa-z]?)$/i.exec(st);
+  const road = (m ? m[1] : st).trim(), num = m ? m[2] : undefined;
+  if (road.includes("Улична")) return [nom(42.151, 24.751, "road", 26, road, { road, suburb: "Синтетичен", city: town, state: "Пловдив" })];
+  return [nom(42.15, 24.75, "building", 30, "", { ...(num ? { house_number: num } : {}), road, suburb: "Синтетичен", city: town, state: "Пловдив" })];
+};
 const fakeRoute = async (url: string) => {
   if (url.includes("nominatim.openstreetmap.org")) {
     routes.calls++;
     routes.urls.push(url);
     if (routes.delayMs) await new Promise((r) => setTimeout(r, routes.delayMs));
-    const q = decodeURIComponent(url);
-    if (q.includes("Мрежа")) throw new TypeError("fetch failed");
-    if (q.includes("Няма")) return Response.json([]);
-    return Response.json([q.includes("Далеч") ? { lat: "42.70", lon: "23.32", display_name: "Синтетично място далеч" } : { lat: "42.15", lon: "24.75", display_name: "Синтетично място, Пловдив" }]);
+    return Response.json(fakeGeocode(new URL(url)));
   }
-  if (url.includes("router.project-osrm.org")) return Response.json({ code: "Ok", routes: [{ distance: url.includes("23.32,42.7") ? 150000 : 5000 }] });
+  if (url.includes("router.project-osrm.org")) {
+    const [, to] = new URL(url).pathname.split("/driving/")[1].split(";");
+    const [lon, lat] = to.split(",").map(Number);
+    // Синтетично разстояние според крайната точка: далечното село 150 км, Бяла река 49,8 км (реалният OSRM), иначе 5 км
+    const distance = lat > 42.6 ? 150000 : lon > 25.2 ? 49809.6 : lon === 24.751 ? 4100 : 5000;
+    return Response.json({ code: "Ok", routes: [{ distance }], waypoints: [] });
+  }
   return null;
 };
 http.handler = async (url, init) => {

@@ -89,7 +89,9 @@ export const carActive = async (carId: string) => {
   return !car || car.status === "active";
 };
 
-type Legs = { del?: { km: number; rate: number; source: string }; ret?: { km: number; rate: number; source: string } };
+// precision – точност на намереното място (server/geocode.ts): house | street (само улицата – приблизително) | place
+type LegRoute = { km: number; rate: number; source: string; precision?: string };
+type Legs = { del?: LegRoute; ret?: LegRoute };
 export type RouteFail = { leg: "del" | "ret"; reason: Exclude<CacheResult, object> };
 export type RouteFn = (addr: string) => Promise<CacheResult>;
 
@@ -105,7 +107,7 @@ async function routeLegs(i: QuoteInput, route: RouteFn, timeoutMs: number): Prom
     ]);
     clearTimeout(timer);
     if (typeof r === "string") return { leg: k, reason: r };
-    legs[k] = { km: r.km, rate: r.rate, source: r.source };
+    legs[k] = { km: r.km, rate: r.rate, source: r.source, precision: r.precision };
   }
   return { legs };
 }
@@ -117,13 +119,14 @@ const priceOf = (i: QuoteInput, legs: Legs) =>
   });
 
 type QuoteRow = typeof priceQuotes.$inferSelect;
+const leg = (l: LegRoute) => ({ km: l.km, rate: l.rate, precision: l.precision ?? null });
 // Отговорът за браузъра: разбивка, сума, депозит (отделно), км и тарифа за всеки адрес и срок на офертата
 export function quoteView(token: string, q: Pick<QuoteRow, "days" | "lines" | "totalCents" | "depositCents" | "legs" | "expiresAt" | "version">) {
   const legs = q.legs as Legs;
   return {
     quote: token, version: q.version, expiresAt: q.expiresAt.toISOString(), days: q.days, lines: q.lines as Line[],
     totalCents: q.totalCents, total: fmtCents(q.totalCents), depositCents: q.depositCents,
-    legs: { del: legs.del ? { km: legs.del.km, rate: legs.del.rate } : null, ret: legs.ret ? { km: legs.ret.km, rate: legs.ret.rate } : null },
+    legs: { del: legs.del ? leg(legs.del) : null, ret: legs.ret ? leg(legs.ret) : null },
   };
 }
 

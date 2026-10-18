@@ -272,6 +272,7 @@ legend{font-weight:800;font-size:1.08rem;padding:0;margin-bottom:10px}
 .sum h3{font-size:1.3rem;font-weight:800;margin-bottom:8px}
 .srow{display:flex;justify-content:space-between;gap:14px;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.12);font-size:.95rem}
 .srow small{display:block;color:#9fb0c8}.srow b{white-space:nowrap}
+.srow small.approx{color:#ffd27a}
 .stot{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:16px 0 4px;font-weight:800}
 .stot b{font-size:1.9rem;color:var(--acc)}
 .sdep{background:var(--navy2);border-radius:14px;padding:14px;margin-top:14px;font-size:.9rem;color:#c5d0e0}
@@ -1483,6 +1484,7 @@ const I18N={
 "Изчисли цената отново":["Recalculate the price","Preis neu berechnen"],
 "Обадете се":["Call us","Rufen Sie uns an"],
 "Цената се изчислява след това.":["The price is calculated after that.","Der Preis wird danach berechnet."],
+"Приблизително: номерът не е намерен на картата, разстоянието е до улицата.":["Approximate: the house number was not found on the map, the distance is to the street.","Ungefähr: Die Hausnummer wurde auf der Karte nicht gefunden, die Entfernung bezieht sich auf die Straße."],
 "Изчакайте изчисляването на цената.":["Please wait until the price has been calculated.","Bitte warten Sie, bis der Preis berechnet ist."],
 "Потвърждавам новата цена и изпращам":["I confirm the new price – send","Neuen Preis bestätigen und senden"],
 };
@@ -1490,6 +1492,9 @@ const I18N={
 const I18N_RULES=[
 [/Не успяхме да изчислим разстоянието до адреса за доставка\./,"We could not calculate the distance to the delivery address.","Wir konnten die Entfernung zur Lieferadresse nicht berechnen."],
 [/Не успяхме да изчислим разстоянието до адреса за връщане\./,"We could not calculate the distance to the collection address.","Wir konnten die Entfernung zur Abholadresse nicht berechnen."],
+[/Адресът за доставка не беше намерен в посоченото населено място и улица\./,"The delivery address was not found in the given town and street.","Die Lieferadresse wurde im angegebenen Ort und in der angegebenen Straße nicht gefunden."],
+[/Адресът за връщане не беше намерен в посоченото населено място и улица\./,"The collection address was not found in the given town and street.","Die Abholadresse wurde im angegebenen Ort und in der angegebenen Straße nicht gefunden."],
+[/Уточнете адреса \(населено място, улица, номер\)\./,"Please specify the address (town, street, number).","Bitte präzisieren Sie die Adresse (Ort, Straße, Hausnummer)."],
 [/Проверете адреса \(населено място, улица, номер\)\./,"Please check the address (town, street, number).","Bitte prüfen Sie die Adresse (Ort, Straße, Hausnummer)."],
 [/Няма връзка със сървъра и цената не може да бъде изчислена\./,"No connection to the server – the price cannot be calculated.","Keine Verbindung zum Server – der Preis kann nicht berechnet werden."],
 [/Автомобилът в момента не приема резервации\. Изберете друг автомобил\./,"This car is currently not available for booking. Please choose another car.","Dieses Fahrzeug ist derzeit nicht buchbar. Bitte wählen Sie ein anderes Fahrzeug."],
@@ -1631,11 +1636,14 @@ const qInput=R=>({carId:R.car,startDate:R.d1,startTime:R.t1,endDate:R.d2,endTime
 const qKey=R=>JSON.stringify(qInput(R));
 const qOk=()=>Q.st==="ok"&&!!Q.d&&Q.key===qKey(S);
 const Q_ERR={del:"Не успяхме да изчислим разстоянието до адреса за доставка. Проверете адреса (населено място, улица, номер).",ret:"Не успяхме да изчислим разстоянието до адреса за връщане. Проверете адреса (населено място, улица, номер).",
+del_amb:"Адресът за доставка не беше намерен в посоченото населено място и улица. Уточнете адреса (населено място, улица, номер).",ret_amb:"Адресът за връщане не беше намерен в посоченото населено място и улица. Уточнете адреса (населено място, улица, номер).",
 net:"Няма връзка със сървъра и цената не може да бъде изчислена.",car_inactive:"Автомобилът в момента не приема резервации. Изберете друг автомобил.",past:"Датата на получаване е минала. Изберете нова дата.",
 hours:"Часът на получаване или връщане е извън работното време: пн–пт 08:00–20:00, сб–нд 09:00–19:00.",
 limited:"Направени са твърде много изчисления на цената за кратко време. Изчакайте около минута и натиснете „Изчисли цената отново“."};
 // Случаен ключ на този раздел – сървърът ограничава броя изчисления по него, за да не блокира клиенти зад общ IP адрес
 const CID=(()=>{try{let c=sessionStorage.getItem("cid");if(!/^[a-f0-9]{32}$/.test(c||"")){c=(crypto.randomUUID?crypto.randomUUID():Array.from(crypto.getRandomValues(new Uint8Array(16)),b=>b.toString(16).padStart(2,"0")).join("")).replace(/-/g,"");sessionStorage.setItem("cid",c)}return c}catch(e){return""}})();
+// Намерена е само улицата (номерът липсва на картата) – разстоянието е до точка от улицата, не до сградата
+const Q_APPROX="Приблизително: номерът не е намерен на картата, разстоянието е до улицата.";
 const qErrText=()=>(Q_ERR[Q.err]||"Цената не можа да бъде изчислена.")+" Опитайте отново или се обадете на +359877748693. Попълнените данни се пазят.";
 let qT;const wantQuote=(ms=900)=>{clearTimeout(qT);qT=setTimeout(()=>loadQuote(),ms)};
 // keep: при повторно изчисляване след отказ на сървъра (изтекла / променена оферта) предупреждението за нова цена остава
@@ -1645,7 +1653,7 @@ const key=qKey(S);if(Q.key===key&&(Q.st==="ok"||Q.st==="load"))return;
 const seq=++Q.seq;Q.key=key;Q.st="load";Q.d=null;Q.err="";if(!keep)Q.changed=null;renderPick();
 try{const r=await fetch(QUOTE_ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json",...(CID?{"X-Client-Id":CID}:{})},body:key,cache:"no-store"});const j=await r.json().catch(()=>({}));if(seq!==Q.seq)return;
 if(r.ok&&j.quote&&j.totalCents>=0){Q.st="ok";Q.d=j;[1,2].forEach(n=>{const l=j.legs&&j.legs[n===1?"del":"ret"];KMS[n]=l?l.km:null;KMS.r[n]=l?l.rate:KM_RATE;KMS.st[n]=l?"ok":""})}
-else{Q.st="err";Q.err=r.status===429?"limited":j.error==="route"?(j.leg==="ret"?"ret":"del"):j.error||"server"}}
+else{Q.st="err";Q.err=r.status===429?"limited":j.error==="route"?(j.leg==="ret"?"ret":"del")+(j.reason==="ambiguous"?"_amb":""):j.error||"server"}}
 catch(e){if(seq!==Q.seq)return;Q.st="err";Q.err="net"}
 renderPick()}
 // Нова оферта след отказ на сървъра или преди изтичане: "same" – същата сума; "changed" – друга сума (иска се потвърждение); "err"
@@ -1903,7 +1911,7 @@ else if(q.err==="order")body='<div class="alert">Датата на връщан�
 else if(q.err==="busy")body='<div class="alert">Автомобилът не е наличен за избрания период. Изберете друг автомобил или променете датите.</div>'+busyHint(q.b);
 else{ok=true;const per=`<div class="srow"><span>Период<small>${bf(S.d1,S.t1)} → ${bf(S.d2,S.t2)}</small></span><b>${q.d} ${q.d>1?"дни":"ден"}</b></div>`,
 mil=`<p class="pend" style="color:#c5d0e0">${q.d>2?"Пробег: неограничен.":"Пробег: до 250 км на ден, над лимита 0,10 € за км."}</p>`,dep=c=>`<div class="sdep"><strong><span>Гаранционен депозит</span><span>${fmt(c/100)}</span></strong>Не е част от цената на наема. Депозитът се връща при връщане на автомобила съгласно условията.</div>`;
-if(qOk()){const d=Q.d;body=per+d.lines.map(l=>{const[a,s]=qLine(l,d);return`<div class="srow"><span>${esc(a)}${s?`<small>${esc(s)}</small>`:""}</span><b>${esc(fmt(l.cents/100))}</b></div>`}).join("")+`<div class="stot"><span>Общо за услугите</span><b>${esc(d.total)}</b></div>`
+if(qOk()){const d=Q.d;body=per+d.lines.map(l=>{const[a,s]=qLine(l,d),lg=d.legs&&d.legs[l.code==="delivery"?"del":l.code==="return"?"ret":""],ap=lg&&lg.precision==="street";return`<div class="srow"><span>${esc(a)}${s?`<small>${esc(s)}</small>`:""}${ap?`<small class="approx" data-approx>${esc(Q_APPROX)}</small>`:""}</span><b>${esc(fmt(l.cents/100))}</b></div>`}).join("")+`<div class="stot"><span>Общо за услугите</span><b>${esc(d.total)}</b></div>`
 +(Q.changed?`<div class="alert">Цената е променена: беше ${esc(fmt(Q.changed.from/100))}, сега е <b>${esc(d.total)}</b>. Проверете разбивката и потвърдете новата сума с бутона за изпращане.</div>`:"")
 +`<p class="pend" style="color:#c5d0e0">Цената е изчислена от сървъра за тези данни. При промяна се изчислява наново.</p>`+mil+dep(d.depositCents)}
 else if(Q.st==="err"&&Q.key===qKey(S))body=per+`<div class="alert" role="alert">${esc(qErrText())}<br><button class="btn btn-dark" type="button" data-requote style="margin-top:10px">Изчисли цената отново</button> <a class="btn btn-dark" href="tel:${PHONE}" style="margin-top:10px">Обадете се</a></div>`+mil+dep(DEPOSIT*100);

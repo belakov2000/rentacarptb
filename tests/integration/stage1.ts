@@ -13,14 +13,14 @@ t.use();
 const row = async (id: string) => (await t.db.select().from(schema.bookings).where(eq(schema.bookings.id, id)))[0];
 const events = async (id: string, action: string) => (await t.q("select details from booking_events where booking_id=$1 and action=$2", [id, action])).rows;
 
-// Прихванати маршрути (OpenStreetMap): адрес „…Мрежа…“ → няма отговор; иначе 12,4 км в зоната на Пловдив
+// Прихванати маршрути (OpenStreetMap): адрес „…Мрежа…“ → няма отговор; иначе адресът от общия заместител (harness.ts –
+// сградата с номера на въведената улица в гр. Пловдив) и 12,4 км в зоната на Пловдив
 let routeCalls = 0;
 const prev = http.handler;
 http.handler = async (url, init) => {
   if (url.includes("nominatim.openstreetmap.org")) {
     routeCalls++;
     if (decodeURIComponent(url).includes("Мрежа")) throw new TypeError("fetch failed");
-    return Response.json([{ lat: "42.15", lon: "24.75", display_name: "ул. Синтетична, Пловдив" }]);
   }
   if (url.includes("router.project-osrm.org")) return Response.json({ code: "Ok", routes: [{ distance: 12400 }] });
   return prev ? prev(url, init) : null;
