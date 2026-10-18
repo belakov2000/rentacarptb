@@ -65,7 +65,7 @@ for(const lang of ['bg','en','de']){
  // Already processed JPEGs: this tests upload/submission, not native camera/canvas processing.
  for(const k of ['idf','idb','dlf','dlb'])w.__test.DOCS.ph['0-'+k]=image;
  $('#docs-f').dispatchEvent(new w.Event('submit',{bubbles:true,cancelable:true}));check(lang+': document consent required before upload',!$('#d-err').hidden&&!w.__test.DOCS.busy);
- $('#d-consent').checked=true;$('#docs-f').dispatchEvent(new w.Event('submit',{bubbles:true,cancelable:true}));await poll(()=>w.__test.S.view?.stage==='review');
+ $('#d-consent').checked=true;$('#docs-f').dispatchEvent(new w.Event('submit',{bubbles:true,cancelable:true}));await poll(()=>w.__test.S.view?.stage==='review').catch(e=>{console.error('Document submission diagnostics', $('#d-err')?.textContent, $('#d-msg')?.textContent, errors);throw e});
  check(lang+': documents received and awaiting check',w.__test.S.view.stage==='review'&&$('#th-docs').hidden);
  await fetch(manage,{method:'POST',body:new URLSearchParams({action:'confirm'})});row=await(await fetch(B+'/api/bookings/'+bk.id+'?t='+bk.view_token)).json();
  w.__test.S.view=row;w.__test.S.bst=row.status;w.__test.renderThanks();check(lang+': second approval confirms reservation',row.stage==='done'&&row.status==='confirmed');

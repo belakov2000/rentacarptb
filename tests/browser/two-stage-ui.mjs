@@ -19,7 +19,8 @@ async function open(seed, o = {}) {
   const ctx = await browser.newContext({ locale: "bg-BG", viewport: { width: 1280, height: 900 }, ...o });
   await ctx.route((u) => !u.href.startsWith(B), (r) => r.fulfill({ status: 204, body: "" }));
   await ctx.addInitScript((s) => { localStorage.setItem("cookie-consent", JSON.stringify({ v: 2, necessary: true, marketing: false, date: "2026-10-01T00:00:00.000Z" })); if (s && !sessionStorage.getItem("req")) sessionStorage.setItem("req", JSON.stringify(s)); }, seed);
-  const page = await ctx.newPage(); page.errs = []; page.on("pageerror", (e) => page.errs.push(e.message));
+  const page = await ctx.newPage(); page.errs = []; page.on("pageerror", (e) => { page.errs.push(e.message); console.error("PAGE ERROR", e.message); });
+  page.on("response", async r => { if (r.url().startsWith(B + "/api/") && r.status() >= 400) console.error("API ERROR", new URL(r.url()).pathname, r.status(), (await r.text()).slice(0, 300)); });
   return { ctx, page };
 }
 const pickText = (page) => page.locator("#pick").innerText();
@@ -43,7 +44,7 @@ const seed = { car: "golf", d1: D1, t1: "10:00", d2: D2, t2: "10:00", m1: "addr"
   await page.check('input[name="pay2"][value="cash"]'); await page.check("#b-ok"); await page.check("#b-mkt");
   await page.waitForFunction(() => !document.querySelector("#bk button[type=submit]").disabled, null, { timeout: 10000 });
   await page.click("#bk button[type=submit]");
-  await page.waitForFunction(() => location.hash === "#blagodarim" && /Заявката е получена/.test(document.querySelector("#th-h").innerText), null, { timeout: 20000 });
+  await page.waitForFunction(() => location.hash === "#blagodarim" && /Заявката е получена/.test(document.querySelector("#th-h").innerText), null, { timeout: 20000 }).catch(async e => { console.error("SUBMIT STATE", await page.evaluate(() => ({ hash: location.hash, heading: document.querySelector("#th-h")?.textContent, error: document.querySelector("#b-err")?.textContent, progress: document.querySelector("#b-msg")?.textContent, hidden: document.hidden }))); throw e; });
   const [b] = await sql("select id, stage, chains, second_driver, marketing_consent, drivers, documents, total_cents from bookings order by created_at desc limit 1");
   check("1.3 изпратена заявка → страница „Заявката е получена“; в базата: етап request, вериги, втори водач, съгласие, заявителят не шофира, без снимки, 68 €",
     b && b.stage === "request" && b.chains && b.second_driver && b.marketing_consent && b.drivers.requesterDrives === false && b.documents === null && b.total_cents === 6800 && page.errs.length === 0, JSON.stringify(b).slice(0, 200));

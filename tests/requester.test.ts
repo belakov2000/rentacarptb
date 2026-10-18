@@ -8,3 +8,5 @@ test('email confirmation and accepted terms enforced by server',()=>{assert.deep
 test('international phone required',()=>assert.deepEqual(parseRequester({...body(),phone:'0877123456'}),{error:'phone'}));
 test('different sole driver requires their own name',()=>{const b=body();b.drivers={requesterDrives:false} as any;assert.deepEqual(parseRequester(b),{error:'driver_name'});(b.drivers as any).main={first:'Георги',middle:'Иванов',last:'Петров'};assert.ok('requester'in parseRequester(b))});
 test('company invoice conditional, VAT checkbox respected',()=>{const b:any={...body(),payment:'bank',invoiceData:{name:'ТЕСТ',registration:'123456789',country:'България',address:'Тест 1'}};assert.deepEqual(parseRequester(b),{error:'invoice'});b.invoiceData.notVatRegistered=true;const p=parseRequester(b);assert.ok('invoice'in p&&p.invoice.includes('не е регистрирана'));b.invoiceData.notVatRegistered=false;b.invoiceData.vat='BG123456789';assert.ok('invoice'in parseRequester(b))});
+
+test('payment method is required on the server',()=>assert.deepEqual(parseRequester({...body(),payment:''}),{error:'payment'}));

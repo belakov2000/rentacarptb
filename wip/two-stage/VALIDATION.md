@@ -9,7 +9,7 @@
 
 ## Locally executed
 
-- Unit tests: 35 passed.
+- Unit tests: 36 passed.
 - DOM/API test on bg/en/de: 66 passed, covering the actual form scripts and server endpoints through both approvals. JPEG buffers are injected after image processing; this does not test camera/canvas or layout.
 - Two-stage integration: 37 passed; quote binding: 6 passed.
 - Regression sets email, mail-guard, auth, booking-flow, cancel, contracts, stage1, isolation passed using TEST_USE_PGLITE=1.

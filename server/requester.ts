@@ -19,6 +19,7 @@ export function parseRequester(body: any): { requester: Requester; name: string;
   if (text(body.email, 200).toLowerCase() !== text(body.emailConfirmation, 200).toLowerCase()) return { error: 'email_confirmation' };
   if (!/^\+[1-9]\d{7,14}$/.test(text(body.phone, 30))) return { error: 'phone' };
   if (body.termsAccepted !== true) return { error: 'terms' };
+  if (!['cash', 'bankp', 'bank'].includes(body.payment)) return { error: 'payment' };
   const driverNames: string[] = [];
   if (body?.drivers?.requesterDrives === false) {
     const n = parseName(body.drivers.main);

@@ -48,7 +48,7 @@ const summary = [];
 const run = (name, args) => {
   console.log(`\n=== ${name} ===`);
   try {
-    const out = execFileSync(process.execPath, args, { env: process.env, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+    const out = execFileSync(process.execPath, args, { env: process.env, encoding: "utf8", timeout: 120_000, stdio: ["ignore", "pipe", "pipe"] });
     process.stdout.write(out);
     summary.push(`${name}: ${out.trim().split("\n").filter((l) => /ОБЩО|^ℹ (pass|fail)/.test(l)).join(" ") || "OK"}`);
   } catch (e) {
