@@ -3,9 +3,10 @@ import { carActive, checkInput, createQuote, parseQuoteBody } from "../../server
 import { inflight, lookupBudget, quoteLimit, readJson, tooMany, who } from "../../server/limits.js";
 
 // POST /api/quote – сървърна ценова оферта за формата за резервация (server/quote.ts).
-// Тяло (до 4 KB): { carId, startDate, startTime, endDate, endTime, seats, delivery: адрес | null, return: адрес | null, abroad: [код] }
+// Тяло (до 4 KB): { carId, startDate, startTime, endDate, endTime, seats, delivery: адрес | null, return: адрес | null, abroad: [код],
+//   deliveryPlace / returnPlace: { id: Google Place ID, session } | null – адрес, избран от предложенията (/api/places) }
 // 200: { quote, expiresAt, days, lines, totalCents, total, depositCents, legs } – ключът се подава с резервацията
-// 400: { error } – невалидни данни (dates | past | order | hours | car | seats | country | service | address)
+// 400: { error } – невалидни данни (dates | past | order | hours | car | seats | country | service | address | place)
 // 409: { error: "car_inactive" }
 // 413: { error: "too_large" }
 // 429: { error: "rate_limited", scope, retryAfter } – твърде много заявки (server/limits.ts); заглавка Retry-After
@@ -13,6 +14,7 @@ import { inflight, lookupBudget, quoteLimit, readJson, tooMany, who } from "../.
 //      няма оферта и няма нулева доставка. ambiguous – намерени са само места в друго населено място / на друга улица
 //      imprecise – намерена е само улицата / населеното място, не въведеният номер (няма цена до произволна точка)
 //      terminal – Летище София без посочен терминал (браузърът предлага избор на Терминал 1 / 2)
+//      abroad – избраното от Google място е извън България; unavailable – избран адрес от Google, но няма ключ за проверката
 // Офертата не блокира автомобила. Адресите не се записват и не се пишат в логовете.
 const json = (b: object, status = 200) => Response.json(b, { status, headers: { "Cache-Control": "no-store", "X-Robots-Tag": "noindex" } });
 

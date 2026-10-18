@@ -6,7 +6,8 @@ import { minutes } from "../db/slots.js";
 import { sofiaToday, withinHours } from "../db/hours.js";
 import type { ContractData } from "../contract/index.js";
 import { ABROAD, fmtCents, MAX_SEATS, price, PRICING_VERSION, SEAT_DAY, TIERS, type Leg, type Line } from "./pricing.js";
-import { cachedRoute, normAddr, validAddr, type CacheResult } from "./route.js";
+import { cachedRoute, normAddr, validAddr, type CacheResult, type PickedPlace } from "./route.js";
+import { PLACE_ID_RE, SESSION_RE } from "./places.js";
 
 // Сървърна ценова оферта (етап 2 – сървърът определя цената).
 // 1) POST /api/quote: автомобил, дати, часове, места (адресите за доставка / връщане), столчета и държави →
@@ -24,13 +25,17 @@ const sha = (s: string) => createHash("sha256").update(s).digest("hex");
 export type QuoteInput = {
   carId: string; startDate: string; startTime: string; endDate: string; endTime: string;
   seats: number; del: string | null; ret: string | null; abroad: string[];
+  // Място, избрано от предложенията на Google за адреса (Place ID и ключ на сесията); null – въведен текст без избор
+  delPlace?: PickedPlace | null; retPlace?: PickedPlace | null;
 };
-export type InputError = "dates" | "past" | "order" | "hours" | "car" | "seats" | "country" | "service" | "address";
+export type InputError = "dates" | "past" | "order" | "hours" | "car" | "seats" | "country" | "service" | "address" | "place";
 
 // Отпечатък на входните данни: адресите участват само като хеш (нормализирани, без значение на главни/малки букви)
 export function inputHash(i: QuoteInput) {
   const a = (v: string | null) => (v ? sha(normAddr(v).toLowerCase()) : null);
-  return sha(JSON.stringify([i.carId, i.startDate, i.startTime, i.endDate, i.endTime, i.seats, a(i.del), a(i.ret), [...i.abroad].sort()]));
+  // Избраните места (Place ID) участват в отпечатъка – офертата е за точно тези местоположения
+  const pl = i.delPlace || i.retPlace ? [[i.delPlace?.id ?? null, i.retPlace?.id ?? null]] : [];
+  return sha(JSON.stringify([i.carId, i.startDate, i.startTime, i.endDate, i.endTime, i.seats, a(i.del), a(i.ret), [...i.abroad].sort(), ...pl]));
 }
 
 // Проверка на входните данни – същите правила като при подаването на резервацията (работно време, не по-рано от днес)
@@ -44,12 +49,21 @@ export function checkInput(i: QuoteInput, today = sofiaToday()): InputError | ""
   if (new Set(i.abroad).size !== i.abroad.length || i.abroad.some((c) => !ABROAD.some(([k]) => k === c))) return "country";
   // Адресът се проверява преди търсенето при доставчика (server/route.ts → validAddr)
   for (const a of [i.del, i.ret]) if (a != null && !validAddr(a)) return "address";
+  // Избрано място без адрес към него или с невалиден Place ID / ключ на сесията
+  for (const [a, pl] of [[i.del, i.delPlace], [i.ret, i.retPlace]] as const)
+    if (pl && (a == null || !PLACE_ID_RE.test(pl.id) || (pl.session != null && !SESSION_RE.test(pl.session)))) return "place";
   return "";
 }
 
 const s = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
 // Адрес до 300 знака (по-дългият се отказва като невалиден, не се съкращава до „друг“ адрес)
 const addrOf = (v: unknown) => (typeof v === "string" && v.trim() ? (v.length > 300 ? "\u0000" : normAddr(v)) : null);
+// { id, session } от браузъра; празно → null; друга форма → невалиден избор (отказва се в checkInput)
+const placeOf = (v: unknown): PickedPlace | null => {
+  if (v == null) return null;
+  const o = v as any;
+  return { id: typeof o?.id === "string" ? o.id.slice(0, 301) : "", session: typeof o?.session === "string" ? o.session.slice(0, 64) : null };
+};
 const hidden = (o: any) => !!(o && typeof o === "object" && (o.chains || o.secondDriver || o.second_driver));
 
 // Тялото на /api/quote
@@ -63,6 +77,7 @@ export function parseQuoteBody(b: any): { input: QuoteInput } | { error: InputEr
     input: {
       carId: s(b.carId, 40), startDate: s(b.startDate, 10), startTime: s(b.startTime, 5), endDate: s(b.endDate, 10), endTime: s(b.endTime, 5),
       seats, del: addrOf(b.delivery), ret: addrOf(b.return), abroad,
+      delPlace: placeOf(b.deliveryPlace), retPlace: placeOf(b.returnPlace),
     },
   };
 }
@@ -81,7 +96,10 @@ export function bookingInput(b: { carId: string; startDate: string; startTime: s
     abroad.push(hit[0]);
   }
   const leg = (v: any) => (v && typeof v === "object" ? addrOf(v.addr) : null);
-  return { input: { ...b, seats, del: c ? leg(c.del) : null, ret: c ? leg(c.ret) : null, abroad } };
+  // Избраните места (Place ID) идват отделно от договора (places: { del, ret }) – ключът на сесията не е нужен при подаването
+  const pid = (v: unknown) => (typeof v === "string" && v ? { id: v.slice(0, 301), session: null } : null);
+  const places = body?.places && typeof body.places === "object" ? body.places : {};
+  return { input: { ...b, seats, del: c ? leg(c.del) : null, ret: c ? leg(c.ret) : null, abroad, delPlace: pid(places.del), retPlace: pid(places.ret) } };
 }
 
 export const carActive = async (carId: string) => {
@@ -93,18 +111,18 @@ export const carActive = async (carId: string) => {
 type LegRoute = { km: number; rate: number; source: string; precision?: string };
 type Legs = { del?: LegRoute; ret?: LegRoute };
 export type RouteFail = { leg: "del" | "ret"; reason: Exclude<CacheResult, object> };
-export type RouteFn = (addr: string) => Promise<CacheResult>;
+export type RouteFn = (addr: string, place?: PickedPlace | null) => Promise<CacheResult>;
 
 // Маршрутите се изчисляват на сървъра; при неуспех няма оферта (нито нулева доставка, нито км от браузъра)
 // pois – имената на разпознатите обекти (само за отговора към браузъра; в базата не се записват – там няма адреси)
 type Pois = { del?: string; ret?: string };
 async function routeLegs(i: QuoteInput, route: RouteFn, timeoutMs: number): Promise<{ legs: Legs; pois: Pois } | RouteFail> {
   const legs: Legs = {}, pois: Pois = {};
-  for (const [k, addr] of [["del", i.del], ["ret", i.ret]] as const) {
+  for (const [k, addr, place] of [["del", i.del, i.delPlace], ["ret", i.ret, i.retPlace]] as const) {
     if (!addr) continue;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const r = await Promise.race([
-      route(addr).catch((e) => (console.error("Route failed", (e as Error)?.name), "error" as const)),
+      route(addr, place ?? null).catch((e) => (console.error("Route failed", (e as Error)?.name), "error" as const)),
       new Promise<"timeout">((res) => (timer = setTimeout(() => res("timeout"), timeoutMs))),
     ]);
     clearTimeout(timer);
@@ -134,7 +152,7 @@ export function quoteView(token: string, q: Pick<QuoteRow, "days" | "lines" | "t
 }
 
 export async function createQuote(i: QuoteInput, o: { route?: RouteFn; budget?: () => Promise<boolean>; timeoutMs?: number; now?: Date } = {}) {
-  const r = await routeLegs(i, o.route || ((a) => cachedRoute(a, { budget: o.budget })), o.timeoutMs ?? 10_000);
+  const r = await routeLegs(i, o.route || ((a, place) => cachedRoute(a, { budget: o.budget, place })), o.timeoutMs ?? 10_000);
   if (!("legs" in r)) return { ok: false as const, error: "route" as const, ...r };
   const p = priceOf(i, r.legs);
   if (!p.ok) return { ok: false as const, error: p.error };

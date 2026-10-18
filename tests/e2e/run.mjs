@@ -27,7 +27,8 @@ const pgs = new EmbeddedPostgres({ databaseDir: dataDir, user: "postgres", passw
 await pgs.initialise();
 await pgs.start();
 const port = 8899;
-const env = { ...process.env, TEST_DATABASE_URL: "postgres://postgres:test@localhost:54331/postgres", E2E_PORT: String(port) };
+// Тестов ключ за Google: заявките към Google на сървъра се прихващат от симулацията (tests/integration/harness.ts → fakeGoogle)
+const env = { ...process.env, TEST_DATABASE_URL: "postgres://postgres:test@localhost:54331/postgres", E2E_PORT: String(port), GOOGLE_MAPS_API_KEY: "test-only-not-a-real-key" };
 const srv = spawn(process.execPath, [resolve(dir, ".out/server.mjs")], { env, stdio: ["ignore", "pipe", "inherit"] });
 await new Promise((ok, bad) => { srv.stdout.on("data", (d) => { if (String(d).includes("READY")) ok(); }); srv.on("exit", (c) => bad(new Error("server exited " + c))); });
 let code = 0;

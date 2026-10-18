@@ -15,8 +15,8 @@ let n0 = 20, D1 = day(n0); while ([0,6].includes(new Date(D1+"T12:00:00Z").getUT
 const D2 = new Date(Date.parse(D1+"T12:00:00Z")+2*864e5).toISOString().slice(0,10);
 const res = []; const check = (n, ok, i = "") => { res.push(ok); console.log(`${ok ? "PASS" : "FAIL"} | ${n} | ${i}`); };
 const browser = await chromium.launch();
-async function open(seed) {
-  const ctx = await browser.newContext({ locale: "bg-BG", viewport: { width: 1280, height: 900 } });
+async function open(seed, opts = {}) {
+  const ctx = await browser.newContext({ locale: "bg-BG", viewport: { width: 1280, height: 900 }, ...opts });
   await ctx.route((u) => !u.href.startsWith(B), (r) => r.fulfill({ status: 204, body: "" }));
   await ctx.addInitScript((s) => { localStorage.setItem("cookie-consent", JSON.stringify({ v: 2, necessary: true, marketing: false, date: "2026-10-01T00:00:00.000Z" })); if (!sessionStorage.getItem("req")) sessionStorage.setItem("req", JSON.stringify(s)); }, { car: "golf", d1: D1, t1: "10:00", d2: D2, t2: "10:00", m1: "office", m2: "office", open: true, ...seed });
   const page = await ctx.newPage(); page.errs = []; page.on("pageerror", (e) => page.errs.push(e.message));
@@ -199,6 +199,95 @@ for (const [lang, msgDel, msgRet, t2txt, t1txt, line2, line1] of [
   await page.waitForTimeout(400);
   const msg = await page.locator("#pick-msg").innerText();
   check(`9.${L} грешка за адреса: „Продължи“ е неактивен, а принудителното натискане показва причината и не продължава`, msg.length > 0 && Math.abs((await page.evaluate(() => scrollY)) - y0) < 5, msg);
+  await ctx.close();
+}
+// 10. Предложения от Google за адреса (симулиран Google на локалния сървър) на трите езика: показване, без автоматичен
+// избор, клавиатура, мишка, промяна след избор, „Продължи“ само с валидна оферта
+const pick = (page) => page.locator("#pick").innerText();
+const waitPick = (page, re) => page.waitForFunction((s) => new RegExp(s).test(document.querySelector("#pick").innerText), re.source, { timeout: 15000 });
+const contDisabled = (page) => page.$eval("#pick [data-details]", (b) => b.disabled);
+for (const [lang, hint] of [["", /Започнете да пишете и изберете адреса от предложенията/], ["en/", /Start typing and choose the address from the suggestions/], ["de/", /Beginnen Sie zu tippen und wählen Sie die Adresse aus den Vorschlägen/]]) {
+  const L = lang || "bg/";
+  const { ctx, page } = await open({ m1: "addr", a1: "" });
+  const posts = [], plq = [];
+  page.on("request", (r) => { if (r.url().includes("/api/quote")) posts.push(JSON.parse(r.postData() || "{}")); if (r.url().includes("/api/places")) plq.push(new URL(r.url())); });
+  await page.goto(B + "/" + lang + "#avtomobili", { waitUntil: "load" });
+  await page.click("#b-a1");
+  await page.keyboard.type("Гладст", { delay: 40 });
+  await page.waitForSelector("#b-a1-list:not([hidden]) [role=option]", { timeout: 15000 });
+  const opts = await page.$$eval("#b-a1-list [role=option]", (os) => os.map((o) => o.innerText.replace(/\n/g, " | ")));
+  const attr = await page.locator("#b-a1-list .ac-attr").innerText();
+  const aria = await page.$eval("#b-a1", (i) => [i.getAttribute("role"), i.getAttribute("aria-expanded"), i.getAttribute("aria-controls")].join());
+  await waitPick(page, /Не успяхме|We could not|Wir konnten|номер|number|Hausnummer|Изберете|choose|wählen/);
+  const sel0 = await page.$$eval("#b-a1-list [aria-selected=true]", (x) => x.length);
+  const t0 = await pick(page);
+  const q = plq.at(-1);
+  check(`10.${L} предложения под полето: улица и номер + населено място, атрибуция „Google Maps“, достъпен списък; език ${lang || "bg"}, сесия`,
+    opts[0] === "ул. „Гладстон“ 10 | Пловдив, България" && attr === "Google Maps" && aria === "combobox,true,b-a1-list" && q.searchParams.get("lang") === (lang ? lang.slice(0, 2) : "bg") && /^[a-f0-9]{32}$/.test(q.searchParams.get("session")) && hint.test(await page.locator("#plan").innerText()), `${opts} ${attr} ${aria}`);
+  check(`10.${L} без автоматичен избор: нищо не е маркирано, текстът е въведеният, офертата е без избрано място; „Продължи“ е неактивен`,
+    sel0 === 0 && (await page.inputValue("#b-a1")) === "Гладст" && posts.at(-1)?.deliveryPlace === null && (await contDisabled(page)) && !/3,3 (км|km)/.test(t0), t0.replace(/\n/g, " / ").slice(0, 160));
+  // Клавиатура: ↓ и Enter
+  await page.keyboard.press("ArrowDown");
+  const act = await page.$eval("#b-a1", (i) => i.getAttribute("aria-activedescendant"));
+  await page.keyboard.press("Enter");
+  await waitPick(page, /3,3 (км|km) × 1,00 €/);
+  const v = await page.inputValue("#b-a1"), sent = posts.at(-1);
+  check(`10.${L} клавиатура (↓, Enter): избран адрес, оферта с Place ID и сесията на търсенето, 3,3 км × 1,00 €; „Продължи“ е активен`,
+    act === "b-a1-list-0" && v === "ул. „Гладстон“ 10, Пловдив, България" && sent.deliveryPlace?.id === "gp_pdv_gladston_10" && sent.deliveryPlace.session === q.searchParams.get("session") && !(await contDisabled(page)) && (await page.$("#b-a1-list[hidden]")) !== null, `${act} ${v}`);
+  // Промяна на текста след избора → изборът и офертата са обезсилени
+  await page.focus("#b-a1");
+  for (let k = 0; k < 9; k++) await page.keyboard.press("Backspace");
+  await page.keyboard.press("Escape");
+  await waitPick(page, /5 (км|km) × 1,00 €/);
+  check(`10.${L} промяна след избора: Place ID не се изпраща, нова оферта по текста (не 3,3 км)`, posts.at(-1).deliveryPlace === null && !/3,3 (км|km)/.test(await pick(page)), JSON.stringify(posts.at(-1)).slice(0, 160));
+  // Мишка: връщане от Летище София → „Терминал 2“
+  await page.check('input[name="m2"][value="addr"]');
+  await page.click("#b-a2");
+  await page.keyboard.type("Летище Соф", { delay: 40 });
+  await page.waitForSelector("#b-a2-list:not([hidden]) [role=option]", { timeout: 15000 });
+  await page.click("#b-a2-list [role=option]:has-text('Терминал 2')");
+  await waitPick(page, /(Терминал|Terminal) 2 · 139,3 (км|km) × 0,70 €/);
+  const t3 = await pick(page);
+  check(`10.${L} мишка: връщане от „Терминал 2“ (Google) → точката пред Т2, 139,3 км × 0,70 €; два отделни реда`, /(Терминал|Terminal) 2 · 139,3 (км|km)/.test(t3) && posts.at(-1).returnPlace?.id === "gp_sofia_t2" && page.errs.length === 0, t3.replace(/\n/g, " / ").slice(0, 300));
+  // Google „Летище София“ (цялото летище) → избор на терминал; Esc затваря списъка
+  await page.fill("#b-a2", "");
+  await page.keyboard.type("Летище Соф", { delay: 40 });
+  await page.waitForSelector("#b-a2-list:not([hidden]) [role=option]", { timeout: 15000 });
+  await page.click("#b-a2-list [role=option]:first-child");
+  await page.waitForSelector("#pick [data-term^='2:']", { timeout: 15000 });
+  check(`10.${L} „Летище София“ от Google → искане за терминал; „Продължи“ е неактивен`, await contDisabled(page));
+  await page.click("#b-a2"); await page.keyboard.type(" x", { delay: 40 }); await page.keyboard.press("Escape");
+  check(`10.${L} Esc затваря списъка`, (await page.$("#b-a2-list[hidden]")) !== null);
+  await ctx.close();
+}
+// 10м. Телефон (докосване): София, бул. Витоша 1 → 146,2 км × 0,70 €; само улица → уточнение
+{
+  const { ctx, page } = await open({ m1: "addr", a1: "" }, { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+  await page.goto(B + "/#avtomobili", { waitUntil: "load" });
+  await page.tap("#b-a1");
+  await page.keyboard.type("Витош", { delay: 40 });
+  await page.waitForSelector("#b-a1-list:not([hidden]) [role=option]", { timeout: 15000 });
+  await page.tap("#b-a1-list [role=option]:nth-child(2)");
+  await waitPick(page, /Изберете адреса от предложенията|номер/);
+  const t1 = await pick(page);
+  await page.fill("#b-a1", ""); await page.tap("#b-a1"); await page.keyboard.type("Витош", { delay: 40 });
+  await page.waitForSelector("#b-a1-list:not([hidden]) [role=option]", { timeout: 15000 });
+  await page.tap("#b-a1-list [role=option]:first-child");
+  await waitPick(page, /146,2 км × 0,70 €/);
+  check("10м. телефон (докосване): само „бул. Витоша“ → уточнение; „бул. Витоша 1“ → 146,2 км × 0,70 € = 102,34 €", /Изберете адреса от предложенията/.test(t1) && /102,34 €/.test(await pick(page)) && page.errs.length === 0, t1.replace(/\n/g, " / ").slice(0, 200));
+  await ctx.close();
+}
+// 10н. Без ключ за Google (503) и грешка на Google (502): без предложения, без грешки; въведеният текст работи както досега
+for (const [st, name] of [[503, "без ключ"], [502, "грешка на Google"]]) {
+  const { ctx, page } = await open({ m1: "addr", a1: "" });
+  let n = 0;
+  await page.route("**/api/places**", (r) => { n++; return r.fulfill({ status: st, json: { error: st === 503 ? "unavailable" : "provider" } }); });
+  await page.goto(B + "/#avtomobili", { waitUntil: "load" });
+  await page.click("#b-a1"); await page.keyboard.type("ул. Тестова 1", { delay: 30 });
+  await waitPick(page, /5 км × 1,00 €/);
+  await page.keyboard.type("0", { delay: 30 }); await page.waitForTimeout(600);
+  const hint = await page.$$eval("[data-ac-hint]", (h) => h.filter((x) => !x.hidden).length);
+  check(`10н. ${name}: няма списък и подсказка, без грешки в страницата; цена по въведения текст`, n >= 1 && (await page.$("#b-a1-list[hidden]")) !== null && hint === 0 && page.errs.length === 0 && (st === 502 || n === 1), `заявки ${n}, подсказки ${hint}`);
   await ctx.close();
 }
 await browser.close();

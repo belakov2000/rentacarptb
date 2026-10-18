@@ -196,3 +196,42 @@ export function matchPoi(addr: string): Poi | "terminal" | "ambiguous" | null {
   const n = [...terms][0];
   return n === "1" ? POIS["sof-t1"] : n === "2" ? POIS["sof-t2"] : "terminal";
 }
+
+// ===== Адрес, избран от предложенията на Google (Places API – Place Details) =====
+// Сървърът проверява избрания резултат по неговия Place ID: държава България, координати и вид на мястото.
+// Приема се конкретно място: адрес с номер (street_address / premise / subpremise или компонент street_number) или
+// обект (establishment / point_of_interest). Само улица, квартал, населено място, пощенски код или област → "imprecise"
+// (не се заменя с центъра на града или произволна точка от улицата). Летищата София и Пловдив → проверените точки
+// пред терминалите (POIS); летище София без ясен терминал → "terminal". Извън България → "abroad".
+export type GPlace = {
+  id?: string; formattedAddress?: string; types?: string[];
+  location?: { latitude?: number; longitude?: number };
+  addressComponents?: { longText?: string; shortText?: string; types?: string[] }[];
+};
+export type GoogleCheck = { lat: number; lon: number; poi?: Poi } | "imprecise" | "terminal" | "abroad";
+const PRECISE_TYPES = ["street_address", "premise", "subpremise", "establishment", "point_of_interest"];
+// Разстояние в км между две точки (за летищата – дали избраното място е на летище София / Пловдив)
+const kmBetween = (a: { lat: number; lon: number }, b: { lat: number; lon: number }) => {
+  const r = (x: number) => (x * Math.PI) / 180;
+  return 6371 * Math.hypot(r(b.lon - a.lon) * Math.cos(r((a.lat + b.lat) / 2)), r(b.lat - a.lat));
+};
+export function checkGooglePlace(p: GPlace | null, label: string): GoogleCheck {
+  const lat = p?.location?.latitude, lon = p?.location?.longitude;
+  const comps = p?.addressComponents || [];
+  const country = comps.find((c) => c.types?.includes("country"))?.shortText;
+  if (country !== "BG") return "abroad";
+  if (typeof lat !== "number" || typeof lon !== "number" || !Number.isFinite(lat) || !Number.isFinite(lon)) return "imprecise";
+  const types = p!.types || [];
+  if (types.includes("airport")) {
+    // Летището като цяло е голяма площ – маршрутът е до проверената точка пред терминала
+    const near = Object.values(POIS).filter((x) => kmBetween(x, { lat, lon }) < 4);
+    if (near.length) {
+      if (!near.some((x) => x.id.startsWith("sof"))) return { lat: POIS.pdv.lat, lon: POIS.pdv.lon, poi: POIS.pdv };
+      // Летище София: терминалът от текста на избраното предложение (без пощенски код); неясен → избор на терминал
+      const m = matchPoi("Летище София, " + label.replace(/\b\d{4}\b/g, " "));
+      return m && typeof m === "object" && near.includes(m) ? { lat: m.lat, lon: m.lon, poi: m } : "terminal";
+    }
+  }
+  const precise = types.some((t) => PRECISE_TYPES.includes(t)) || comps.some((c) => c.types?.includes("street_number"));
+  return precise ? { lat, lon } : "imprecise";
+}

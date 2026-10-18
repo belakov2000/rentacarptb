@@ -34,12 +34,13 @@ const code = [
   grab(/const seatN=R=>[^\n]*;/),
   grab(/function quote\(c,R\)\{[\s\S]*?return\{d,r,tot,rows,pend,base:r\*d\}\}/),
   grab(/const Q=\{[^\n]*\};/),
+  grab(/function pickRef\(R,n\)\{[^\n]*\}/),
   grab(/const qInput=R=>[^\n]*;/),
   grab(/const qKey=R=>[^\n]*;/),
   "let S={};",
   grab(/const qOk=\(\)=>[^\n]*;/),
   grab(/const contractData=\(R,q\)=>\{[\s\S]*?abroad:abrSel\(R\)\.map\(\(\[,name,fee\]\)=>\(\{name,fee\}\)\)\}\};/),
-  "globalThis.T={CARS,quote,qInput,qKey,contractData,Q,KMS,setS:v=>{S=v}};",
+  "globalThis.T={CARS,quote,qInput,qKey,contractData,pickRef,Q,KMS,setS:v=>{S=v}};",
 ].join("\n");
 const ctx: any = {};
 vm.createContext(ctx);
@@ -53,6 +54,11 @@ const B = ctx.T;
     {}, { seat: true, seatN: 1 }, { seat: true, seatN: 2 }, { seat: false, seatN: 2 },
     { m1: "addr", a1: "ул. Тестова 1" }, { m2: "addr", a2: "  с. Далеч   5 " }, { m1: "addr", a1: "ул. Тестова 1", m2: "addr", a2: "ул. Тестова 1" },
     { abr: true, ctry: ["gr", "de"] }, { abr: false, ctry: ["gr"] }, { m1: "store", a1: "ул. Скрита 1" },
+    // Адрес, избран от предложенията на Google (Place ID); след промяна на текста изборът не се изпраща
+    { m1: "addr", a1: "ул. „Гладстон“ 10, Пловдив, България", p1: { id: "gp_pdv_gladston_10", session: "a".repeat(32), label: "ул. „Гладстон“ 10, Пловдив, България" } },
+    { m1: "addr", a1: "ул. Тестова 1", m2: "addr", a2: "Терминал 2, Летище София", p2: { id: "gp_sofia_t2", session: "b".repeat(32), label: "Терминал 2, Летище София" } },
+    { m1: "addr", a1: "ул. „Гладстон“ 1", p1: { id: "gp_pdv_gladston_10", session: "a".repeat(32), label: "ул. „Гладстон“ 10, Пловдив, България" } },
+    { m1: "store", a1: "ул. „Гладстон“ 10", p1: { id: "gp_pdv_gladston_10", session: null, label: "ул. „Гладстон“ 10" } },
   ];
   const bad: string[] = [];
   for (const st of states) {
@@ -63,7 +69,7 @@ const B = ctx.T;
       // С показана сървърна оферта договорът от браузъра взема сумите от нея (сървърът ги попълва отново)
       if (withQuote) { B.Q.st = "ok"; B.Q.key = B.qKey(R); B.Q.d = { days: 3, lines: [{ code: "rent", cents: 7500 }, { code: "seats", cents: 900 }] }; } else { B.Q.st = ""; B.Q.d = null; }
       const cl = parseQuoteBody(JSON.parse(JSON.stringify(B.qInput(R))));
-      const sv = bookingInput({ carId: R.car, startDate: R.d1, startTime: R.t1, endDate: R.d2, endTime: R.t2 }, JSON.parse(JSON.stringify({ contract: B.contractData(R, B.quote(c, R)) })));
+      const sv = bookingInput({ carId: R.car, startDate: R.d1, startTime: R.t1, endDate: R.d2, endTime: R.t2 }, JSON.parse(JSON.stringify({ contract: B.contractData(R, B.quote(c, R)), places: { del: B.pickRef(R, 1)?.id ?? null, ret: B.pickRef(R, 2)?.id ?? null } })));
       if ("error" in cl || "error" in sv || inputHash(cl.input) !== inputHash(sv.input)) bad.push(JSON.stringify(st) + (withQuote ? " (с оферта)" : ""));
     }
   }
@@ -74,9 +80,10 @@ const B = ctx.T;
 {
   const i = { carId: "golf", startDate: "2027-03-01", startTime: "10:00", endDate: "2027-03-03", endTime: "10:00", seats: 0, del: "ул. Тестова 1", ret: null, abroad: ["gr", "de"] };
   const h = inputHash(i);
-  const changes = [{ carId: "passat" }, { startDate: "2027-03-02" }, { startTime: "10:01" }, { endDate: "2027-03-04" }, { endTime: "11:00" }, { seats: 1 }, { del: "ул. Тестова 2" }, { del: null }, { ret: "ул. Тестова 1" }, { abroad: ["gr"] }];
-  check("2. отпечатък: промяна на автомобил, дата, час, столче, адрес или държава → друга оферта; интервали/букви – същата",
-    inputHash({ ...i, del: "  УЛ. ТЕСТОВА   1 ", abroad: ["de", "gr"] }) === h && changes.every((ch) => inputHash({ ...i, ...ch } as any) !== h), "");
+  const changes = [{ carId: "passat" }, { startDate: "2027-03-02" }, { startTime: "10:01" }, { endDate: "2027-03-04" }, { endTime: "11:00" }, { seats: 1 }, { del: "ул. Тестова 2" }, { del: null }, { ret: "ул. Тестова 1" }, { abroad: ["gr"] }, { delPlace: { id: "gp_pdv_gladston_10", session: null } }];
+  check("2. отпечатък: промяна на автомобил, дата, час, столче, адрес, избрано място или държава → друга оферта; интервали/букви, сесия – същата",
+    inputHash({ ...i, del: "  УЛ. ТЕСТОВА   1 ", abroad: ["de", "gr"] }) === h &&
+    inputHash({ ...i, delPlace: { id: "gp_x_123456789", session: "a".repeat(32) } } as any) === inputHash({ ...i, delPlace: { id: "gp_x_123456789", session: null } } as any) && changes.every((ch) => inputHash({ ...i, ...ch } as any) !== h), "");
 }
 
 // 3. Проверка на входните данни
