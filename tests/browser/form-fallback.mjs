@@ -36,6 +36,7 @@ async function session(tag, dates, { abort = false, delivery = false } = {}) {
     await r.fulfill({ response: res, json: j });
   });
   const s = { name: "ТЕСТ Браузър " + tag, phone: "+359000000000", mail: `browser-${tag}@example.com`, car: "ka", d1: dates[0], t1: "10:00", d2: dates[1], t2: "10:00", m1: delivery ? "addr" : "office", m2: "office", ...(delivery ? { a1: SECRET.a1 } : {}) };
+  await page.addInitScript(() => { window.__LEGACY_FORM = 1; }); // старата дълга форма (новият процес: two-stage-ui.mjs)
   await page.addInitScript((x) => { if (!sessionStorage.getItem("req")) sessionStorage.setItem("req", JSON.stringify(x)); }, s);
   await page.goto(B + "/#avtomobili", { waitUntil: "load" });
   await page.waitForSelector("#bk", { state: "visible" });

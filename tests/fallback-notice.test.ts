@@ -67,3 +67,12 @@ test("в index.html няма друг път към Web3Forms освен тов�
   const notice = code.slice(code.indexOf("function noticeData"), code.indexOf("const postNotice"));
   for (const f of ["egn", "idn", "dln", "addr", "a1", "a2", "city", "idp", "links", "PH["]) assert.ok(!notice.includes("R." + f) && !notice.includes(f + ":"), f);
 });
+
+
+test("резервното известие води до същия Preview през защитения админ панел, без таен токен", () => {
+  const id="a".repeat(32), site="https://deploy-preview-54--rentacarptb.netlify.app";
+  const n=notice({...base,ref:"AAAAAA",id,site,adminToken:"b".repeat(64)});
+  assert.ok(n.message.includes(site+"/admin/bookings/"+id));
+  assert.ok(!n.message.includes("b".repeat(64)));
+  assert.ok(!notice({...base,ref:"AAAAAA",id,site:"https://evil.example"}).message.includes("evil.example"));
+});

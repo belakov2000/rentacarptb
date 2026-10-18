@@ -20,3 +20,14 @@ export function ownerRequestText(message: string) {
     .filter((b) => b.trim())
     .join("\n\n");
 }
+
+// Сумите в текста идват от браузъра – в писмото до фирмата се заменят със сървърната разбивка (server/pricing.ts → priceLines).
+// Махат се редовете със суми и услуги от браузъра навсякъде; блокът „ЦЕНА“ се поставя след първия блок (автомобил и период).
+const CLIENT_PRICE_LINE = /^(Общо за услугите|Брой дни|Детско столче|Пътуване в чужбина)\s*:/;
+export function withServerPrice(message: string, lines: string[]) {
+  const blocks = String(message || "").replace(/\r\n?/g, "\n").split(/\n\s*\n/)
+    .map((b) => b.split("\n").filter((l) => !CLIENT_PRICE_LINE.test(l.trim())).join("\n"))
+    .filter((b) => b.trim());
+  const price = ["ЦЕНА (изчислена от сървъра)", ...lines].join("\n");
+  return [...blocks.slice(0, 1), price, ...blocks.slice(1)].join("\n\n");
+}

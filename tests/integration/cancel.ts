@@ -1,7 +1,7 @@
 // Отмяна на потвърдена резервация, „Клиентът не се яви“ и предаване на автомобила – от линка в имейла и от админ панела.
 // Само синтетични данни; имейлите и Netlify Identity се симулират (harness.ts).
 import { eq } from "drizzle-orm";
-import { bookingBody, check, cookieJar, fakeJwt, finish, freshDb, identity, mail, O, setContext, schema } from "./harness.ts";
+import { bookingBody, check, cookieJar, fakeJwt, finish, freshDb, identity, mail, O, setContext, schema, withQuote } from "./harness.ts";
 import bookingsFn from "../../netlify/functions/bookings.mts";
 import availabilityFn from "../../netlify/functions/availability.mts";
 import adminBookingsFn from "../../netlify/functions/admin-bookings.mts";
@@ -17,7 +17,7 @@ const row = async (id: string) => (await t.db.select().from(schema.bookings).whe
 let k = 0;
 async function confirmed(d1: string, d2: string, carId = "passat", t1 = "10:00", t2 = "10:00") {
   const n = "C" + ++k;
-  const r = await call(`${O}/api/bookings`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(bookingBody(n, d1, t1, d2, t2, { carId, requestKey: `cancel-${n}-key` })) });
+  const r = await call(`${O}/api/bookings`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(await withQuote(bookingBody(n, d1, t1, d2, t2, { carId, requestKey: `cancel-${n}-key` }))) });
   const { id } = await r.json();
   await manage(id, { action: "confirm" });
   return id as string;
@@ -211,7 +211,7 @@ check("42. BG остава по подразбиране, превключват
 // ===== 43. Цялата верига от линка в писмото до фирмата =====
 {
   const body = bookingBody("FLOW", "2027-12-06", "10:00", "2027-12-08", "10:00", { carId: "golf", requestKey: "cancel-flow-key-1" });
-  const r = await call(`${O}/api/bookings`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const r = await call(`${O}/api/bookings`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(await withQuote(body)) });
   const { id } = await r.json();
   const owner = mail.sent.find((m) => /Нова заявка за наем/.test(m.subject) && m.subject.includes("ТЕСТ FLOW"));
   const link = owner && [...owner.html.matchAll(/href="([^"]+)"[^>]*>Управление на резервацията</g)].map((x) => x[1].replace(/&amp;/g, "&"))[0];

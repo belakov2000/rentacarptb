@@ -1,0 +1,1 @@
+ALTER TABLE "route_cache" ADD COLUMN "precision" text;

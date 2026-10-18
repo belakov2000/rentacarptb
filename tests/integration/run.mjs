@@ -18,7 +18,7 @@ mkdirSync(resolve(dir, ".out"), { recursive: true });
 
 export const bundle = (entry, outfile) => build({
   entryPoints: [entry], bundle: true, platform: "node", format: "esm", outfile, target: "node22",
-  external: ["pg", "pg-native"], logLevel: "warning",
+  external: ["pg", "pg-native", "@electric-sql/pglite"], logLevel: "warning",
   banner: { js: "import { createRequire as __cr } from 'module'; const require = __cr(import.meta.url);" },
   plugins: [{ name: "stubs", setup(b) {
     b.onResolve({ filter: /^(\.\.\/)+db\/index\.js$/ }, () => ({ path: resolve(dir, "stubs/db.ts") }));
@@ -27,7 +27,7 @@ export const bundle = (entry, outfile) => build({
 });
 
 let server = null;
-if (!process.env.TEST_DATABASE_URL) {
+if (!process.env.TEST_DATABASE_URL && process.env.TEST_USE_PGLITE !== "1") {
   const { default: EmbeddedPostgres } = await import("embedded-postgres").catch(() => {
     console.error("Задайте TEST_DATABASE_URL или инсталирайте временен сървър: npm install --no-save embedded-postgres@17.5.0-beta.15");
     process.exit(1);
@@ -48,7 +48,7 @@ const summary = [];
 const run = (name, args) => {
   console.log(`\n=== ${name} ===`);
   try {
-    const out = execFileSync(process.execPath, args, { env: process.env, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+    const out = execFileSync(process.execPath, args, { env: process.env, encoding: "utf8", timeout: 120_000, stdio: ["ignore", "pipe", "pipe"] });
     process.stdout.write(out);
     summary.push(`${name}: ${out.trim().split("\n").filter((l) => /ОБЩО|^ℹ (pass|fail)/.test(l)).join(" ") || "OK"}`);
   } catch (e) {

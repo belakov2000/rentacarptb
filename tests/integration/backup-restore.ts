@@ -33,7 +33,7 @@ const b1 = await snapRows(); await src.applyMigration(migs[4]);
 check("Миграции: попълващата миграция е повторяема", b1 === (await snapRows()), "");
 // Последните миграции са приложени: колоните на приключване/удължаване, клиентите и състоянието на подписване съществуват
 const cols = (await src.q("select table_name || '.' || column_name c from information_schema.columns where table_schema = 'public'")).rows.map((r: any) => r.c);
-check(`Миграции: всички ${migs.length} са приложени (до ${migs.at(-1)})`, migs.length === 14 && ["bookings.price_check_status", "bookings.handover_recorded_at", "bookings.returned_at", "bookings.customer_id", "booking_extensions.added_cents", "customers.name", "contract_versions.sign_status"].every((c) => cols.includes(c)), migs.join(", "));
+check(`Миграции: всички ${migs.length} са приложени (до ${migs.at(-1)})`, migs.length === 18 && ["bookings.stage", "route_cache.precision", "route_cache.claim_token", "api_limits.expires_at", "price_quotes.booking_id", "bookings.price_check_status", "bookings.handover_recorded_at", "bookings.returned_at", "bookings.customer_id", "booking_extensions.added_cents", "customers.name", "contract_versions.sign_status"].every((c) => cols.includes(c)), migs.join(", "));
 src.use();
 const db = state.db;
 // Синтетични редове във всички нови таблици

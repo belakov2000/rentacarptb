@@ -2,7 +2,7 @@
 // Граничните часове се приемат; час извън графика, липсващ час и минала дата се отхвърлят от сървъра дори при ръчно
 // променена заявка. Записаните резервации не се проверяват наново – потвърждаването им работи както досега.
 import { eq } from "drizzle-orm";
-import { bookingBody, check, finish, freshDb, O, setContext, schema } from "./harness.ts";
+import { bookingBody, check, finish, freshDb, O, setContext, schema, withQuote } from "./harness.ts";
 import bookingsFn from "../../netlify/functions/bookings.mts";
 import { HOURS, sofiaToday, weekday, withinHours } from "../../db/hours.ts";
 
@@ -10,7 +10,7 @@ setContext("deploy-preview");
 const t = await freshDb("hours");
 t.use();
 const call = (url: string, init: RequestInit = {}, id = "") => bookingsFn(new Request(url, init), { params: id ? { id } : {} } as any);
-const create = async (body: any) => { const r = await call(`${O}/api/bookings`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }); return { status: r.status, json: await r.json().catch(() => ({})) }; };
+const create = async (body: any) => { const r = await call(`${O}/api/bookings`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(await withQuote(body)) }); return { status: r.status, json: await r.json().catch(() => ({})) }; };
 let k = 0;
 const req = (d1: string, t1: string, d2: string, t2: string, extra: Record<string, unknown> = {}) => bookingBody("H" + ++k, d1, t1, d2, t2, { requestKey: `hours-${k}-key`, ...extra });
 

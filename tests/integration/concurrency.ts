@@ -1,5 +1,5 @@
 // Едновременни потвърждения и повторни заявки – реален PostgreSQL с много връзки (транзакции и заключвания като в продукция).
-import { bookingBody, check, finish, freshDb, mail, O, setContext, schema } from "./harness.ts";
+import { bookingBody, check, finish, freshDb, mail, O, setContext, schema, withQuote } from "./harness.ts";
 import bookingsFn from "../../netlify/functions/bookings.mts";
 import { eq, sql } from "drizzle-orm";
 
@@ -8,7 +8,7 @@ const t = await freshDb("concurrency");
 t.use();
 mail.delayMs = 15; // имейлът отнема време – прозорецът за състезание е реалистичен
 const create = async (body: any) => {
-  const r = await bookingsFn(new Request(`${O}/api/bookings`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }), { params: {} } as any);
+  const r = await bookingsFn(new Request(`${O}/api/bookings`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(await withQuote(body)) }), { params: {} } as any);
   return { status: r.status, json: await r.json().catch(() => ({})) };
 };
 const decide = async (id: string, action: string) => {

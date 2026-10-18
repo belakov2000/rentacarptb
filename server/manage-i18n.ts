@@ -8,6 +8,8 @@ export const LANGS = ["bg", "en", "de"] as const;
 export type Lang = (typeof LANGS)[number];
 
 const D: Record<string, [string, string]> = {
+  "Управлявай резервацията в админ панела": ["Manage the booking in the admin panel", "Buchung im Adminbereich verwalten"],
+  "— отмяна, промяна на часовете и документи (след вход).": ["— cancellation, time changes and documents (sign-in required).", "— Stornierung, Uhrzeitänderungen und Dokumente (Anmeldung erforderlich)."],
   // Заглавия и етикети
   "Резервация": ["Booking", "Buchung"],
   "Резервация – ": ["Booking – ", "Buchung – "],

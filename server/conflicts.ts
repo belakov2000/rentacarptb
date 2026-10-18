@@ -1,4 +1,4 @@
-import { and, eq, gte, isNotNull, isNull, lte, ne, or, sql } from "drizzle-orm";
+import { and, inArray, eq, gte, isNotNull, isNull, lte, ne, or, sql } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { bookings, carBlocks } from "../db/schema.js";
 import { addDays, endTimeOf, minutes, overlaps, startTimeOf } from "../db/slots.js";
@@ -38,9 +38,10 @@ export const SPAN_COLS = {
   pickup: bookings.pickup, dropoff: bookings.dropoff, handedOverAt: bookings.handedOverAt, returnedAt: bookings.returnedAt,
 };
 // Потвърдените резервации, които може да заемат автомобил в дните [from, to]: по дати или незавършен наем с предаване
+// Двуетапни заявки след първото одобрение (очакват / проверяват се документите) също заемат автомобила
 export const confirmedIn = (from: string, to: string) =>
   and(
-    eq(bookings.status, "confirmed"),
+    or(eq(bookings.status, "confirmed"), and(eq(bookings.status, "pending"), inArray(bookings.stage, ["docs", "review"]))),
     isNotNull(bookings.startDate),
     isNotNull(bookings.endDate),
     lte(bookings.startDate, to),

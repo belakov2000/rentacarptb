@@ -51,6 +51,13 @@
   status = 404
   force = true
 
+# Запазена незавършена работа (двуетапен процес) – не се публикува
+[[redirects]]
+  from = "/wip/*"
+  to = "/404"
+  status = 404
+  force = true
+
 [[redirects]]
   from = "/server/*"
   to = "/404"

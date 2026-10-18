@@ -5,8 +5,9 @@ import { bookingEvents, bookingExtensions, bookings, contractVersions, customers
 import { parseAmountCents } from "../../db/money.js";
 import { json, requireAdmin } from "../../server/auth.js";
 import {
-  act, allowed, confirmBlock, decide, extendRental, pickupAt, quoteExtension, readContractData, REASONS, returnRental, type Action,
-} from "../../server/booking-actions.js";
+  act, allowed, confirmBlock, decide, extendRental, pickupAt, quoteExtension, readContractData, REASONS, returnRental, type Action, inviteDocs } from "../../server/booking-actions.js";
+import { changeTimes } from "../../server/change-times.js";
+import { statusLink } from "../../server/stage.js";
 import { findConflict } from "../../server/conflicts.js";
 import { finance } from "../../server/payments.js";
 import { LIST, PAGE, searchWhere, SORTS, sortRows, STATUS_FILTER, viewRows, VIEWS, type ListRow, type View } from "../../server/admin-lists.js";
@@ -43,7 +44,9 @@ async function detail(id: string) {
   // Чакаща заявка: може ли да бъде потвърдена (дати, час, заетост към момента – окончателната проверка е при действието)
   const block = b.status === "pending" ? confirmBlock(b) : "state";
   const conflict = b.status === "pending" && !block ? await findConflict(b.carId, b.startDate!, b.endDate!, b.startTime, b.endTime, b.id) : null;
-  const decision = { confirm: !block && !conflict, reject: b.status === "pending", block: block === "state" ? "" : block || (conflict ? "busy" : ""), conflict };
+  // Двуетапна заявка в етап „docs“: окончателното потвърждение е възможно едва след подаването на документите
+  const docsWait = b.status === "pending" && b.stage === "docs";
+  const decision = { confirm: !block && !conflict && !docsWait, reject: b.status === "pending", block: block === "state" ? "" : block || (conflict ? "busy" : docsWait ? "docs_pending" : ""), conflict, invite: docsWait };
   return {
     booking: { ...safe, pickupAt: pickupAt(b), documentsCount: Array.isArray(documents) ? documents.length : null },
     can: { ...allowed(b), ...decision }, finance: finance(b, pays), extensions, versions, customer: customer || null, events, emails,
@@ -75,13 +78,29 @@ export default async (req: Request, context: Context) => {
   }
   if (!ID_RE.test(id)) return json({ error: "not_found" }, 404);
   if (req.method === "GET") {
+    if (new URL(req.url).searchParams.get("view") === "customer") {
+      const [b] = await db.select().from(bookings).where(eq(bookings.id, id));
+      if (!b) return json({ error: "not_found" }, 404);
+      return new Response(null, { status: 303, headers: { Location: statusLink(b, new URL(req.url).origin), "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" } });
+    }
     const d = await detail(id);
     return d ? json(d) : json({ error: "not_found" }, 404);
   }
   const body = await req.json().catch(() => null);
+  if (body?.action === "change_times") {
+    const r = await changeTimes(id, str(body.startTime, 5), str(body.endTime, 5), str(body.expectedUpdatedAt, 40), admin.email);
+    if (!r.ok) return json(r, r.error === "not_found" ? 404 : 409);
+    return json({ ok: true, contract: r.contract, ...(await detail(id)) });
+  }
   if (body?.action === "confirm" || body?.action === "reject") {
     const r = await decide(id, body.action, { actor: admin.email, internalNote: typeof body?.note === "string" ? body.note : "", notify: body?.notify === true });
     if (!r.ok) return json({ error: r.error, ...(r.booking ? await detail(id) : {}) }, r.error === "not_found" ? 404 : 409);
+    return json({ ok: true, email: r.email, ...(await detail(id)) });
+  }
+  // Покана за документите (ако при одобрението не е изпратена или клиентът я иска повторно)
+  if (body?.action === "invite") {
+    const r = await inviteDocs(id, admin.email);
+    if (!r.ok) return json({ error: r.error, ...(await detail(id)) || {} }, r.error === "not_found" ? 404 : 409);
     return json({ ok: true, email: r.email, ...(await detail(id)) });
   }
   if (body?.action === "return") {

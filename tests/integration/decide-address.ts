@@ -3,7 +3,7 @@
 // Само синтетични данни; имейлите и Netlify Identity се симулират (harness.ts). Не се свързва с реални данни.
 import { eq } from "drizzle-orm";
 import { strFromU8, unzipSync } from "fflate";
-import { bookingBody, check, contractData, cookieJar, fakeJwt, finish, freshDb, identity, mail, O, setContext, schema } from "./harness.ts";
+import { bookingBody, check, contractData, cookieJar, fakeJwt, finish, freshDb, identity, mail, O, setContext, schema, withQuote } from "./harness.ts";
 import { stores } from "./stubs/blobs.ts";
 import bookingsFn from "../../netlify/functions/bookings.mts";
 import adminBookingsFn from "../../netlify/functions/admin-bookings.mts";
@@ -25,7 +25,7 @@ const busy = async (carId: string) => ((await (await availabilityFn()).json()).c
 let k = 0;
 async function request(d1: string, t1: string, d2: string, t2: string, extra: Record<string, unknown> = {}) {
   const n = "D" + ++k;
-  const r = await call(`${O}/api/bookings`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(bookingBody(n, d1, t1, d2, t2, { requestKey: `decide-${n}-key`, ...extra })) });
+  const r = await call(`${O}/api/bookings`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(await withQuote(bookingBody(n, d1, t1, d2, t2, { requestKey: `decide-${n}-key`, ...extra }))) });
   const j = await r.json();
   return { status: r.status, id: j.id as string, json: j };
 }

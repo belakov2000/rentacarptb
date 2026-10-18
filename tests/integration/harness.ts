@@ -1,12 +1,15 @@
 // Обща среда за интеграционните тестове: реален PostgreSQL (отделна временна база за всеки тест, всички миграции),
 // хранилища Netlify Blobs в паметта и прихванати имейли към Brevo. Не се свързва с Netlify, Brevo или реални данни.
 import { drizzle } from "drizzle-orm/node-postgres";
+import { CENTRAL_TRAP, nom, type Nom } from "../fixtures/nominatim.ts";
 import pg from "pg";
 import { createHash } from "node:crypto";
 import jpeg from "jpeg-js";
 import { readdirSync, readFileSync } from "node:fs";
 import * as schema from "../../db/schema.ts";
 import { state } from "./stubs/db.ts";
+import quoteFn from "../../netlify/functions/quote.mts";
+import { bookingInput } from "../../server/quote.ts";
 
 export { schema };
 export const MIG = "netlify/database/migrations";
@@ -14,10 +17,26 @@ export const migrations = () => readdirSync(MIG).sort();
 export const sha = (d: Uint8Array | ArrayBuffer | string) => createHash("sha256").update(typeof d === "string" ? d : new Uint8Array(d as ArrayBuffer)).digest("hex");
 
 // ===== База =====
-const ADMIN_URL = process.env.TEST_DATABASE_URL!;
+const ADMIN_URL = process.env.TEST_DATABASE_URL || (process.env.TEST_USE_PGLITE ? "postgres://local-test-only" : "");
 if (!ADMIN_URL) throw new Error("TEST_DATABASE_URL is not set – run tests via tests/integration/run.mjs");
 const pools: pg.Pool[] = [];
 export async function freshDb(name: string, upTo = Infinity) {
+  if (process.env.TEST_USE_PGLITE === "1") {
+    // WASM PostgreSQL for constrained environments; native PostgreSQL remains the default.
+    // This mode does not replace native multi-connection concurrency checks.
+    const { PGlite } = await import("@electric-sql/pglite");
+    const { drizzle: wasmDrizzle } = await import("drizzle-orm/pglite");
+    const { btree_gist } = await import("@electric-sql/pglite/contrib/btree_gist");
+    const client = new PGlite({ extensions: { btree_gist } });
+    const q = (text: string, params?: unknown[]) => client.query(text, params?.map((v, i) =>
+      typeof v === "string" && new RegExp("\\$" + (i + 1) + "::bytea\\b").test(text) ? new TextEncoder().encode(v) : v));
+    const applyMigration = async (m: string) => {
+      for (const st of readFileSync(`${MIG}/${m}/migration.sql`, "utf8").split("--> statement-breakpoint")) if (st.trim()) await client.exec(st);
+    };
+    for (const m of migrations().slice(0, upTo === Infinity ? undefined : upTo)) await applyMigration(m);
+    const db = wasmDrizzle({ client, schema }) as any;
+    return { url: ADMIN_URL, pool: { end: () => client.close() }, q, db, applyMigration, use: () => { state.db = db; } };
+  }
   const admin = new pg.Client({ connectionString: ADMIN_URL });
   await admin.connect();
   const dbName = `t_${name}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
@@ -105,7 +124,7 @@ export function bookingBody(s: string, d1: string, t1: string, d2: string, t2: s
   };
 }
 export const contractData = (d1: string, t1: string, d2: string, t2: string) => ({
-  citizen: "BG", idt: "id", idn: "000", egn: "0000000000", d1, t1, d2, t2, days: 2, rent: 50, seat: 0, seatN: 0, del: { addr: "тест", km: 5, rate: 1 }, ret: null, abroad: [],
+  citizen: "BG", idt: "id", idn: "000", egn: "0000000000", d1, t1, d2, t2, days: 2, rent: 50, seat: 0, seatN: 0, del: { addr: "ул. Тестова 1", km: 5, rate: 1 }, ret: null, abroad: [],
 });
 
 // ===== Фалшив Netlify Identity (GoTrue): /token, /user, /logout – както ги вика @netlify/identity на сървъра =====
@@ -118,7 +137,65 @@ export const identity = {
 export function fakeJwt(email: string, roles: string[] = [], exp = Math.floor(Date.now() / 1000) + 3600) {
   return `${b64({ alg: "HS256", typ: "JWT" })}.${b64({ sub: "u-" + email, email, exp, app_metadata: { roles } })}.${b64("sig-" + Math.random())}`;
 }
+// ===== Симулирани маршрути (OpenStreetMap / OSRM) – без реални заявки и без ключ за Google =====
+// Отговорите имат формата на Nominatim (format=jsonv2&addressdetails=1): населено място, улица, номер, вид и ранг на мястото.
+// Адрес с „Мрежа“ → мрежова грешка; „Няма“ → няма резултати; „Далеч“ → с. Далеч извън зоната на Пловдив (150 км, 0,70 €/км);
+// „Централен“ → както реалният Nominatim за „гр. Пловдив, пл. Централен 1“: площад в с. Бяла река (обл. Пловдив) и обекти
+// на други улици в Пловдив – нито един не е пл. Централен в гр. Пловдив; „Улична“ → само улицата, без номер (отказ imprecise).
+// Иначе – сградата с въведения номер на въведената улица в посоченото населено място (по подразбиране гр. Пловдив), 5 км в зоната.
+// routes.calls брои заявките за търсене на адрес (платените в реалната среда).
+// delayMs – забавяне на отговора на доставчика (за проверката на едновременни заявки за един адрес)
+export const routes = { calls: 0, delayMs: 0, urls: [] as string[] };
+const fakeGeocode = (u: URL): Nom[] | Nom => {
+  const p = u.searchParams;
+  // Обратно търсене (проверка на пина): южно от 42.05 – с. Брестник (друго населено място), иначе гр. Пловдив
+  if (u.pathname.includes("/reverse")) {
+    const lat = Number(p.get("lat"));
+    // Западно от 22.6 – Сърбия (пин извън България)
+    if (Number(p.get("lon")) < 22.6) return { ...nom(lat, Number(p.get("lon")), "village", 19, "Синтетично село", { village: "Синтетично село", state: "Пирот" }), address: { village: "Синтетично село", country: "Сърбия", country_code: "rs" } } as any;
+    return lat < 42.05 ? nom(lat, Number(p.get("lon")), "village", 19, "Брестник", { village: "Брестник", municipality: "Родопи", state: "Пловдив" })
+      : nom(lat, Number(p.get("lon")), "building", 30, "", { road: "ул. Синтетична", city: "Пловдив", state: "Пловдив" });
+  }
+  const text = p.get("q") ?? [p.get("street"), p.get("city")].filter(Boolean).join(", ");
+  if (text.includes("Мрежа")) throw new TypeError("fetch failed");
+  if (text.includes("Няма")) return [];
+  if (text.includes("Централен")) return CENTRAL_TRAP;
+  // с. Далеч: сградата с въведения номер (ул. „Главна“) – иначе само селото (недостатъчна точност)
+  if (text.includes("Далеч")) {
+    const n = /(\d+[а-яa-z]?)\s*$/i.exec(text.split(",")[0])?.[1];
+    return [n ? nom(42.7, 23.32, "building", 30, "", { house_number: n, road: "ул. Главна", village: "Далеч", municipality: "Синтетична", state: "София" })
+      : nom(42.7, 23.32, "village", 19, "Далеч", { village: "Далеч", municipality: "Синтетична", state: "София" })];
+  }
+  const parts = text.split(",").map((x) => x.trim());
+  const town = parts.map((x) => /^(?:гр|с)\.\s*(.+)$/.exec(x)?.[1] || (/^(Пловдив|Plovdiv)$/i.test(x) ? "Пловдив" : "")).find(Boolean) || "Пловдив";
+  const st = parts.find((x) => /\d/.test(x) && !/^(вх|ет|ап|бл)\b/i.test(x)) || parts[0];
+  const m = /^(.*?)\s+(\d+[а-яa-z]?)$/i.exec(st);
+  const road = (m ? m[1] : st).trim(), num = m ? m[2] : undefined;
+  if (road.includes("Улична")) return [nom(42.151, 24.751, "road", 26, road, { road, suburb: "Синтетичен", city: town, state: "Пловдив" })];
+  return [nom(42.15, 24.75, "building", 30, "", { ...(num ? { house_number: num } : {}), road, suburb: "Синтетичен", city: town, state: "Пловдив" })];
+};
+const fakeRoute = async (url: string, init?: any) => {
+  if (url.includes("nominatim.openstreetmap.org")) {
+    routes.calls++;
+    routes.urls.push(url);
+    if (routes.delayMs) await new Promise((r) => setTimeout(r, routes.delayMs));
+    return Response.json(fakeGeocode(new URL(url)));
+  }
+  if (url.includes("router.project-osrm.org")) {
+    const [, to] = new URL(url).pathname.split("/driving/")[1].split(";");
+    const [lon, lat] = to.split(",").map(Number);
+    // Разстояние според крайната точка: летищата, далечното село 150 км, Бяла река 49,8 км (реалният OSRM), иначе 5 км
+    // Летищата (server/geocode.ts → POIS): реалните разстояния от OSRM от офиса (18.10.2026)
+    const AIRPORTS: Record<string, number> = { "23.402457": 138500, "23.414214": 139300, "24.844729": 19200 };
+    const distance = AIRPORTS[String(lon)] ?? (lat > 42.6 ? 150000 : lon > 25.2 ? 49809.6 : lon === 24.751 ? 4100 : 5000);
+    // Ширина 42.40–42.41: точката е далеч от път (OSRM я „закача“ на 5 км) – невъзможен автомобилен маршрут
+    return Response.json({ code: "Ok", routes: [{ distance }], waypoints: [{ distance: 0 }, { distance: lat >= 42.4 && lat < 42.41 ? 5000 : 12 }] });
+  }
+  return null;
+};
 http.handler = async (url, init) => {
+  const fr = await fakeRoute(url, init);
+  if (fr) return fr;
   const m = /\/\.netlify\/identity(\/[a-z]+)/.exec(url);
   if (!m) return null;
   identity.calls.push(m[1]);
@@ -152,4 +229,20 @@ export function adminJar(email = "admin@example.com", roles = ["admin"]) {
   identity.tokens.set(tok, email);
   jar.set({ name: "nf_jwt", value: tok });
   return jar;
+}
+
+// ===== Сървърна оферта (/api/quote) за тестова заявка =====
+// Входните данни се вземат от тялото на заявката по същото правило като на сървъра (server/quote.ts → bookingInput);
+// ако офертата не може да бъде изчислена, тялото се връща без нея (тестът проверява отговора на /api/bookings).
+export async function quoteFor(body: any, ip = "203.0.113.50") {
+  const i = bookingInput({ carId: body.carId, startDate: body.startDate, startTime: body.startTime, endDate: body.endDate, endTime: body.endTime }, body);
+  if ("error" in i) return { status: 400, json: { error: i.error } as any };
+  const { del, ret, delPin, retPin, chains, secondDriver, ...rest } = i.input;
+  const extras = chains || secondDriver ? { extras: { chains: !!chains, secondDriver: !!secondDriver } } : {};
+  const r = await quoteFn(new Request(O + "/api/quote", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...rest, ...extras, delivery: del, return: ret, deliveryPin: delPin ?? null, returnPin: retPin ?? null }) }), { ip } as any);
+  return { status: r.status, json: (await r.json()) as any };
+}
+export async function withQuote(body: any) {
+  const q = await quoteFor(body);
+  return q.status === 200 ? { ...body, quote: q.json.quote, quoteTotalCents: q.json.totalCents } : body;
 }

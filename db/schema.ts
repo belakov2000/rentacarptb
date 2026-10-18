@@ -1,4 +1,4 @@
-import { boolean, check, date, index, integer, jsonb, pgTable, serial, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { boolean, check, date, doublePrecision, index, integer, jsonb, pgTable, serial, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
 // Резервации от сайта. Тук пазим само данните, нужни за потвърждението –
@@ -77,12 +77,30 @@ export const bookings = pgTable("bookings", {
   customerId: integer("customer_id").references(() => customers.id),
   // Снимки на документите от формата: [{ label, id }] – ключове в хранилището documents. null – по-стари заявки (линковете са само в имейла).
   documents: jsonb(),
-  // Сървърна проверка на цената – етап „наблюдение“ (server/pricing.ts): изчислената от сървъра цена и сравнението ѝ
-  // със сумата от браузъра. НЕ променя total / totalCents и договора. Статус: match | mismatch | incomplete | error.
+  // Сървърна цена (server/pricing.ts, server/quote.ts). Статус „server“ – новите резервации: цената е от сървърната оферта
+  // и е записана в total / totalCents и договора; price_check е снимката на разбивката (без адресите).
+  // match | mismatch | incomplete | error – резервации от етапа „наблюдение“ (сравнение със сумата от браузъра, не са променяни).
   // null – резервации отпреди проверката (не се преизчисляват).
   priceCheck: jsonb("price_check"),
   priceCheckStatus: text("price_check_status"),
   priceCheckedAt: timestamp("price_checked_at"),
+  // ===== Двуетапна заявка (кратка форма → първо одобрение → документи → второ одобрение) =====
+  // stage: null – стара резервация (едно одобрение, документите са в заявката); request – очаква първо одобрение;
+  // docs – одобрена, очакват се документите; review – получени документи, очакват проверка; done – окончателно потвърдена
+  stage: text(),
+  marketingConsent: boolean("marketing_consent").notNull().default(false),
+  chains: boolean().notNull().default(false),
+  secondDriver: boolean("second_driver").notNull().default(false),
+  // Заявителят и водачите поотделно: { requesterDrives, drivers: [{ role: "main" | "second", name }] } – без данните на документите
+  drivers: jsonb(),
+  firstApprovedAt: timestamp("first_approved_at"),
+  firstApprovedBy: text("first_approved_by"),
+  docsInvitedAt: timestamp("docs_invited_at"),
+  docsReminderAt: timestamp("docs_reminder_at"),
+  docsSubmittedAt: timestamp("docs_submitted_at"),
+  // RENTY10: изпратен (валиден 24 ч от изпращането) и използван – само за тази резервация
+  couponSentAt: timestamp("coupon_sent_at"),
+  couponUsedAt: timestamp("coupon_used_at"),
 }, (t) => [
   uniqueIndex("bookings_request_key_idx").on(t.requestKey),
   index("bookings_car_dates_idx").on(t.carId, t.startDate, t.endDate),
@@ -325,3 +343,68 @@ export const settings = pgTable("settings", {
   updatedBy: text("updated_by").notNull().default("system"),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
+
+// Ценови оферти от сървъра (/api/quote, server/quote.ts). Клиентът вижда сървърната разбивка и сумата преди подаването,
+// а /api/bookings приема само валидна, неизтекла и неизползвана оферта за същите данни. Офертата НЕ блокира наличност.
+// id е SHA-256 на тайния ключ от браузъра (самият ключ не се пази). Адресите не се пазят – само техен хеш в inputHash
+// и км / тарифа / източник на маршрута в legs. bookingId се записва в транзакцията на резервацията – една оферта, една резервация.
+export const priceQuotes = pgTable(
+  "price_quotes",
+  {
+    id: text().primaryKey(),
+    inputHash: text("input_hash").notNull(),
+    // Входните данни без адресите: автомобил, дати, часове, брой столчета, държави
+    input: jsonb().notNull(),
+    // { del?: { km, rate, source }, ret?: { km, rate, source } } – изчислени на сървъра
+    legs: jsonb().notNull(),
+    version: text().notNull(),
+    days: integer().notNull(),
+    lines: jsonb().notNull(),
+    totalCents: integer("total_cents").notNull(),
+    depositCents: integer("deposit_cents").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    expiresAt: timestamp("expires_at").notNull(),
+    bookingId: text("booking_id"),
+    usedAt: timestamp("used_at"),
+  },
+  (t) => [
+    index("price_quotes_expires_idx").on(t.expiresAt),
+    uniqueIndex("price_quotes_booking_idx").on(t.bookingId),
+    check("price_quotes_total_check", sql`${t.totalCents} >= 0`),
+  ],
+);
+
+// Технически броячи за ограниченията на публичните заявки /api/quote и /api/route (server/limits.ts).
+// key: вид + хеш на IP адреса или на случайния ключ на браузъра (без IP адреси и без лични данни).
+// Броячът се нулира при следващата заявка след expires_at. Не е бизнес информация и не влиза в резервните копия.
+export const apiLimits = pgTable(
+  "api_limits",
+  {
+    key: text().primaryKey(),
+    count: integer().notNull().default(0),
+    expiresAt: timestamp("expires_at").notNull(),
+  },
+  (t) => [index("api_limits_expires_idx").on(t.expiresAt)],
+);
+
+// Кеш на изчислените разстояния (server/route.ts → cachedRoute). key – хеш на нормализирания адрес; адресът не се пази.
+// status: pending – търсенето е заето от една заявка (останалите чакат резултата, вместо да питат доставчика отново);
+// ok – км, тарифа, зона и източник; fail – кратко запомнена грешка (reason). Не влиза в резервните копия.
+export const routeCache = pgTable(
+  "route_cache",
+  {
+    key: text().primaryKey(),
+    status: text().notNull(),
+    km: doublePrecision(),
+    rate: doublePrecision(),
+    local: boolean(),
+    source: text(),
+    // Точност на намереното място: house (номерът е намерен) | street (само улицата – приблизително) | place (населеното място)
+    precision: text(),
+    reason: text(),
+    claimToken: text("claim_token"),
+    claimedAt: timestamp("claimed_at").notNull(),
+    expiresAt: timestamp("expires_at").notNull(),
+  },
+  (t) => [index("route_cache_expires_idx").on(t.expiresAt)],
+);

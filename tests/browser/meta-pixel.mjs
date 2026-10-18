@@ -7,6 +7,7 @@
 // Само синтетични данни.
 import { readFileSync } from "node:fs";
 import { chromium } from "playwright-core";
+import { fulfillQuote } from "./quote-stub.mjs";
 
 const B = (process.argv[2] || "").replace(/\/$/, "");
 if (!/^(https:\/\/[\w-]+--rentacarptb\.netlify\.app|http:\/\/(localhost|127\.0\.0\.1):\d+)$/.test(B)) { console.error("Задайте адреса на Deploy Preview или локален сървър (не production)."); process.exit(1); }
@@ -34,6 +35,7 @@ async function session({ consent, storageFails = false, path = "/", booking = "o
     if (u.pathname === "/api/availability") return r.fulfill({ json: { cars: {}, buffer: 0 } });
     if (u.pathname === "/api/documents" && m === "POST") return r.fulfill({ json: { url: B + DOC + Math.random().toString(36).slice(2, 6) } });
     if (u.pathname === "/api/route") return r.fulfill({ json: { km: 10, rate: 0.5 } });
+    if (u.pathname === "/api/quote" && m === "POST") return fulfillQuote(r);
     if (u.pathname === "/api/bookings" && m === "POST") {
       api.push(st.booking);
       if (st.booking === "busy") return r.fulfill({ status: 409, json: { error: "busy" } });
@@ -43,9 +45,12 @@ async function session({ consent, storageFails = false, path = "/", booking = "o
     if (u.pathname.startsWith("/api/bookings/")) return r.fulfill({ json: { status: "pending" } });
     return r.fulfill({ status: 401, json: { error: "mock" } });
   });
-  if (storageFails) await ctx.addInitScript(() => { if (window === top) for (const k of ["getItem", "setItem", "removeItem"]) Storage.prototype[k] = () => { throw new DOMException("blocked", "SecurityError"); }; });
-  if (consent !== undefined) await ctx.addInitScript((c) => { if (window === top && !localStorage.getItem("__seeded")) { localStorage.setItem("__seeded", "1"); localStorage.setItem("cookie-consent", JSON.stringify(c)); } }, consent);
+  if (storageFails) await ctx.addInitScript(() => { window.__LEGACY_FORM = 1; }); // старата дълга форма (новият процес: two-stage-ui.mjs)
+  await ctx.addInitScript(() => { if (window === top) for (const k of ["getItem", "setItem", "removeItem"]) Storage.prototype[k] = () => { throw new DOMException("blocked", "SecurityError"); }; });
+  if (consent !== undefined) await ctx.addInitScript(() => { window.__LEGACY_FORM = 1; }); // старата дълга форма (новият процес: two-stage-ui.mjs)
+  await ctx.addInitScript((c) => { if (window === top && !localStorage.getItem("__seeded")) { localStorage.setItem("__seeded", "1"); localStorage.setItem("cookie-consent", JSON.stringify(c)); } }, consent);
   const seed = { car: "ka", d1: "2029-04-01", t1: "10:00", d2: "2029-04-03", t2: "10:00", m1: "office", m2: "office" };
+  await ctx.addInitScript(() => { window.__LEGACY_FORM = 1; }); // старата дълга форма (новият процес: two-stage-ui.mjs)
   await ctx.addInitScript((x) => { try { if (!sessionStorage.getItem("req")) sessionStorage.setItem("req", JSON.stringify(x)); } catch (e) {} }, seed);
   const page = await ctx.newPage();
   const errors = []; page.on("pageerror", (e) => errors.push(e.message));

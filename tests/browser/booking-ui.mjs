@@ -6,6 +6,7 @@
 // подменят: не се създават резервации и нищо не излиза навън. Само синтетични данни.
 import { readFileSync } from "node:fs";
 import { chromium } from "playwright-core";
+import { fulfillQuote } from "./quote-stub.mjs";
 
 const B = (process.argv[2] || "").replace(/\/$/, "");
 if (!/^(https:\/\/[\w-]+--rentacarptb\.netlify\.app|http:\/\/(localhost|127\.0\.0\.1):\d+)$/.test(B)) { console.error("Задайте адреса на Deploy Preview или локален сървър (не production)."); process.exit(1); }
@@ -34,10 +35,13 @@ async function session({ viewport = { width: 1280, height: 900 }, init = TRACK, 
   await ctx.route((u) => !u.href.startsWith(origin) && !/facebook|web3forms/.test(u.hostname), (r) => r.fulfill({ status: 204, body: "" }));
   if (origin !== B) await ctx.route(origin + "/**", async (r) => { const u = new URL(r.request().url()); const res = await r.fetch({ url: B + u.pathname + u.search }); return r.fulfill({ response: res }); });
   await ctx.route("**/api/availability", (r) => r.fulfill({ json: { cars: {}, buffer: 60 } }));
+  await ctx.route("**/api/quote", fulfillQuote);
   await ctx.route("**/api/documents", (r) => { posted.push("doc"); return r.fulfill({ json: { url: "/api/documents/" + SECRET.doc + posted.length } }); });
   await ctx.route("**/api/bookings", (r) => { posted.push(r.request().postDataJSON()); return booking === "hours" ? r.fulfill({ status: 400, json: { error: "hours" } }) : r.fulfill({ status: 201, json: { id: "c".repeat(32), token: "d".repeat(64), status: "pending" } }); });
-  if (init) await ctx.addInitScript(init);
-  if (consent) await ctx.addInitScript(() => { try { localStorage.setItem("ck", JSON.stringify({ v: 1, marketing: true, t: Date.now() })); } catch (e) {} });
+  if (init) await ctx.addInitScript(() => { window.__LEGACY_FORM = 1; }); // старата дълга форма (новият процес: two-stage-ui.mjs)
+  await ctx.addInitScript(init);
+  if (consent) await ctx.addInitScript(() => { window.__LEGACY_FORM = 1; }); // старата дълга форма (новият процес: two-stage-ui.mjs)
+  await ctx.addInitScript(() => { try { localStorage.setItem("ck", JSON.stringify({ v: 1, marketing: true, t: Date.now() })); } catch (e) {} });
   const page = await ctx.newPage();
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
@@ -236,6 +240,7 @@ for (const [label, vp, mobile] of [["компютър", { width: 1280, height: 9
   const ctx = await browser.newContext({ viewport: { width: 375, height: 667 }, isMobile: true, hasTouch: true, permissions: ["camera"] });
   await ctx.route(/facebook/, (r) => r.fulfill({ status: 204, body: "" }));
   await ctx.route("**/api/availability", (r) => r.fulfill({ json: { cars: {}, buffer: 60 } }));
+  await ctx.route("**/api/quote", fulfillQuote);
   // Външна страница с друг произход вгражда сайта без allow="camera" (както app.netlify.com). Двата адреса са https и се
   // обслужват от теста; сайтът идва от B (локален сървър или Deploy Preview).
   const PARENT = "https://app.example.test/", SITE = /localhost|127\.0\.0\.1/.test(B) ? "https://site.example.test" : B;
