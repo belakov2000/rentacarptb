@@ -163,7 +163,7 @@ export async function submitDocuments(b: Booking, body: any, now = new Date()): 
     // Apply the redeemed discount to the main contract rent as well as its appendix.
     const contractLines = lines.map(l => l.code === "rent" ? { ...l, cents: l.cents + (lines.find(x => x.code === "discount")?.cents ?? 0) } : l);
     const data = contractWithPrice(base, qi, { ...q, lines: contractLines, totalCents });
-    await saveContract(b.id, { ...data, appendix: appendix(u, drivers, list, lines, totalCents), appendixSecondDriver: list.length === 2 }, "customer", "Документи от клиента");
+    await saveContract(b.id, { ...data, appendix: appendix(u, drivers, list, lines, totalCents), appendixSecondDriver: list.length === 2, appendixSecondDriverName: list[1]?.name }, "customer", "Документи от клиента");
   } catch (e) {
     console.error("Contract could not be generated", (e as Error)?.message);
   }
