@@ -505,6 +505,26 @@ button.btn-ghost{background:transparent}
 .cam-act .btn{flex:1 1 140px}
 .cam-act .btn[hidden]{display:none}
 #details{padding:0 0 72px}
+/* Document stage: a full-width light form below the status and summary. */
+#th-docs{grid-column:1/-1;justify-self:center;width:100%;max-width:960px;min-width:0;background:#fff;color:var(--ink);border:1px solid var(--line);padding:clamp(16px,3vw,32px)}
+#th-docs h2{color:var(--navy);margin:0 0 24px}
+#docs-f{display:grid;gap:24px;min-width:0}
+#docs-f .fbox{min-width:0;max-width:100%;border:1px solid var(--line);border-radius:16px;background:var(--soft);padding:18px;gap:16px}
+#docs-f legend{color:var(--navy);max-width:100%;padding:0 6px;line-height:1.4}
+#docs-f label{color:var(--ink);line-height:1.5}
+#docs-f input,#docs-f select,#docs-f textarea{color:var(--ink);-webkit-text-fill-color:var(--ink);background:#fff;min-width:0;max-width:100%;color-scheme:light}
+#docs-f input::placeholder{color:var(--muted);opacity:1}
+#docs-f .row{grid-template-columns:minmax(0,1fr)}
+#docs-f .seg{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;min-width:0}
+#docs-f .opt{background:#fff;margin:0;min-width:0}
+#th-docs p,#th-docs .hint{color:var(--muted);line-height:1.6}
+#docs-f .hint{display:block;margin-top:6px}
+#docs-f [data-doc-camera]{margin-top:10px}
+#docs-f button[type=submit]{justify-self:start}
+@media(min-width:640px){#docs-f .row{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:420px){#docs-f .fbox{padding:12px}#docs-f .seg{grid-template-columns:minmax(0,1fr)}#docs-f button[type=submit]{width:100%}}
+
+
 </style>
 <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"AutoRental","@id":"https://rentacar-ptb.com/#business","name":"Рента ПТБ Строй ЕООД","legalName":"РЕНТА ПТБ СТРОЙ ЕООД","description":"Коли под наем в Пловдив с доставка до Летище Пловдив и до адрес в цяла България.","url":"https://rentacar-ptb.com/","logo":"https://rentacar-ptb.com/images/logo.png","image":"https://rentacar-ptb.com/images/og-image.jpg","telephone":"+359877748693","email":"rentaptb_stroi@abv.bg","identifier":{"@type":"PropertyValue","propertyID":"ЕИК","value":"208817102"},"address":{"@type":"PostalAddress","streetAddress":"бул. Дунав 10","addressLocality":"Пловдив","postalCode":"4027","addressCountry":"BG"},"hasMap":"https://maps.app.goo.gl/3Z6hxjwnggn99cNu7","areaServed":[{"@type":"City","name":"Пловдив"},{"@type":"Country","name":"България"},{"@type":"Airport","name":"Летище Пловдив","iataCode":"PDV"}],"priceRange":"15–25 € на ден","currenciesAccepted":"EUR","paymentAccepted":"В брой, банков превод","knowsLanguage":["bg","en","de"]},{"@type":"WebSite","@id":"https://rentacar-ptb.com/#website","url":"https://rentacar-ptb.com/","name":"Рента ПТБ Строй – коли под наем в Пловдив","inLanguage":["bg","en","de"],"publisher":{"@id":"https://rentacar-ptb.com/#business"}}]}</script>
 </head>
@@ -872,12 +892,12 @@ button.btn-ghost{background:transparent}
 </div>
 <div class="th-side">
 <aside class="hcard" id="th-sum" aria-label="Вашата резервация"></aside>
-<section class="hcard" id="th-docs" hidden aria-label="Документи на водачите"></section>
 <div class="gmap">
 <iframe src="https://maps.google.com/maps?q=%D0%A0%D0%B5%D0%BD%D1%82%D0%B0+%D0%9F%D0%A2%D0%91+%D0%A1%D1%82%D1%80%D0%BE%D0%B9+%E2%80%93+Rent+a+Car+Plovdiv,+bul.+Dunav+10,+Plovdiv&amp;z=16&amp;output=embed" title="Карта: Рента ПТБ Строй, гр. Пловдив, бул. Дунав 10" loading="lazy" referrerpolicy="no-referrer" tabindex="-1" aria-hidden="true"></iframe>
 <a class="gmap-go" href="https://maps.app.goo.gl/3Z6hxjwnggn99cNu7" target="_blank" rel="noopener" aria-label="Упътване до гр. Пловдив, бул. Дунав 10 в Google Maps"><span class="gmap-bar"><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a7 7 0 0 0-7 7c0 5.2 7 13 7 13s7-7.8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z" fill="currentColor"/></svg><span><b>гр. Пловдив, бул. Дунав 10</b><small>Отвори упътване в Google Maps</small></span><em>Навигация →</em></span></a>
 </div>
 </div>
+<section class="hcard" id="th-docs" hidden aria-label="Документи на водачите"></section>
 </div>
 </section>
 </div>
@@ -2218,7 +2238,7 @@ ${f(i,"name","Имена (както са в документа)",V.drivers?.nam
 <div class="seg" role="radiogroup" aria-label="Населено място"><label class="opt"><input type="radio" name="d${i}-pt" value="city"><span>Град</span></label><label class="opt"><input type="radio" name="d${i}-pt" value="village"><span>Село</span></label></div>
 <div class="row">${f(i,"city","Населено място")}${f(i,"addr","Адрес по документа")}</div>
 <div class="row">${f(i,"dln","Номер на шофьорската книжка")}${f(i,"dld","Дата на издаване на книжката",'type="date"')}</div>${f(i,"dlp","Книжката е издадена от")}
-<div class="row">${Object.entries(DPH).map(([k,l])=>`<div><label for="d${i}-p${k}">${l}</label><input id="d${i}-p${k}" type="file" accept="image/*" data-dph="${i}-${k}"><button type="button" data-doc-camera="${i}-${k}">Снимай с камерата</button><input id="d${i}-c${k}" type="file" accept="image/*" capture="environment" hidden data-dph="${i}-${k}"><small class="hint" id="d${i}-p${k}-m"></small></div>`).join("")}</div></fieldset>`;
+<div class="row">${Object.entries(DPH).map(([k,l])=>`<div><label for="d${i}-p${k}">${l}</label><input id="d${i}-p${k}" type="file" accept="image/*" data-dph="${i}-${k}"><button class="btn btn-dark" type="button" data-doc-camera="${i}-${k}">Снимай с камерата</button><input id="d${i}-c${k}" type="file" accept="image/*" capture="environment" hidden data-dph="${i}-${k}"><small class="hint" id="d${i}-p${k}-m"></small></div>`).join("")}</div></fieldset>`;
 const cp=`<div id="docs-coupon-box" data-key="${esc(JSON.stringify(V.coupon))}">${couponMarkup(V)}</div>`;
 box.innerHTML=`<h2>Документи на ${n===2?"водачите":"водача"}</h2><form id="docs-f" novalidate>${Array.from({length:n},(_,i)=>drv(i)).join("")}${cp}<p class="hint">Поставете документа върху равна повърхност при добро осветление. Снимайте го целия, без отблясъци, размазване и закрити краища.</p><label class="opt"><input id="d-consent" type="checkbox"><span>Запознат съм с <a href="#t-terms" data-open="t-terms">Общите условия</a> и <a href="#t-privacy" data-open="t-privacy">информацията за защита на личните данни</a> за обработването на документите за договора.</span></label>
 <div id="d-err" class="alert" role="alert" hidden></div><button class="btn btn-acc" type="submit">Изпрати документите</button><p class="fmsg" id="d-msg" role="status"></p></form>`}

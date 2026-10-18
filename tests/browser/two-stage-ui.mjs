@@ -69,6 +69,21 @@ const [bk] = await sql("select id, admin_token, view_token from bookings order b
   const h = await page.locator("#th-h").textContent(), legends = await page.$$eval("#docs-f legend", (l) => l.map((x) => x.textContent));
   check("3.1 линкът от имейла (нов браузър, телефон): „Заявката е одобрена – подайте документите“; два водача; без плащане, столчета и коментар",
     /подайте документите/.test(h) && legends.length === 2 && /наемател/.test(legends[0]) && !(await page.$("#docs-f [name=pay]")) && !(await page.$("#docs-f #b-note")), legends.join(" | "));
+  // Check actual paint colors and geometry, not just whether inputs exist.
+  for (const width of [1280, 390]) {
+    await page.setViewportSize({width,height:900});
+    const visual=await page.evaluate(()=>{
+      const luminance=c=>{const rgb=c.match(/[\d.]+/g).slice(0,3).map(Number).map(v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4});return rgb[0]*.2126+rgb[1]*.7152+rgb[2]*.0722};
+      const contrast=(a,b)=>{const x=luminance(a),y=luminance(b);return(Math.max(x,y)+.05)/(Math.min(x,y)+.05)};
+      const card=document.querySelector('#th-docs'),r=card.getBoundingClientRect(),grid=card.parentElement.getBoundingClientRect();
+      const inputs=[...document.querySelectorAll('#docs-f input:not([hidden])')];
+      return {outsideSidebar:!card.closest('.th-side'),width:r.width,centered:Math.abs((r.left+r.right)-(grid.left+grid.right))<4,
+        fits:inputs.every(e=>{const b=e.getBoundingClientRect();return b.left>=r.left&&b.right<=r.right+1}),
+        text:inputs.filter(e=>!['radio','checkbox','file'].includes(e.type)).every(e=>{const c=getComputedStyle(e);return contrast(c.color,c.backgroundColor)>=4.5&&contrast(c.webkitTextFillColor,c.backgroundColor)>=4.5}),
+        labels:[...document.querySelectorAll('#docs-f label')].every(e=>contrast(getComputedStyle(e).color,getComputedStyle(card).backgroundColor)>=4.5)};
+    });
+    check(`3.1a ${width}px: centered document form, readable text and labels, controls fit`,visual.outsideSidebar&&visual.centered&&visual.fits&&visual.text&&visual.labels&&(width<960||visual.width>=800),JSON.stringify(visual));
+  }
   await page.click("#docs-f button[type=submit]");
   check("3.2 непопълнени данни → ясна грешка, нищо не се изпраща", /Моля, попълнете всички данни на водач 1/.test(await page.locator("#d-err").innerText()));
   for (const i of [0, 1]) {
