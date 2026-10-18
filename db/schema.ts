@@ -84,6 +84,23 @@ export const bookings = pgTable("bookings", {
   priceCheck: jsonb("price_check"),
   priceCheckStatus: text("price_check_status"),
   priceCheckedAt: timestamp("price_checked_at"),
+  // ===== Двуетапна заявка (кратка форма → първо одобрение → документи → второ одобрение) =====
+  // stage: null – стара резервация (едно одобрение, документите са в заявката); request – очаква първо одобрение;
+  // docs – одобрена, очакват се документите; review – получени документи, очакват проверка; done – окончателно потвърдена
+  stage: text(),
+  marketingConsent: boolean("marketing_consent").notNull().default(false),
+  chains: boolean().notNull().default(false),
+  secondDriver: boolean("second_driver").notNull().default(false),
+  // Заявителят и водачите поотделно: { requesterDrives, drivers: [{ role: "main" | "second", name }] } – без данните на документите
+  drivers: jsonb(),
+  firstApprovedAt: timestamp("first_approved_at"),
+  firstApprovedBy: text("first_approved_by"),
+  docsInvitedAt: timestamp("docs_invited_at"),
+  docsReminderAt: timestamp("docs_reminder_at"),
+  docsSubmittedAt: timestamp("docs_submitted_at"),
+  // RENTY10: изпратен (валиден 24 ч от изпращането) и използван – само за тази резервация
+  couponSentAt: timestamp("coupon_sent_at"),
+  couponUsedAt: timestamp("coupon_used_at"),
 }, (t) => [
   uniqueIndex("bookings_request_key_idx").on(t.requestKey),
   index("bookings_car_dates_idx").on(t.carId, t.startDate, t.endDate),

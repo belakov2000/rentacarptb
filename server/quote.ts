@@ -6,8 +6,7 @@ import { minutes } from "../db/slots.js";
 import { sofiaToday, withinHours } from "../db/hours.js";
 import type { ContractData } from "../contract/index.js";
 import { ABROAD, fmtCents, MAX_SEATS, price, PRICING_VERSION, SEAT_DAY, TIERS, type Leg, type Line } from "./pricing.js";
-import { cachedRoute, normAddr, validAddr, type CacheResult, type PickedPlace } from "./route.js";
-import { PLACE_ID_RE, SESSION_RE } from "./places.js";
+import { cachedRoute, normAddr, validAddr, validPin, type CacheResult, type Pin } from "./route.js";
 
 // Сървърна ценова оферта (етап 2 – сървърът определя цената).
 // 1) POST /api/quote: автомобил, дати, часове, места (адресите за доставка / връщане), столчета и държави →
@@ -16,7 +15,8 @@ import { PLACE_ID_RE, SESSION_RE } from "./places.js";
 //    и със същата сума, каквато клиентът е видял (quoteTotalCents). Цената се изчислява отново по текущите правила –
 //    ако е различна, резервацията НЕ се записва, а браузърът показва новата сума и иска ново потвърждение.
 // Офертата не блокира наличност – заетостта се проверява при подаването и при потвърждението, както досега.
-// Веригите и вторият водач не се предлагат в този етап – заявка с тях се отказва (service).
+// Вериги (3,50 €/ден) и втори допълнителен водач (3 €/ден) – само през extras: { chains, secondDriver } (булеви стойности).
+// Старите полета chains / secondDriver / services в тялото или в договора се отказват (service), както досега.
 
 export const QUOTE_TTL_MS = 30 * 60_000;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/, TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -25,17 +25,20 @@ const sha = (s: string) => createHash("sha256").update(s).digest("hex");
 export type QuoteInput = {
   carId: string; startDate: string; startTime: string; endDate: string; endTime: string;
   seats: number; del: string | null; ret: string | null; abroad: string[];
-  // Място, избрано от предложенията на Google за адреса (Place ID и ключ на сесията); null – въведен текст без избор
-  delPlace?: PickedPlace | null; retPlace?: PickedPlace | null;
+  // Точка, посочена и потвърдена от клиента на картата (когато за адреса е намерена само улицата / населеното място)
+  delPin?: Pin | null; retPin?: Pin | null;
+  chains?: boolean; secondDriver?: boolean;
 };
-export type InputError = "dates" | "past" | "order" | "hours" | "car" | "seats" | "country" | "service" | "address" | "place";
+export type InputError = "dates" | "past" | "order" | "hours" | "car" | "seats" | "country" | "service" | "address" | "pin";
 
 // Отпечатък на входните данни: адресите участват само като хеш (нормализирани, без значение на главни/малки букви)
 export function inputHash(i: QuoteInput) {
   const a = (v: string | null) => (v ? sha(normAddr(v).toLowerCase()) : null);
-  // Избраните места (Place ID) участват в отпечатъка – офертата е за точно тези местоположения
-  const pl = i.delPlace || i.retPlace ? [[i.delPlace?.id ?? null, i.retPlace?.id ?? null]] : [];
-  return sha(JSON.stringify([i.carId, i.startDate, i.startTime, i.endDate, i.endTime, i.seats, a(i.del), a(i.ret), [...i.abroad].sort(), ...pl]));
+  // Потвърдените пинове участват в отпечатъка – офертата е за точно тези местоположения (до 6 знака)
+  const pt = (p?: Pin | null) => (p ? `${Math.round(p.lat * 1e6) / 1e6},${Math.round(p.lon * 1e6) / 1e6}` : null);
+  const pl = i.delPin || i.retPin ? [[pt(i.delPin), pt(i.retPin)]] : [];
+  const ex = i.chains || i.secondDriver ? [["x", !!i.chains, !!i.secondDriver]] : [];
+  return sha(JSON.stringify([i.carId, i.startDate, i.startTime, i.endDate, i.endTime, i.seats, a(i.del), a(i.ret), [...i.abroad].sort(), ...pl, ...ex]));
 }
 
 // Проверка на входните данни – същите правила като при подаването на резервацията (работно време, не по-рано от днес)
@@ -49,27 +52,34 @@ export function checkInput(i: QuoteInput, today = sofiaToday()): InputError | ""
   if (new Set(i.abroad).size !== i.abroad.length || i.abroad.some((c) => !ABROAD.some(([k]) => k === c))) return "country";
   // Адресът се проверява преди търсенето при доставчика (server/route.ts → validAddr)
   for (const a of [i.del, i.ret]) if (a != null && !validAddr(a)) return "address";
-  // Избрано място без адрес към него или с невалиден Place ID / ключ на сесията
-  for (const [a, pl] of [[i.del, i.delPlace], [i.ret, i.retPlace]] as const)
-    if (pl && (a == null || !PLACE_ID_RE.test(pl.id) || (pl.session != null && !SESSION_RE.test(pl.session)))) return "place";
+  // Пин без адрес към него или извън България
+  for (const [a, pn] of [[i.del, i.delPin], [i.ret, i.retPin]] as const) if (pn && (a == null || !validPin(pn))) return "pin";
   return "";
 }
 
 const s = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
 // Адрес до 300 знака (по-дългият се отказва като невалиден, не се съкращава до „друг“ адрес)
 const addrOf = (v: unknown) => (typeof v === "string" && v.trim() ? (v.length > 300 ? "\u0000" : normAddr(v)) : null);
-// { id, session } от браузъра; празно → null; друга форма → невалиден избор (отказва се в checkInput)
-const placeOf = (v: unknown): PickedPlace | null => {
+// { lat, lon } от браузъра; празно → null; друга форма → невалиден пин (отказва се в checkInput)
+const pinOf = (v: unknown): Pin | null => {
   if (v == null) return null;
   const o = v as any;
-  return { id: typeof o?.id === "string" ? o.id.slice(0, 301) : "", session: typeof o?.session === "string" ? o.session.slice(0, 64) : null };
+  return { lat: typeof o?.lat === "number" ? o.lat : NaN, lon: typeof o?.lon === "number" ? o.lon : NaN };
 };
 const hidden = (o: any) => !!(o && typeof o === "object" && (o.chains || o.secondDriver || o.second_driver));
+// extras: { chains?: boolean, secondDriver?: boolean }; друга форма → service
+const extrasOf = (v: unknown): { chains: boolean; secondDriver: boolean } | null => {
+  if (v == null) return { chains: false, secondDriver: false };
+  const o = v as any;
+  if (typeof o !== "object" || Object.keys(o).some((k) => !["chains", "secondDriver"].includes(k)) || [o.chains, o.secondDriver].some((x) => x != null && typeof x !== "boolean")) return null;
+  return { chains: !!o.chains, secondDriver: !!o.secondDriver };
+};
 
 // Тялото на /api/quote
 export function parseQuoteBody(b: any): { input: QuoteInput } | { error: InputError } {
   if (!b || typeof b !== "object") return { error: "dates" };
-  if (hidden(b) || hidden(b.services)) return { error: "service" };
+  const ex = extrasOf(b.extras);
+  if (hidden(b) || hidden(b.services) || !ex) return { error: "service" };
   if (Array.isArray(b.abroad) && b.abroad.length > ABROAD.length) return { error: "country" };
   const abroad = Array.isArray(b.abroad) ? b.abroad.map((c: unknown) => s(c, 4)) : [];
   const seats = b.seats == null ? 0 : typeof b.seats === "number" ? b.seats : NaN;
@@ -77,7 +87,7 @@ export function parseQuoteBody(b: any): { input: QuoteInput } | { error: InputEr
     input: {
       carId: s(b.carId, 40), startDate: s(b.startDate, 10), startTime: s(b.startTime, 5), endDate: s(b.endDate, 10), endTime: s(b.endTime, 5),
       seats, del: addrOf(b.delivery), ret: addrOf(b.return), abroad,
-      delPlace: placeOf(b.deliveryPlace), retPlace: placeOf(b.returnPlace),
+      delPin: pinOf(b.deliveryPin), retPin: pinOf(b.returnPin), ...ex,
     },
   };
 }
@@ -86,7 +96,8 @@ export function parseQuoteBody(b: any): { input: QuoteInput } | { error: InputEr
 // столчета (seatN), адреси за доставка / връщане и държави (по името от формата). Сумите от браузъра не се ползват.
 export function bookingInput(b: { carId: string; startDate: string; startTime: string; endDate: string; endTime: string }, body: any): { input: QuoteInput } | { error: InputError } {
   const c = body?.contract && typeof body.contract === "object" ? body.contract : null;
-  if (hidden(body) || hidden(c) || hidden(body?.services)) return { error: "service" };
+  const ex = extrasOf(body?.extras);
+  if (hidden(body) || hidden(c) || hidden(body?.services) || !ex) return { error: "service" };
   const n = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : 0);
   const seats = c && (n(c.seat) > 0 || n(c.seatDay) > 0) ? (Number.isInteger(c.seatN) ? c.seatN : NaN) : 0;
   const abroad: string[] = [];
@@ -96,10 +107,9 @@ export function bookingInput(b: { carId: string; startDate: string; startTime: s
     abroad.push(hit[0]);
   }
   const leg = (v: any) => (v && typeof v === "object" ? addrOf(v.addr) : null);
-  // Избраните места (Place ID) идват отделно от договора (places: { del, ret }) – ключът на сесията не е нужен при подаването
-  const pid = (v: unknown) => (typeof v === "string" && v ? { id: v.slice(0, 301), session: null } : null);
-  const places = body?.places && typeof body.places === "object" ? body.places : {};
-  return { input: { ...b, seats, del: c ? leg(c.del) : null, ret: c ? leg(c.ret) : null, abroad, delPlace: pid(places.del), retPlace: pid(places.ret) } };
+  // Потвърдените пинове идват отделно от договора (pins: { del, ret })
+  const pins = body?.pins && typeof body.pins === "object" ? body.pins : {};
+  return { input: { ...b, seats, del: c ? leg(c.del) : null, ret: c ? leg(c.ret) : null, abroad, delPin: pinOf(pins.del), retPin: pinOf(pins.ret), ...ex } };
 }
 
 export const carActive = async (carId: string) => {
@@ -110,23 +120,25 @@ export const carActive = async (carId: string) => {
 // precision – точност на намереното място (server/geocode.ts): house | street (само улицата – приблизително) | place
 type LegRoute = { km: number; rate: number; source: string; precision?: string };
 type Legs = { del?: LegRoute; ret?: LegRoute };
-export type RouteFail = { leg: "del" | "ret"; reason: Exclude<CacheResult, object> };
-export type RouteFn = (addr: string, place?: PickedPlace | null) => Promise<CacheResult>;
+// reason "pin" – намерена е само улицата / населеното място; pin – началната точка за картата (клиентът потвърждава мястото)
+export type RouteFail = { leg: "del" | "ret"; reason: Exclude<CacheResult, object> | "pin"; pin?: { lat: number; lon: number; found: string } };
+export type RouteFn = (addr: string, pin?: Pin | null) => Promise<CacheResult>;
 
 // Маршрутите се изчисляват на сървъра; при неуспех няма оферта (нито нулева доставка, нито км от браузъра)
 // pois – имената на разпознатите обекти (само за отговора към браузъра; в базата не се записват – там няма адреси)
 type Pois = { del?: string; ret?: string };
 async function routeLegs(i: QuoteInput, route: RouteFn, timeoutMs: number): Promise<{ legs: Legs; pois: Pois } | RouteFail> {
   const legs: Legs = {}, pois: Pois = {};
-  for (const [k, addr, place] of [["del", i.del, i.delPlace], ["ret", i.ret, i.retPlace]] as const) {
+  for (const [k, addr, pin] of [["del", i.del, i.delPin], ["ret", i.ret, i.retPin]] as const) {
     if (!addr) continue;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const r = await Promise.race([
-      route(addr, place ?? null).catch((e) => (console.error("Route failed", (e as Error)?.name), "error" as const)),
+      route(addr, pin ?? null).catch((e) => (console.error("Route failed", (e as Error)?.name), "error" as const)),
       new Promise<"timeout">((res) => (timer = setTimeout(() => res("timeout"), timeoutMs))),
     ]);
     clearTimeout(timer);
     if (typeof r === "string") return { leg: k, reason: r };
+    if ("pin" in r) return { leg: k, reason: "pin", pin: { lat: r.lat, lon: r.lon, found: r.found } };
     legs[k] = { km: r.km, rate: r.rate, source: r.source, precision: r.precision };
     if (r.poi) pois[k] = r.poi;
   }
@@ -137,6 +149,7 @@ const priceOf = (i: QuoteInput, legs: Legs) =>
   price({
     carId: i.carId, startDate: i.startDate, startTime: i.startTime, endDate: i.endDate, endTime: i.endTime, seats: i.seats,
     del: legs.del ? { km: legs.del.km, rate: legs.del.rate } : null, ret: legs.ret ? { km: legs.ret.km, rate: legs.ret.rate } : null, abroad: i.abroad,
+    chains: !!i.chains, secondDriver: !!i.secondDriver,
   });
 
 type QuoteRow = typeof priceQuotes.$inferSelect;
@@ -152,7 +165,7 @@ export function quoteView(token: string, q: Pick<QuoteRow, "days" | "lines" | "t
 }
 
 export async function createQuote(i: QuoteInput, o: { route?: RouteFn; budget?: () => Promise<boolean>; timeoutMs?: number; now?: Date } = {}) {
-  const r = await routeLegs(i, o.route || ((a, place) => cachedRoute(a, { budget: o.budget, place })), o.timeoutMs ?? 10_000);
+  const r = await routeLegs(i, o.route || ((a, pin) => cachedRoute(a, { budget: o.budget, pin })), o.timeoutMs ?? 10_000);
   if (!("legs" in r)) return { ok: false as const, error: "route" as const, ...r };
   const p = priceOf(i, r.legs);
   if (!p.ok) return { ok: false as const, error: p.error };
@@ -162,7 +175,7 @@ export async function createQuote(i: QuoteInput, o: { route?: RouteFn; budget?: 
     .insert(priceQuotes)
     .values({
       id: sha(token), inputHash: inputHash(i),
-      input: { carId: i.carId, startDate: i.startDate, startTime: i.startTime, endDate: i.endDate, endTime: i.endTime, seats: i.seats, del: !!i.del, ret: !!i.ret, abroad: i.abroad },
+      input: { carId: i.carId, startDate: i.startDate, startTime: i.startTime, endDate: i.endDate, endTime: i.endTime, seats: i.seats, del: !!i.del, ret: !!i.ret, abroad: i.abroad, chains: !!i.chains, secondDriver: !!i.secondDriver },
       legs: r.legs, version: PRICING_VERSION, days: p.days, lines: p.lines, totalCents: p.totalCents, depositCents: p.depositCents,
       createdAt: now, expiresAt: new Date(now.getTime() + QUOTE_TTL_MS),
     })

@@ -14,5 +14,4 @@ export { default as availability } from "../../netlify/functions/availability.mt
 export { default as documents } from "../../netlify/functions/documents.mts";
 export { default as bookings } from "../../netlify/functions/bookings.mts";
 export { default as quote } from "../../netlify/functions/quote.mts";
-export { default as places } from "../../netlify/functions/places.mts";
 export { default as customerEmails } from "../../netlify/functions/customer-emails.mts";

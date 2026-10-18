@@ -19,10 +19,6 @@ export const LIMITS = {
   lookupsPerClient: 20, // търсения при доставчика (липса в кеша) за 10 мин. от един раздел
   lookupsPerIp: 60, // търсения при доставчика за 10 мин. от един IP
   lookupsGlobalPerHour: 600, // търсения при доставчика за сайта за 1 час – горна граница на разхода
-  // Предложения за адрес от Google (/api/places): всяко натискане на клавиш след пауза е заявка (платена в Google)
-  placesPerClient: 120, // за 10 мин. от един раздел (около 15–25 адреса)
-  placesPerIp: 400, // за 10 мин. от един IP адрес
-  placesGlobalPerHour: 2000, // за сайта за 1 час – горна граница на разхода за предложения
   inflightPerIp: 8, // едновременни заявки за цена / разстояние от един IP
   inflightTtlMs: 30_000, // броячът на едновременните заявки се нулира, ако функция прекъсне, без да го намали
 };
@@ -63,12 +59,6 @@ export const quoteLimit = (w: Who) =>
     ...(w.client ? [[`quote:client:${w.client}`, LIMITS.quotePerClient, LIMITS.windowMs] as Rule] : []),
     [`quote:ip:${w.ip}`, LIMITS.quotePerIp, LIMITS.windowMs],
     ["quote:all", LIMITS.quoteGlobalPerHour, 3600_000],
-  ]);
-export const placesLimit = (w: Who) =>
-  hit([
-    ...(w.client ? [[`places:client:${w.client}`, LIMITS.placesPerClient, LIMITS.windowMs] as Rule] : []),
-    [`places:ip:${w.ip}`, LIMITS.placesPerIp, LIMITS.windowMs],
-    ["places:all", LIMITS.placesGlobalPerHour, 3600_000],
   ]);
 export const routeLimit = (w: Who) => hit([[`route:ip:${w.ip}`, LIMITS.routePerIp, LIMITS.windowMs]]);
 // Бюджет за търсене при доставчика – отчита се само когато заявката наистина ще пита доставчика (липса в кеша)

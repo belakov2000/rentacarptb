@@ -4,9 +4,9 @@ import { inflight, lookupBudget, quoteLimit, readJson, tooMany, who } from "../.
 
 // POST /api/quote – сървърна ценова оферта за формата за резервация (server/quote.ts).
 // Тяло (до 4 KB): { carId, startDate, startTime, endDate, endTime, seats, delivery: адрес | null, return: адрес | null, abroad: [код],
-//   deliveryPlace / returnPlace: { id: Google Place ID, session } | null – адрес, избран от предложенията (/api/places) }
+//   deliveryPin / returnPin: { lat, lon } | null – точка, потвърдена от клиента на картата }
 // 200: { quote, expiresAt, days, lines, totalCents, total, depositCents, legs } – ключът се подава с резервацията
-// 400: { error } – невалидни данни (dates | past | order | hours | car | seats | country | service | address | place)
+// 400: { error } – невалидни данни (dates | past | order | hours | car | seats | country | service | address | pin)
 // 409: { error: "car_inactive" }
 // 413: { error: "too_large" }
 // 429: { error: "rate_limited", scope, retryAfter } – твърде много заявки (server/limits.ts); заглавка Retry-After
@@ -14,7 +14,9 @@ import { inflight, lookupBudget, quoteLimit, readJson, tooMany, who } from "../.
 //      няма оферта и няма нулева доставка. ambiguous – намерени са само места в друго населено място / на друга улица
 //      imprecise – намерена е само улицата / населеното място, не въведеният номер (няма цена до произволна точка)
 //      terminal – Летище София без посочен терминал (браузърът предлага избор на Терминал 1 / 2)
-//      abroad – избраното от Google място е извън България; unavailable – избран адрес от Google, но няма ключ за проверката
+//      pin_town / pin_far – потвърденият пин е в друго населено място / твърде далеч от намерената улица
+// 409: { error: "route", leg, reason: "pin", pin: { lat, lon, found: "street" | "place" } } – намерена е само улицата / населеното
+//      място; клиентът посочва и потвърждава точното място на картата (deliveryPin / returnPin: { lat, lon })
 // Офертата не блокира автомобила. Адресите не се записват и не се пишат в логовете.
 const json = (b: object, status = 200) => Response.json(b, { status, headers: { "Cache-Control": "no-store", "X-Robots-Tag": "noindex" } });
 
@@ -37,6 +39,8 @@ export default async (req: Request, context: Context) => {
       const budget = async () => { const b = await lookupBudget(w); if (!b.ok) budgetFail = b; return b.ok; };
       const q = await createQuote(parsed.input, { budget });
       if (!q.ok && q.error === "route" && q.reason === "limited") return tooMany(budgetFail || { scope: "lookup", retryAfter: 60 });
+      // Нужен пин: 409 с началната точка за картата (не е грешка на доставчика)
+      if (!q.ok && q.error === "route" && q.reason === "pin") return json({ error: "route", leg: q.leg, reason: "pin", pin: q.pin }, 409);
       if (!q.ok) return q.error === "route" ? json({ error: "route", leg: q.leg, reason: q.reason }, 502) : json({ error: q.error }, 400);
       return json(q.view);
     }, (retryAfter) => tooMany({ scope: "inflight:ip", retryAfter }));

@@ -18,6 +18,7 @@ import { ownerNewKey, receivedKey, saveOwnerOutbox, sendCustomerReceived, sendOw
 import { ownerRequestText, withServerPrice } from "../../server/request-text.js";
 import { fmtCents, priceLines } from "../../server/pricing.js";
 import { bookingInput, checkInput, claimQuote, contractWithPrice, priceSnapshot, verifyQuote, type QuoteFail } from "../../server/quote.js";
+import { driversInfo, driversOf, STAGE_LABEL, statusView, submitDocuments } from "../../server/stage.js";
 
 // Резервации с потвърждение от фирмата.
 // POST /api/bookings                 – записва заявката, праща имейл до фирмата с бутони „Потвърди“ / „Откажи“ и потвърждение до клиента, че заявката е получена.
@@ -157,11 +158,24 @@ const DECIDE_MSG: Record<DecideError, string> = {
   expired: "Часът за получаване по тази заявка вече е минал и тя не може да бъде потвърдена. Можете да я откажете и да се свържете с клиента за нова заявка.",
   car_inactive: "Автомобилът е отбелязан като неактивен и заявката не може да бъде потвърдена.",
   busy: "Резервацията не е потвърдена – датите вече са заети.",
+  docs_pending: "Документите на клиента още не са получени. Окончателното потвърждение е възможно след подаването им.",
 };
 const conflictText = (c: Conflict) =>
   c.kind === "booking"
     ? `Внимание: автомобилът вече е потвърден за ${c.name} (${c.pickup} → ${c.dropoff}).`
     : `Внимание: автомобилът е блокиран за периода ${c.startDate} – ${c.endDate}${c.reason ? ` (${c.reason})` : ""}.`;
+
+// Двуетапна заявка: водачи, услуги и етап на документите (без данни от документите)
+function stageInfo(b: Booking) {
+  const d = driversInfo(b);
+  if (!b.stage || !d) return "";
+  const rows = [
+    ["Водачи", `${d.requesterDrives ? "Заявителят" : "Друг човек (заявителят не шофира)"}${d.count === 2 ? " + втори допълнителен водач" : ""}${d.names.length ? ": " + d.names.join(", ") : ""}`],
+    ["Услуги", [b.chains && "вериги", b.secondDriver && "втори водач"].filter(Boolean).join(", ") || "—"],
+    ["Документи", b.docsSubmittedAt ? `получени ${b.docsSubmittedAt.toLocaleString("bg-BG", { timeZone: "Europe/Sofia" })} (${Array.isArray(b.documents) ? b.documents.length : 0} снимки – в админ панела)` : b.stage === "docs" ? "очакват се" : "—"],
+  ];
+  return `<div class="kv">${rows.map(([k, v]) => `<div><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join("")}</div>`;
+}
 
 function managePage(b: Booking, origin: string, msg = "", conflict: Conflict | null = null, cd: ContractData | null = null) {
   const kv = [
@@ -178,12 +192,12 @@ function managePage(b: Booking, origin: string, msg = "", conflict: Conflict | n
   const actions =
     b.status === "pending"
       ? `<form method="post"><label for="note">Съобщение до клиента (по избор)</label><textarea id="note" name="note" maxlength="1000" placeholder="Напр. час и място за среща или причина за отказ"></textarea>
-${blocked ? "" : `<button class="ok" name="action" value="confirm">✓ Потвърди резервацията</button>`}
+${blocked || b.stage === "docs" ? "" : `<button class="ok" name="action" value="confirm">${b.stage === "request" ? "✓ Одобри и покани за документи" : b.stage === "review" ? "✓ Окончателно потвърди" : "✓ Потвърди резервацията"}</button>`}
 <button class="no" name="action" value="reject" onclick="return confirm('Сигурни ли сте, че искате да откажете резервацията?')">✕ Откажи резервацията</button></form>`
       : `<p>Решението е взето${b.decidedAt ? " на " + esc(b.decidedAt.toLocaleString("bg-BG", { timeZone: "Europe/Sofia" })) : ""}. Клиентът вижда статуса на сайта.</p>` + lifecycle(b);
   return page(
     "Резервация – " + b.name,
-    `<h1>Резервация</h1><span class="badge ${b.status}">${STATUS_BG[b.status] || b.status}</span>${msg ? `<p><b>${esc(msg)}</b></p>` : ""}${warn}<div class="kv">${kv}</div><p><a href="${esc(contractLink(origin, b))}" style="display:block;text-align:center;background:#0f1b2d;color:#fff;padding:14px 22px;border-radius:999px;font-weight:700;text-decoration:none;margin-top:16px">📄 Изтегли попълнения договор за наем</a></p>${actions}${kmForm(cd)}`,
+    `<h1>Резервация</h1><span class="badge ${b.status}">${STATUS_BG[b.status] || b.status}</span>${b.stage && b.status === "pending" ? ` <span class="badge pending">${esc(STAGE_LABEL[b.stage] || b.stage)}</span>` : ""}${msg ? `<p><b>${esc(msg)}</b></p>` : ""}${warn}${stageInfo(b)}<div class="kv">${kv}</div><p><a href="${esc(contractLink(origin, b))}" style="display:block;text-align:center;background:#0f1b2d;color:#fff;padding:14px 22px;border-radius:999px;font-weight:700;text-decoration:none;margin-top:16px">📄 Изтегли попълнения договор за наем</a></p>${actions}${kmForm(cd)}`,
   );
 }
 
@@ -239,8 +253,10 @@ async function handle(req: Request, context: Context) {
       return Response.json({ error: "Invalid dates" }, { status: 400 });
     }
     if (!withinHours(b.startDate, b.startTime) || !withinHours(b.endDate, b.endTime)) return Response.json({ error: "hours" }, { status: 400 });
+    // Новата кратка форма (flow: 2) – без документи и снимки; те се подават след първото одобрение (server/stage.ts)
+    const flow2 = body.flow === 2;
     // Адрес по документа (град / село, населено място, адрес; област и община – за българска лична карта)
-    const addrErr = addressError(body.contract);
+    const addrErr = flow2 ? "" : addressError(body.contract);
     if (addrErr) return Response.json({ error: "address", detail: addrErr }, { status: 400 });
     // Неактивен автомобил (админ панел → Автомобили) не приема нови заявки; съществуващите резервации остават
     if (b.carId) {
@@ -267,13 +283,16 @@ async function handle(req: Request, context: Context) {
       return Response.json({ error: vq.error, detail: QUOTE_MSG[vq.error], ...cur }, { status: 409 });
     }
     const q = vq.row;
+    const drivers = flow2 ? driversOf(body.drivers, !!qi.input.secondDriver, { del: qi.input.del, ret: qi.input.ret }) : null;
+    if (flow2 && !drivers) return Response.json({ error: "drivers" }, { status: 400 });
     // Рекламен източник (UTM) – само проверени стойности от едно посещение; при невалиден или липсващ – без източник (server/attribution.ts)
     const utm = parseAttribution(body.attribution);
     const row = {
       id: rnd(1), viewToken: rnd(2), adminToken: rnd(2), ...b, requestKey,
       total: fmtCents(q.totalCents), totalCents: q.totalCents, totalReview: "",
       priceCheck: priceSnapshot(q), priceCheckStatus: "server", priceCheckedAt: new Date(),
-      ...utm, documents: documentsOf(message, url.origin),
+      ...utm, documents: flow2 ? null : documentsOf(message, url.origin),
+      ...(flow2 ? { stage: "request", marketingConsent: body.marketingConsent === true, chains: !!qi.input.chains, secondDriver: !!qi.input.secondDriver, drivers } : {}),
     };
 
     // Повторно или едновременно изпращане на същата заявка връща вече записаната резервация – без втора резервация и без нови имейли.
@@ -324,15 +343,23 @@ async function handle(req: Request, context: Context) {
     // Ако не може да се генерира, заявката пак се изпраща.
     let hasContract = false;
     try {
-      const data = parseContract(body.contract, b.name, b.carId);
-      if (!data) console.error("Contract data missing in the booking request");
+      // Кратката заявка няма данни на водача – договорът се попълва след подаването на документите
+      const data = flow2 ? null : parseContract(body.contract, b.name, b.carId);
+      if (!data && !flow2) console.error("Contract data missing in the booking request");
       else hasContract = !!(await saveContract(saved.id, contractWithPrice(data, qi.input, q), "customer", "Заявка от сайта"));
     } catch (e) {
       console.error("Contract could not be generated", (e as Error)?.message);
     }
     const photos = Array.isArray(saved.documents) ? saved.documents.length : 0;
+    const dr = driversInfo(saved);
     const ownerMail = (attached: boolean) =>
-      wrapMail(
+      flow2 ? wrapMail(
+        `<p style="font-size:17px"><b>Нова заявка за наем (кратка форма) — първо одобрение.</b> Ако автомобилът е наличен, одобрете – клиентът получава покана да изпрати документите.</p>` +
+          `<p>${btn(manage, "Одобри и покани за документи", "#1a8f4c")}${btn(manage, "Откажи", "#c0392b")}${btn(manage, "Управление на резервацията", "#0f1b2d")}</p>` +
+          `<p style="color:#5b6577;font-size:13px">Отварянето на линка не одобрява нищо – решението е с бутон на страницата. Окончателното потвърждение е след проверката на документите.</p>` +
+          `<p>Водачи: ${dr?.requesterDrives ? "заявителят" : "друг човек (заявителят не шофира)"}${saved.secondDriver ? " + втори допълнителен водач" : ""}${saved.chains ? " · вериги" : ""}</p>` +
+          `<pre style="white-space:pre-wrap;font-family:Arial,sans-serif;background:#f3f5f9;padding:16px;border-radius:12px">${esc(ownerRequestText(withServerPrice(message, priceLines(vq.price))))}</pre>`,
+      ) : wrapMail(
         `<p style="font-size:17px"><b>Нова заявка за наем от сайта.</b> Потвърдете или откажете – клиентът ще получи имейл и ще види решението на сайта.</p>` +
           `<p>${btn(manage, "Потвърди резервацията", "#1a8f4c")}${btn(manage, "Откажи", "#c0392b")}${btn(manage, "Управление на резервацията", "#0f1b2d")}</p>` +
           `<p style="color:#5b6577;font-size:13px">„Управление на резервацията“: статус, отмяна, „Клиентът не се яви“ и предаване на автомобила. Отварянето на линка не променя нищо – всяко действие се потвърждава отделно.</p>` +
@@ -346,7 +373,7 @@ async function handle(req: Request, context: Context) {
           // Цената в писмото е сървърната (разбивка от офертата) – редовете за сумите от браузъра се махат
           `<pre style="white-space:pre-wrap;font-family:Arial,sans-serif;background:#f3f5f9;padding:16px;border-radius:12px">${esc(ownerRequestText(withServerPrice(message, priceLines(vq.price))))}</pre>`,
       );
-    const subject = `Нова заявка за наем: ${b.car} – ${b.name}`;
+    const subject = `${flow2 ? "Нова заявка (първо одобрение)" : "Нова заявка за наем"}: ${b.car} – ${b.name}`;
     // Резервацията остава записана и при неуспешен имейл: писмото се пази за повторен опит, а сайтът праща и резервното известие
     let notified = false;
     try {
@@ -383,16 +410,21 @@ async function handle(req: Request, context: Context) {
 
   const manage = url.pathname.endsWith("/manage");
 
-  // ===== Статус за клиента =====
+  // ===== Статус за клиента и подаване на документите (двуетапна заявка) =====
   if (!manage) {
     const t = url.searchParams.get("t") || "";
     if (!TOKEN_RE.test(t)) return new Response("Not found", { status: 404 });
-    const [b] = await db
-      .select({ status: bookings.status, note: bookings.note })
-      .from(bookings)
-      .where(and(eq(bookings.id, id), eq(bookings.viewToken, t)));
+    const [b] = await db.select().from(bookings).where(and(eq(bookings.id, id), eq(bookings.viewToken, t)));
     if (!b) return Response.json({ error: "Not found" }, { status: 404 });
-    return Response.json(b, { headers: { "Cache-Control": "no-store" } });
+    if (url.pathname.endsWith("/documents")) {
+      if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
+      const body = await req.json().catch(() => null);
+      const r = await submitDocuments(b, body);
+      if (!r.ok) return Response.json({ error: r.error, field: r.field, index: r.index }, { status: r.error === "stage" ? 409 : 400, headers: { "Cache-Control": "no-store" } });
+      return Response.json(statusView(r.booking), { headers: { "Cache-Control": "no-store" } });
+    }
+    // Старите резервации: само статус и съобщение (както досега); двуетапните – и данните за страницата на заявката
+    return Response.json(b.stage ? statusView(b) : { status: b.status, note: b.note }, { headers: { "Cache-Control": "no-store" } });
   }
 
   // ===== Страница за фирмата =====
@@ -473,13 +505,13 @@ async function handle(req: Request, context: Context) {
   return managePage(
     updated,
     url.origin,
-    action === "confirm" ? "Резервацията е потвърдена. Клиентът получи имейл." : "Резервацията е отказана. Клиентът получи имейл.",
+    action === "confirm" ? (r.step === "approved" ? "Заявката е одобрена. Клиентът получи покана да изпрати документите." : "Резервацията е потвърдена. Клиентът получи имейл.") : "Резервацията е отказана. Клиентът получи имейл.",
     null,
     cd,
   );
 }
 
 export const config: Config = {
-  path: ["/api/bookings", "/api/bookings/:id", "/api/bookings/:id/manage", "/api/bookings/:id/contract"],
+  path: ["/api/bookings", "/api/bookings/:id", "/api/bookings/:id/manage", "/api/bookings/:id/contract", "/api/bookings/:id/documents"],
   method: ["GET", "POST"],
 };

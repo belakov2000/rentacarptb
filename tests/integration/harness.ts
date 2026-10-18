@@ -130,8 +130,14 @@ export function fakeJwt(email: string, roles: string[] = [], exp = Math.floor(Da
 // routes.calls брои заявките за търсене на адрес (платените в реалната среда).
 // delayMs – забавяне на отговора на доставчика (за проверката на едновременни заявки за един адрес)
 export const routes = { calls: 0, delayMs: 0, urls: [] as string[] };
-const fakeGeocode = (u: URL): Nom[] => {
+const fakeGeocode = (u: URL): Nom[] | Nom => {
   const p = u.searchParams;
+  // Обратно търсене (проверка на пина): южно от 42.05 – с. Брестник (друго населено място), иначе гр. Пловдив
+  if (u.pathname.includes("/reverse")) {
+    const lat = Number(p.get("lat"));
+    return lat < 42.05 ? nom(lat, Number(p.get("lon")), "village", 19, "Брестник", { village: "Брестник", municipality: "Родопи", state: "Пловдив" })
+      : nom(lat, Number(p.get("lon")), "building", 30, "", { road: "ул. Синтетична", city: "Пловдив", state: "Пловдив" });
+  }
   const text = p.get("q") ?? [p.get("street"), p.get("city")].filter(Boolean).join(", ");
   if (text.includes("Мрежа")) throw new TypeError("fetch failed");
   if (text.includes("Няма")) return [];
@@ -150,63 +156,7 @@ const fakeGeocode = (u: URL): Nom[] => {
   if (road.includes("Улична")) return [nom(42.151, 24.751, "road", 26, road, { road, suburb: "Синтетичен", city: town, state: "Пловдив" })];
   return [nom(42.15, 24.75, "building", 30, "", { ...(num ? { house_number: num } : {}), road, suburb: "Синтетичен", city: town, state: "Пловдив" })];
 };
-// ===== Симулиран Google (Places API New: Autocomplete и Place Details; Routes API) – само при зададен тестов ключ =====
-// Синтетични Place ID (gp_…) и места с реалистична форма на отговора. google.fail: "places" | "details" | "routes" – грешка 500.
-// Routes: до адрес като текст → 400 INVALID_ARGUMENT (тогава се ползва проверката с OpenStreetMap, както досега);
-// до Place ID → разстоянието от таблицата; до точка (летищата) → реалните разстояния от OSRM.
-export const google = { autocomplete: 0, details: 0, routes: 0, fail: "" as "" | "places" | "details" | "routes", bodies: [] as any[], detailUrls: [] as string[] };
-type GP = { main: string; secondary: string; types: string[]; lat: number; lon: number; country?: string; km?: number };
-export const GPLACES: Record<string, GP> = {
-  gp_sofia_vitosha_1: { main: "бул. „Витоша“ 1", secondary: "София, България", types: ["street_address", "geocode"], lat: 42.6965, lon: 23.3215, km: 146.2 },
-  gp_sofia_vitosha_road: { main: "бул. „Витоша“", secondary: "София, България", types: ["route", "geocode"], lat: 42.69, lon: 23.319 },
-  gp_pdv_gladston_10: { main: "ул. „Гладстон“ 10", secondary: "Пловдив, България", types: ["street_address", "geocode"], lat: 42.1431, lon: 24.7494, km: 3.3 },
-  gp_asen_city: { main: "Асеновград", secondary: "България", types: ["locality", "political"], lat: 42.0134, lon: 24.8728 },
-  gp_asen_asen2_1: { main: "ул. „Цар Иван Асен II“ 1", secondary: "Асеновград, България", types: ["premise", "geocode"], lat: 42.011, lon: 24.877, km: 21.4 },
-  gp_sof_airport: { main: "Летище София", secondary: "бул. „Христофор Колумб“, София, България", types: ["airport", "point_of_interest", "establishment"], lat: 42.6952, lon: 23.4062 },
-  gp_sofia_t2: { main: "Терминал 2", secondary: "Летище София, 1540 София, България", types: ["airport", "point_of_interest", "establishment"], lat: 42.6884, lon: 23.4146 },
-  gp_pdv_airport: { main: "Летище Пловдив", secondary: "Крумово, България", types: ["airport", "point_of_interest", "establishment"], lat: 42.0679, lon: 24.8508 },
-  gp_gr_thessaloniki: { main: "Солун", secondary: "Гърция", types: ["locality", "political"], lat: 40.64, lon: 22.94, country: "GR" },
-};
-const GQUERY: [RegExp, string[]][] = [
-  [/витош|vitosh/i, ["gp_sofia_vitosha_1", "gp_sofia_vitosha_road"]], [/гладст|gladst/i, ["gp_pdv_gladston_10"]],
-  [/асеновг|asenovg/i, ["gp_asen_city", "gp_asen_asen2_1"]], [/летище соф|sofia airport|flughafen sofia/i, ["gp_sof_airport", "gp_sofia_t2"]],
-  [/летище пловд|plovdiv airport/i, ["gp_pdv_airport"]], [/солун|thessal/i, ["gp_gr_thessaloniki"]],
-];
-const AIRPORT_KM: Record<string, number> = { "23.402457": 138500, "23.414214": 139300, "24.844729": 19200 };
-const gerr = (code: number, status: string) => Response.json({ error: { code, status, message: "test" } }, { status: code });
-async function fakeGoogle(url: string, init: any) {
-  if (url.startsWith("https://places.googleapis.com/v1/places:autocomplete")) {
-    google.autocomplete++;
-    const b = JSON.parse(String(init?.body || "{}"));
-    google.bodies.push(b);
-    if (google.fail === "places") return gerr(500, "INTERNAL");
-    const ids = GQUERY.find(([re]) => re.test(b.input))?.[1] || [];
-    return Response.json({ suggestions: ids.map((id) => ({ placePrediction: { place: "places/" + id, placeId: id, text: { text: `${GPLACES[id].main}, ${GPLACES[id].secondary}` }, structuredFormat: { mainText: { text: GPLACES[id].main }, secondaryText: { text: GPLACES[id].secondary } }, types: GPLACES[id].types } })) });
-  }
-  if (url.startsWith("https://places.googleapis.com/v1/places/")) {
-    google.details++;
-    google.detailUrls.push(url);
-    if (google.fail === "details") return gerr(500, "INTERNAL");
-    const id = decodeURIComponent(new URL(url).pathname.split("/").pop()!);
-    const g = GPLACES[id];
-    if (!g) return gerr(404, "NOT_FOUND");
-    return Response.json({ id, formattedAddress: `${g.main}, ${g.secondary}`, types: g.types, location: { latitude: g.lat, longitude: g.lon },
-      addressComponents: [{ longText: g.country === "GR" ? "Гърция" : "България", shortText: g.country || "BG", types: ["country", "political"] }] });
-  }
-  if (url.startsWith("https://routes.googleapis.com/")) {
-    google.routes++;
-    const b = JSON.parse(String(init?.body || "{}"));
-    google.bodies.push(b);
-    if (google.fail === "routes") return gerr(500, "INTERNAL");
-    const d = b.destination || {};
-    if (d.address) return gerr(400, "INVALID_ARGUMENT");
-    const m = d.placeId ? (GPLACES[d.placeId]?.km ?? 0) * 1000 : AIRPORT_KM[String(d.location?.latLng?.longitude)] ?? 5000;
-    return Response.json({ routes: [{ distanceMeters: m, legs: [{}] }] });
-  }
-  return null;
-}
 const fakeRoute = async (url: string, init?: any) => {
-  if (url.includes("googleapis.com")) return fakeGoogle(url, init);
   if (url.includes("nominatim.openstreetmap.org")) {
     routes.calls++;
     routes.urls.push(url);
@@ -268,8 +218,8 @@ export function adminJar(email = "admin@example.com", roles = ["admin"]) {
 export async function quoteFor(body: any, ip = "203.0.113.50") {
   const i = bookingInput({ carId: body.carId, startDate: body.startDate, startTime: body.startTime, endDate: body.endDate, endTime: body.endTime }, body);
   if ("error" in i) return { status: 400, json: { error: i.error } as any };
-  const { del, ret, ...rest } = i.input;
-  const r = await quoteFn(new Request(O + "/api/quote", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...rest, delivery: del, return: ret }) }), { ip } as any);
+  const { del, ret, delPin, retPin, ...rest } = i.input;
+  const r = await quoteFn(new Request(O + "/api/quote", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...rest, delivery: del, return: ret, deliveryPin: delPin ?? null, returnPin: retPin ?? null }) }), { ip } as any);
   return { status: r.status, json: (await r.json()) as any };
 }
 export async function withQuote(body: any) {

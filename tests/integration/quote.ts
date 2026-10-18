@@ -172,7 +172,7 @@ const q0 = { carId: "golf", startDate: "2028-06-05", startTime: "10:00", endDate
   const rj = await rr.json();
   check("7.1 същият адрес (и с други интервали/букви) се търси при доставчика веднъж за офертите и /api/route (в срока на кеша)", c1 > c0 && routes.calls === c1 && rr.status === 200 && rj.km === 5 && rj.rate === 1, `заявки: ${c1 - c0} → ${routes.calls - c0}`);
   const rows = (await t.q("select * from route_cache")).rows;
-  check("7.2 кешът е в базата (route_cache): ключът е хеш, без адреса и намереното място", rows.length > 0 && rows.every((r: any) => /^v4\/[a-f0-9]{64}$/.test(r.key)) && !/Кеш|Синтетично|Тестова/.test(JSON.stringify(rows)), rows[0]?.key);
+  check("7.2 кешът е в базата (route_cache): ключът е хеш, без адреса и намереното място", rows.length > 0 && rows.every((r: any) => /^v5\/[a-f0-9]{64}$/.test(r.key)) && !/Кеш|Синтетично|Тестова/.test(JSON.stringify(rows)), rows[0]?.key);
 }
 
 // ===== 8. Едновременни и повторни изпращания =====

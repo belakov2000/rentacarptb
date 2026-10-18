@@ -3,9 +3,7 @@
 // Синтетични данни; Nominatim / OSRM са симулирани с реалистични отговори (harness.ts, tests/fixtures/nominatim.ts).
 // Без реални заявки и писма.
 import { createHash } from "node:crypto";
-import { bookingBody, check, contractData, finish, freshDb, google, http, O, routes, setContext, withQuote } from "./harness.ts";
-import placesFn from "../../netlify/functions/places.mts";
-import { LIMITS } from "../../server/limits.ts";
+import { bookingBody, check, contractData, finish, freshDb, http, O, routes, setContext, withQuote } from "./harness.ts";
 import bookingsFn from "../../netlify/functions/bookings.mts";
 import quoteFn from "../../netlify/functions/quote.mts";
 import routeFn from "../../netlify/functions/route.mts";
@@ -25,8 +23,8 @@ const route = async (dest: string) => {
   const r = await routeFn(new Request(`${O}/api/route?destination=${encodeURIComponent(dest)}`), { ip: `198.51.100.${++ip % 250}` } as any);
   return { status: r.status, headers: r.headers, json: (await r.json().catch(() => ({}))) as any };
 };
-const route2 = async (dest: string, place: string) => {
-  const r = await routeFn(new Request(`${O}/api/route?destination=${encodeURIComponent(dest)}&place=${place}&session=${"a".repeat(32)}`), { ip: `198.51.100.${++ip % 250}` } as any);
+const route2 = async (dest: string, pin: { lat: number; lon: number }) => {
+  const r = await routeFn(new Request(`${O}/api/route?destination=${encodeURIComponent(dest)}&lat=${pin.lat}&lon=${pin.lon}`), { ip: `198.51.100.${++ip % 250}` } as any);
   return { status: r.status, cache: r.headers.get("cache-control"), cdn: r.headers.get("netlify-cdn-cache-control"), json: (await r.json().catch(() => ({}))) as any };
 };
 const nQuotes = async () => (await t.q("select count(*)::int n from price_quotes")).rows[0].n as number;
@@ -61,20 +59,33 @@ http.handler = async (url, init) => { if (url.includes("router.project-osrm.org"
   const r = await route("гр. Пловдив, ул. Тестова 3");
   check("2.1 намерен номер: оферта 5 км × 1,00 €, точност house", q.status === 200 && q.json.legs.del.km === 5 && q.json.legs.del.rate === 1 && q.json.legs.del.precision === "house", JSON.stringify(q.json.legs));
   check("2.2 /api/route за същия адрес: същите км, тарифа и точност, едно търсене при доставчика (общ кеш)", r.status === 200 && r.json.km === 5 && r.json.rate === 1 && r.json.precision === "house" && routes.calls - c0 === 1, `${JSON.stringify(r.json)} заявки ${routes.calls - c0}`);
-  // Недостатъчна точност → няма оферта и няма цена за доставка (адресът не се заменя с точка от улицата / центъра на селото)
+  // Само улица / населено място → не е точен адрес и не се отказва: 409 „pin“ с началната точка за картата; без оферта и маршрут
   const n0 = await nQuotes(), o0 = osrm.length;
-  const imp: [string, string][] = [
-    ["ул. Улична 4, Пловдив", "въведен номер, на картата е само улицата"],
-    ["ул. Тестова, Пловдив", "без номер"],
-    ["с. Далеч", "само населеното място"],
+  const imp: [string, string, number][] = [
+    ["ул. Улична 4, Пловдив", "въведен номер, на картата е само улицата", 42.151],
+    ["ул. Тестова, Пловдив", "без номер", 42.15],
+    ["с. Далеч", "само населеното място", 42.7],
   ];
-  for (const [a, why] of imp) {
+  for (const [a, why, lat] of imp) {
     const iq = await quote({ delivery: a }), ir = await route(a), rq = await quote({ return: a });
-    check(`2.3 ${why} („${a}“): /api/quote 502 imprecise (доставка и връщане), /api/route 422 imprecise, без км и без CDN кеш`,
-      iq.status === 502 && iq.json.reason === "imprecise" && iq.json.leg === "del" && !("totalCents" in iq.json) && rq.json.reason === "imprecise" && rq.json.leg === "ret" &&
-      ir.status === 422 && ir.json.error === "imprecise" && !("km" in ir.json) && !ir.headers.get("netlify-cdn-cache-control"), `${iq.status} ${iq.json.reason} ${ir.status} ${ir.json.error}`);
+    check(`2.3 ${why} („${a}“): /api/quote 409 pin (доставка и връщане) с начална точка, /api/route 409 pin; без км и без CDN кеш`,
+      iq.status === 409 && iq.json.reason === "pin" && iq.json.leg === "del" && iq.json.pin.lat === lat && !("totalCents" in iq.json) && rq.json.reason === "pin" && rq.json.leg === "ret" &&
+      ir.status === 409 && ir.json.error === "pin" && ir.json.pin.lat === lat && !("km" in ir.json) && !ir.headers.get("netlify-cdn-cache-control"), `${iq.status} ${iq.json.reason} ${JSON.stringify(iq.json.pin)} ${ir.status}`);
   }
-  check("2.3 при недостатъчна точност не е издадена оферта и не е изчислен маршрут", (await nQuotes()) === n0 && osrm.length === o0, `${(await nQuotes()) - n0} ${osrm.length - o0}`);
+  check("2.3 без потвърден пин не е издадена оферта и не е изчислен маршрут", (await nQuotes()) === n0 && osrm.length === o0, `${(await nQuotes()) - n0} ${osrm.length - o0}`);
+  // Потвърден пин: маршрутът е до пина, точност „pin“; /api/route със същия пин – същият резултат
+  const pin = { lat: 42.1521, lon: 24.7533 };
+  const pq = await quote({ delivery: "ул. Улична 4, Пловдив", deliveryPin: pin }), pr = await route2("ул. Улична 4, Пловдив", pin);
+  check("2.3п потвърден пин: оферта до пина (OSRM до точните координати), точност pin; /api/route със същия пин – същите км и тарифа, без CDN кеш",
+    pq.status === 200 && pq.json.legs.del.precision === "pin" && osrm.at(-1)!.includes(";24.7533,42.1521?") && pr.status === 200 && pr.json.km === pq.json.legs.del.km && pr.json.rate === 1 && pr.json.precision === "pin" && !pr.cdn,
+    `${pq.status} ${JSON.stringify(pq.json.legs)} ${pr.status}`);
+  const far1 = await quote({ delivery: "ул. Улична 4, Пловдив", deliveryPin: { lat: 42.2, lon: 24.75 } });
+  const town1 = await quote({ delivery: "с. Далеч", deliveryPin: { lat: 42.705, lon: 23.33 } });
+  const out = await quote({ delivery: "ул. Улична 4, Пловдив", deliveryPin: { lat: 48.1, lon: 11.5 } }), bad = await quote({ delivery: null, deliveryPin: pin });
+  const amb = await quote({ delivery: "гр. Пловдив, пл. Централен 1", deliveryPin: { lat: 42.14, lon: 24.75 } });
+  check("2.3в пинът се отказва: >3 км от улицата → pin_far; в друго населено място → pin_town; извън България / без адрес → 400 pin; друго населено място в адреса остава ambiguous",
+    far1.status === 502 && far1.json.reason === "pin_far" && town1.json.reason === "pin_town" && out.status === 400 && out.json.error === "pin" && bad.json.error === "pin" && amb.json.reason === "ambiguous",
+    `${far1.json.reason} ${town1.json.reason} ${out.json.error} ${bad.json.error} ${amb.json.reason}`);
   const nq = await quote({ delivery: "ул. Няма 5" }), nr = await route("ул. Няма 5");
   check("2.4 липсващ адрес: /api/quote 502 not_found, /api/route 404", nq.status === 502 && nq.json.reason === "not_found" && nr.status === 404, `${nq.status} ${nq.json.reason} ${nr.status}`);
   const far = await quote({ delivery: "с. Далеч 5" });
@@ -84,7 +95,17 @@ http.handler = async (url, init) => { if (url.includes("router.project-osrm.org"
   const b = await withQuote(bookingBody("GEO2", d1, "10:00", d2, "10:00", { carId: "golf", car: "golf", requestKey: "geo-test-2-key", contract: { ...contractData(d1, "10:00", d2, "10:00"), del: { addr: "ул. Улична 4, Пловдив", km: 4.1, rate: 1 } } }));
   const br = await bookingsFn(new Request(`${O}/api/bookings`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(b) }), { params: {} } as any);
   const bj: any = await br.json().catch(() => ({}));
-  check("2.7 резервация с непотвърден номер: няма оферта → 409 quote_required, нищо не е записано", !b.quote && br.status === 409 && bj.error === "quote_required" && (await t.q("select count(*)::int n from bookings")).rows[0].n === 0, `${br.status} ${bj.error}`);
+  check("2.7 резервация без потвърден пин (само улица): няма оферта → 409 quote_required, нищо не е записано", !b.quote && br.status === 409 && bj.error === "quote_required" && (await t.q("select count(*)::int n from bookings")).rows[0].n === 0, `${br.status} ${bj.error}`);
+  // Резервация с потвърден пин: офертата е обвързана с пина; друг пин → quote_mismatch
+  {
+    const d1 = "2028-06-19", d2 = "2028-06-21", A = "ул. Улична 4, Пловдив";
+    const mk = (k: string, pins: any) => bookingBody("GEOP" + k, d1, "10:00", d2, "10:00", { carId: "golf", car: "golf", requestKey: `geo-pin-${k}-key`, pins, contract: { ...contractData(d1, "10:00", d2, "10:00"), del: { addr: A, km: 1, rate: 1 } } });
+    const b1 = await withQuote(mk("a", { del: pin, ret: null }));
+    const wrong = { ...b1, requestKey: "geo-pin-b-key", pins: { del: { lat: 42.1522, lon: 24.7533 }, ret: null } };
+    const post = async (b: any) => { const r = await bookingsFn(new Request(`${O}/api/bookings`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(b) }), { params: {} } as any); return { status: r.status, json: (await r.json().catch(() => ({}))) as any }; };
+    const w = await post(wrong), ok = await post(b1);
+    check("2.8 резервация с потвърден пин: друг пин → 409 quote_mismatch; същият пин → записана", !!b1.quote && w.status === 409 && w.json.error === "quote_mismatch" && ok.status === 201, `${w.status} ${w.json.error} ${ok.status} ${ok.json.error || ""}`);
+  }
   const start = `${BASE.lon},${BASE.lat};`;
   check("2.6 OSRM тръгва от точката на офиса (pin в Google Maps) в реда дължина,ширина", osrm.length > 0 && osrm.every((u) => u.includes("/driving/24.7329252,42.1615692;")) && start === "24.7329252,42.1615692;", osrm[0]);
 }
@@ -97,7 +118,9 @@ http.handler = async (url, init) => { if (url.includes("router.project-osrm.org"
   check("3.1 доставка 5 км × 1 € = 5 € и връщане 150 км × 0,70 € = 105 €; по един ред; сума = наем + доставка + връщане",
     both.status === 200 && del.length === 1 && ret.length === 1 && del[0].cents === 500 && ret[0].cents === 10500 && both.json.totalCents === 5000 + 500 + 10500, JSON.stringify(ls));
   const half = await quote({ delivery: "ул. Тестова 3", return: "ул. Улична 4" });
-  check("3.4 доставка с потвърден номер и връщане с непотвърден: цялата оферта се отказва (leg ret, imprecise), без частична цена", half.status === 502 && half.json.leg === "ret" && half.json.reason === "imprecise" && !("totalCents" in half.json), JSON.stringify(half.json));
+  const halfOk = await quote({ delivery: "ул. Тестова 3", return: "ул. Улична 4", returnPin: { lat: 42.1515, lon: 24.7515 } });
+  check("3.4 доставка с намерен номер и връщане само до улица: без пин – няма частична оферта (409 pin, leg ret); с пин – два отделни реда",
+    half.status === 409 && half.json.leg === "ret" && half.json.reason === "pin" && !("totalCents" in half.json) && halfOk.status === 200 && halfOk.json.lines.filter((l: any) => l.code === "return").length === 1 && halfOk.json.legs.ret.precision === "pin", JSON.stringify(half.json));
   const same = await quote({ delivery: "ул. Тестова 3", return: "ул. Тестова 3" });
   check("3.2 един и същ адрес за доставка и връщане: два отделни курса по 5 €, без удвояване на км в един ред", same.status === 200 && same.json.totalCents === 6000 && same.json.lines.filter((l: any) => l.km === 5).length === 2 && !same.json.lines.some((l: any) => l.km === 10));
   const onlyDel = await quote({ delivery: "ул. Тестова 3" });
@@ -112,16 +135,16 @@ http.handler = async (url, init) => { if (url.includes("router.project-osrm.org"
   const v2 = (a: string) => "v2/" + h("2@42.1615692,24.7329252\n" + a.toLowerCase());
   for (const key of ["v1/" + h(norm), "v2/" + h(norm), v2(CENTRAL), v2("ул. Улична 4, Пловдив")])
     await t.q(`insert into route_cache (key, status, km, rate, local, source, claimed_at, expires_at) values ($1, 'ok', 49.8, 0.7, false, 'osm', now(), now() + interval '1 day') on conflict (key) do update set status = 'ok', km = 49.8, rate = 0.7, expires_at = now() + interval '1 day'`, [key]);
-  await t.q("delete from route_cache where key like 'v4/%' and status = 'fail'"); // запомнените грешки от разделите по-горе – търси се отново
+  await t.q("delete from route_cache where key like 'v5/%' and status = 'fail' and reason not like 'pin:%'"); // запомнените грешки от разделите по-горе – търси се отново
   const q = await quote({ delivery: CENTRAL }), r = await route(CENTRAL);
   check("4.1 стари записи с 49,8 км в route_cache (v1, v2) не се четат: /api/quote и /api/route пак искат уточнение", q.status === 502 && q.json.reason === "ambiguous" && r.status === 422, `${q.status} ${r.status}`);
   const sq = await quote({ delivery: "ул. Улична 4, Пловдив" });
-  check("4.1б стар запис v2 с цена до точка от улицата не се чете: отказ imprecise", sq.status === 502 && sq.json.reason === "imprecise", `${sq.status} ${sq.json.reason}`);
+  check("4.1б стар запис v2 с цена до точка от улицата не се чете: искане за потвърден пин", sq.status === 409 && sq.json.reason === "pin", `${sq.status} ${sq.json.reason}`);
   const keys = (await t.q("select key from route_cache where status <> 'ok' or km <> 49.8")).rows.map((x: any) => x.key);
-  check("4.2 новите ключове са v4/хеш(версия + начална точка + адрес)", keys.length > 0 && keys.every((k: string) => /^v4\/[a-f0-9]{64}$/.test(k)) && ROUTE_VERSION === "4@42.1615692,24.7329252", ROUTE_VERSION);
+  check("4.2 новите ключове са v5/хеш(версия + начална точка + адрес)", keys.length > 0 && keys.every((k: string) => /^v5\/[a-f0-9]{64}$/.test(k)) && ROUTE_VERSION === "5@42.1615692,24.7329252", ROUTE_VERSION);
   const ok = await route("гр. Пловдив, ул. Тестова 3");
-  check("4.3 CDN кеш на /api/route: етикет route,route-v4 (за изчистване) и версия в отговора; обезсилва се с всеки нов deploy",
-    ok.headers.get("netlify-cache-tag") === "route,route-v4" && /durable/.test(ok.headers.get("netlify-cdn-cache-control") || "") && ok.json.version === ROUTE_VERSION, `${ok.headers.get("netlify-cache-tag")} ${ok.json.version}`);
+  check("4.3 CDN кеш на /api/route: етикет route,route-v5 (за изчистване) и версия в отговора; обезсилва се с всеки нов deploy",
+    ok.headers.get("netlify-cache-tag") === "route,route-v5" && /durable/.test(ok.headers.get("netlify-cdn-cache-control") || "") && ok.json.version === ROUTE_VERSION, `${ok.headers.get("netlify-cache-tag")} ${ok.json.version}`);
   const bad = await route("ул. Няма 9");
   check("4.4 грешките (404 / 422) не се кешират в CDN", !bad.headers.get("netlify-cdn-cache-control"));
 }
@@ -156,106 +179,6 @@ http.handler = async (url, init) => { if (url.includes("router.project-osrm.org"
   // Строгите проверки за обикновени адреси остават
   const plain = await quote({ delivery: "ул. Летище 5, Пловдив" }), c2 = await quote({ delivery: CENTRAL });
   check("5.10 „ул. Летище 5“ е обикновен адрес (строга проверка); Бяла река пак е отказана", plain.status === 200 && plain.json.legs.del.precision === "house" && !plain.json.legs.del.poi && c2.json.reason === "ambiguous", `${plain.status} ${c2.json.reason}`);
-}
-
-// ===== 6. Адрес, избран от предложенията на Google (симулиран Google; тестов ключ само в този раздел) =====
-{
-  const SES = "a".repeat(32);
-  const places = async (input: string, o: { session?: string; lang?: string; client?: string } = {}) => {
-    const r = await placesFn(new Request(`${O}/api/places?input=${encodeURIComponent(input)}&session=${o.session ?? SES}&lang=${o.lang ?? "bg"}`, { headers: o.client ? { "X-Client-Id": o.client } : {} }), { ip: `198.51.100.${++ip % 250}` } as any);
-    return { status: r.status, cache: r.headers.get("cache-control"), json: (await r.json().catch(() => ({}))) as any };
-  };
-  const label = (id: string, s: any) => `${s.main}, ${s.secondary}`;
-  // Без ключ: предложения няма (503), избран адрес не може да бъде проверен
-  const off = await places("бул. Витоша 1");
-  const offQ = await quote({ delivery: "бул. „Витоша“ 1, София, България", deliveryPlace: { id: "gp_sofia_vitosha_1", session: SES } });
-  check("6.1 без ключ за Google: /api/places 503 unavailable; оферта с избран адрес → 502 unavailable (без заявки към Google)", off.status === 503 && off.json.error === "unavailable" && offQ.status === 502 && offQ.json.reason === "unavailable" && google.autocomplete + google.details + google.routes === 0, `${off.status} ${offQ.json.reason}`);
-
-  process.env.GOOGLE_MAPS_API_KEY = "test-only-not-a-real-key";
-  const sug = await places("бул. Витоша 1", { lang: "en" });
-  const body = google.bodies.at(-1);
-  check("6.2 /api/places: до 5 предложения (основен и допълнителен текст, Place ID), за цяла България, на езика на страницата, със сесия, без кеш",
-    sug.status === 200 && sug.json.suggestions.length === 2 && sug.json.suggestions[0].id === "gp_sofia_vitosha_1" && sug.json.suggestions[0].main === "бул. „Витоша“ 1" && sug.json.suggestions[0].secondary === "София, България" &&
-    JSON.stringify(body.includedRegionCodes) === '["bg"]' && body.languageCode === "en" && body.sessionToken === SES && !body.locationRestriction && !body.locationBias && sug.cache === "no-store", JSON.stringify(sug.json).slice(0, 200));
-  const bad = await Promise.all([places("ab"), places("бул. Витоша", { session: "x" }), places("<script>alert</script>"), places("https://example.com")]);
-  check("6.3 невалиден текст или ключ на сесията → 400 без заявка към Google", bad.every((r) => r.status === 400) && google.autocomplete === 1, bad.map((r) => r.status).join());
-  google.fail = "places";
-  const pe = await places("ул. Гладстон 10");
-  google.fail = "";
-  check("6.4 грешка на Google при предложенията → 502 provider (браузърът продължава без предложения)", pe.status === 502 && pe.json.error === "provider");
-  const lim0 = { ...LIMITS };
-  LIMITS.placesPerClient = 2;
-  const cl = "c".repeat(32);
-  const lr = [await places("ул. Гладстон 1", { client: cl }), await places("ул. Гладстон 2", { client: cl }), await places("ул. Гладстон 3", { client: cl })];
-  Object.assign(LIMITS, lim0);
-  check("6.5 ограничение на предложенията по раздел на браузъра → 429 с Retry-After", lr[0].status === 200 && lr[1].status === 200 && lr[2].status === 429, lr.map((r) => r.status).join());
-
-  // Избран адрес в Пловдив, чийто номер липсва в OpenStreetMap (както ул. Гладстон 10): приема се по проверката на Google
-  const glad = (await places("ул. Гладстон 10")).json.suggestions[0];
-  const gl = label(glad.id, glad);
-  const osm0 = routes.calls, d0 = google.details;
-  const q = await quote({ delivery: gl, deliveryPlace: { id: glad.id, session: SES } });
-  check("6.6 Пловдив, ул. Гладстон 10 (избран от Google): 3,3 км × 1,00 €, точност google; без отказ заради OpenStreetMap и без търсене там",
-    q.status === 200 && q.json.legs.del.km === 3.3 && q.json.legs.del.rate === 1 && q.json.legs.del.precision === "google" && routes.calls === osm0, JSON.stringify(q.json.legs));
-  const det = google.detailUrls.at(-1)!;
-  const rb = google.bodies.at(-1);
-  check("6.7 Place Details със същата сесия (затваря сесията), маршрут с Google Routes от точката на офиса до избрания Place ID",
-    google.details === d0 + 1 && det.includes("/places/gp_pdv_gladston_10") && det.includes("sessionToken=" + SES) && rb.destination.placeId === "gp_pdv_gladston_10" && rb.origin.location.latLng.latitude === 42.1615692 && rb.origin.location.latLng.longitude === 24.7329252, det);
-  const free = await quote({ delivery: gl });
-  check("6.8 същият текст без избор от предложенията: строгата проверка остава (OpenStreetMap; тук номерът е намерен – друг ключ в кеша)", free.status === 200 && free.json.legs.del.precision === "house", JSON.stringify(free.json.legs || free.json));
-  const r1 = await route2(gl, glad.id);
-  check("6.9 /api/route със същото място: същите км, тарифа и точност; без CDN кеш", r1.status === 200 && r1.json.km === 3.3 && r1.json.rate === 1 && r1.json.precision === "google" && r1.cache === "no-store" && !r1.cdn, JSON.stringify(r1.json));
-  // София: адрес с номер (0,70 €/км), само улица → уточнение
-  const vit = sug.json.suggestions;
-  const sq = await quote({ delivery: label("", vit[0]), deliveryPlace: { id: vit[0].id, session: SES } });
-  const sr = await quote({ delivery: label("", vit[1]), deliveryPlace: { id: vit[1].id, session: SES } });
-  check("6.10 София, бул. Витоша 1: 146,2 км × 0,70 € = 102,34 €; само „бул. Витоша“ (улица) → 502 imprecise, без оферта",
-    sq.status === 200 && sq.json.legs.del.km === 146.2 && sq.json.legs.del.rate === 0.7 && sq.json.lines.find((l: any) => l.code === "delivery").cents === 10234 && sr.status === 502 && sr.json.reason === "imprecise", `${JSON.stringify(sq.json.legs)} ${sr.json.reason}`);
-  // Друго населено място: Асеновград – населено място → уточнение; адрес → цена
-  const as = (await places("Асеновград")).json.suggestions;
-  const ac = await quote({ return: label("", as[0]), returnPlace: { id: as[0].id, session: SES } }), aa = await quote({ return: label("", as[1]), returnPlace: { id: as[1].id, session: SES } });
-  check("6.11 Асеновград: само населеното място (връщане) → imprecise; ул. Цар Иван Асен II 1 → 21,4 км × 1,00 € (в зоната)", ac.json.reason === "imprecise" && ac.json.leg === "ret" && aa.status === 200 && aa.json.legs.ret.km === 21.4 && aa.json.legs.ret.rate === 1, `${ac.json.reason} ${JSON.stringify(aa.json.legs)}`);
-  // Летищата през Google: терминалите остават отделни
-  const ap = (await places("Летище София")).json.suggestions;
-  const a0 = await quote({ delivery: label("", ap[0]), deliveryPlace: { id: ap[0].id, session: SES } });
-  const a2 = await quote({ delivery: label("", ap[1]), deliveryPlace: { id: ap[1].id, session: SES } });
-  const pd = (await places("Летище Пловдив")).json.suggestions[0];
-  const ap3 = await quote({ delivery: label("", pd), deliveryPlace: { id: pd.id, session: SES } });
-  const lastRoute = google.bodies.at(-1);
-  check("6.12 Google „Летище София“ (цялото летище) → избор на терминал; „Терминал 2“ → 139,3 км до точката пред Т2; Летище Пловдив → 19,2 км до точката пред терминала",
-    a0.status === 502 && a0.json.reason === "terminal" && a2.status === 200 && a2.json.legs.del.km === 139.3 && a2.json.legs.del.poi === "Летище София, Терминал 2" &&
-    ap3.json.legs.del.km === 19.2 && ap3.json.legs.del.poi === "Летище Пловдив" && lastRoute.destination.location.latLng.longitude === 24.844729, `${a0.json.reason} ${JSON.stringify(a2.json.legs)} ${JSON.stringify(ap3.json.legs)}`);
-  // Подправен избор: място извън България; несъществуващ / невалиден Place ID
-  const gr = await quote({ delivery: "Солун, Гърция", deliveryPlace: { id: "gp_gr_thessaloniki", session: SES } });
-  const nf = await quote({ delivery: "ул. Измислена 1", deliveryPlace: { id: "gp_does_not_exist", session: SES } });
-  const inv = await quote({ delivery: "ул. Гладстон 10", deliveryPlace: { id: "../../x", session: SES } });
-  const nod = await quote({ delivery: null, deliveryPlace: { id: "gp_pdv_gladston_10", session: SES } });
-  check("6.13 избрано място извън България → abroad; несъществуващ Place ID → not_found; невалиден ID / избор без адрес → 400 place",
-    gr.json.reason === "abroad" && nf.json.reason === "not_found" && inv.status === 400 && inv.json.error === "place" && nod.status === 400 && nod.json.error === "place", `${gr.json.reason} ${nf.json.reason} ${inv.json.error} ${nod.json.error}`);
-  // Грешка на Google: Place Details → няма оферта; Routes → OSRM до същата проверена точка
-  google.fail = "details";
-  const de = await quote({ delivery: "бул. „Витоша“ 1, София (нов)", deliveryPlace: { id: "gp_sofia_vitosha_1x", session: SES } });
-  google.fail = "routes";
-  const as2 = (await places("Асеновград")).json.suggestions[1];
-  await t.q("delete from route_cache");
-  const rf = await quote({ return: label("", as2), returnPlace: { id: as2.id, session: SES } });
-  google.fail = "";
-  check("6.14 грешка на Google Place Details → 502 error, без оферта; грешка на Google Routes → OSRM до проверената точка (source osm)",
-    de.status === 502 && de.json.reason === "error" && rf.status === 200 && rf.json.legs.ret.km === 5 && osrm.at(-1)!.includes(";24.877,42.011?"), `${de.json.reason} ${JSON.stringify(rf.json.legs)}`);
-  // Офертата е обвързана с избраното място: резервация със същия текст, но друг / без Place ID се отказва
-  const d1 = "2028-07-03", d2 = "2028-07-05";
-  const qb = { ...q0, startDate: d1, endDate: d2 };
-  const ok = await quote({ ...qb, delivery: gl, deliveryPlace: { id: glad.id, session: SES } });
-  const bb = (places: any) => bookingBody("GEO3" + Math.random(), d1, "10:00", d2, "10:00", { carId: "golf", car: "golf", requestKey: "geo-test-3-" + Math.random().toString(36).slice(2) + "-key", quote: ok.json.quote, quoteTotalCents: ok.json.totalCents, places,
-    contract: { ...contractData(d1, "10:00", d2, "10:00"), del: { addr: gl, km: 3.3, rate: 1 } } });
-  const post = async (b: any) => { const r = await bookingsFn(new Request(`${O}/api/bookings`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(b) }), { params: {} } as any); return { status: r.status, json: (await r.json().catch(() => ({}))) as any }; };
-  const other = await post(bb({ del: "gp_sofia_vitosha_1", ret: null })), none = await post(bb({}));
-  const good = await post(bb({ del: glad.id, ret: null }));
-  check("6.15 резервация: друг Place ID или без него → 409 quote_mismatch; същият избран адрес → записана с доставка 3,30 €",
-    other.status === 409 && other.json.error === "quote_mismatch" && none.status === 409 && none.json.error === "quote_mismatch" && good.status === 201, `${other.status} ${other.json.error} ${none.json.error} ${good.status} ${good.json.error || ""}`);
-  const rows = (await t.q("select * from route_cache")).rows;
-  check("6.16 кешът: ключ v4/хеш (Place ID), без адреса, Place ID, координати и сесия", rows.length > 0 && !/gp_|Гладстон|Витоша|42\.1431|24\.7494|aaaa/.test(JSON.stringify(rows)), JSON.stringify(rows[0]).slice(0, 120));
-  delete process.env.GOOGLE_MAPS_API_KEY;
 }
 
 await finish();
