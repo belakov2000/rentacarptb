@@ -1,0 +1,43 @@
+name: Reservation preview tests
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  reservations:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      TEST_DATABASE_URL: postgres://postgres:test@127.0.0.1:5432/postgres
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --no-audit --no-fund
+      - name: Install test-only browser dependencies
+        run: npm install --no-save --package-lock=false esbuild playwright-core@1.51.1 happy-dom
+      - run: npx playwright-core install --with-deps chromium
+      - name: Server integration and unit tests (native PostgreSQL)
+        run: node tests/integration/run.mjs
+      - name: New short form and two approvals (Chromium)
+        run: node tests/e2e/run.mjs tests/browser/two-stage-ui.mjs
+      - name: Existing reservation flow (Chromium)
+        run: node tests/e2e/run.mjs tests/e2e/flow.mjs
+      - name: DOM/API contact and document flow on all three languages
+        run: node tests/e2e/run.mjs tests/browser/two-stage-dom.mjs

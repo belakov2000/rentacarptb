@@ -34,6 +34,7 @@ const code = [
   grab(/const seatN=R=>[^\n]*;/),
   grab(/function quote\(c,R\)\{[\s\S]*?return\{d,r,tot,rows,pend,base:r\*d\}\}/),
   grab(/const Q=\{[^\n]*\};/),
+  "const FLOW2=true;",
   grab(/function pinRef\(R,n\)\{[^\n]*\}/),
   grab(/const qInput=R=>[^\n]*;/),
   grab(/const qKey=R=>[^\n]*;/),
@@ -54,6 +55,8 @@ const B = ctx.T;
     {}, { seat: true, seatN: 1 }, { seat: true, seatN: 2 }, { seat: false, seatN: 2 },
     { m1: "addr", a1: "ул. Тестова 1" }, { m2: "addr", a2: "  с. Далеч   5 " }, { m1: "addr", a1: "ул. Тестова 1", m2: "addr", a2: "ул. Тестова 1" },
     { abr: true, ctry: ["gr", "de"] }, { abr: false, ctry: ["gr"] }, { m1: "store", a1: "ул. Скрита 1" },
+    // Вериги и втори водач (extras)
+    { chains: true }, { sd: true }, { chains: true, sd: true, m1: "addr", a1: "ул. Тестова 1" },
     // Потвърден пин на картата; след промяна на адреса пинът не се изпраща
     { m1: "addr", a1: "ул. Улична 4, Пловдив", pin1: { lat: 42.1521, lon: 24.7533, a: "ул. Улична 4, Пловдив" } },
     { m1: "addr", a1: "ул. Тестова 1", m2: "addr", a2: "с. Далеч", pin2: { lat: 42.7, lon: 23.32, a: "с. Далеч" } },
@@ -69,7 +72,7 @@ const B = ctx.T;
       // С показана сървърна оферта договорът от браузъра взема сумите от нея (сървърът ги попълва отново)
       if (withQuote) { B.Q.st = "ok"; B.Q.key = B.qKey(R); B.Q.d = { days: 3, lines: [{ code: "rent", cents: 7500 }, { code: "seats", cents: 900 }] }; } else { B.Q.st = ""; B.Q.d = null; }
       const cl = parseQuoteBody(JSON.parse(JSON.stringify(B.qInput(R))));
-      const sv = bookingInput({ carId: R.car, startDate: R.d1, startTime: R.t1, endDate: R.d2, endTime: R.t2 }, JSON.parse(JSON.stringify({ contract: B.contractData(R, B.quote(c, R)), pins: { del: B.pinRef(R, 1), ret: B.pinRef(R, 2) } })));
+      const sv = bookingInput({ carId: R.car, startDate: R.d1, startTime: R.t1, endDate: R.d2, endTime: R.t2 }, JSON.parse(JSON.stringify({ contract: B.contractData(R, B.quote(c, R)), pins: { del: B.pinRef(R, 1), ret: B.pinRef(R, 2) }, ...(R.chains || R.sd ? { extras: { chains: !!R.chains, secondDriver: !!R.sd } } : {}) })));
       if ("error" in cl || "error" in sv || inputHash(cl.input) !== inputHash(sv.input)) bad.push(JSON.stringify(st) + (withQuote ? " (с оферта)" : ""));
     }
   }

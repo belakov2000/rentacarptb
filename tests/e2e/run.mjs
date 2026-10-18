@@ -13,21 +13,22 @@ const dir = resolve("tests/e2e"), integ = resolve("tests/integration");
 mkdirSync(resolve(dir, ".out"), { recursive: true });
 await build({
   entryPoints: [resolve(dir, "server.ts")], bundle: true, platform: "node", format: "esm", outfile: resolve(dir, ".out/server.mjs"), target: "node22",
-  external: ["pg", "pg-native"], logLevel: "warning",
+  external: ["pg", "pg-native", "@electric-sql/pglite"], logLevel: "warning",
   banner: { js: "import { createRequire as __cr } from 'module'; const require = __cr(import.meta.url);" },
   plugins: [{ name: "stubs", setup(b) {
     b.onResolve({ filter: /^(\.\.\/)+db\/index\.js$/ }, () => ({ path: resolve(integ, "stubs/db.ts") }));
     b.onResolve({ filter: /^@netlify\/blobs$/ }, () => ({ path: resolve(integ, "stubs/blobs.ts") }));
   } }],
 });
-const { default: EmbeddedPostgres } = await import("embedded-postgres");
+const useEmbedded = !process.env.TEST_DATABASE_URL && process.env.TEST_USE_PGLITE !== "1";
+const EmbeddedPostgres = useEmbedded ? (await import("embedded-postgres")).default : null;
 const dataDir = resolve(dir, ".out/pgdata");
 rmSync(dataDir, { recursive: true, force: true });
-const pgs = new EmbeddedPostgres({ databaseDir: dataDir, user: "postgres", password: "test", port: 54331, persistent: false, onLog: () => {} });
-await pgs.initialise();
-await pgs.start();
+const pgs = !useEmbedded ? null : new EmbeddedPostgres({ databaseDir: dataDir, user: "postgres", password: "test", port: 54331, persistent: false, onLog: () => {} });
+await pgs?.initialise();
+await pgs?.start();
 const port = 8899;
-const env = { ...process.env, TEST_DATABASE_URL: "postgres://postgres:test@localhost:54331/postgres", E2E_PORT: String(port) };
+const env = { ...process.env, TEST_DATABASE_URL: process.env.TEST_DATABASE_URL || "postgres://postgres:test@localhost:54331/postgres", E2E_PORT: String(port) };
 const srv = spawn(process.execPath, [resolve(dir, ".out/server.mjs")], { env, stdio: ["ignore", "pipe", "inherit"] });
 await new Promise((ok, bad) => { srv.stdout.on("data", (d) => { if (String(d).includes("READY")) ok(); }); srv.on("exit", (c) => bad(new Error("server exited " + c))); });
 let code = 0;
@@ -37,5 +38,5 @@ try {
     console.log(`\n=== ${s.replace(resolve(".") + "/", "")} ===`);
     try { execFileSync(process.execPath, [s, `http://localhost:${port}`], { stdio: "inherit" }); } catch { code = 1; console.log("НЕУСПЕХ: " + s); }
   }
-} finally { srv.kill(); await pgs.stop(); }
+} finally { srv.kill(); await pgs?.stop(); }
 process.exit(code);

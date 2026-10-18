@@ -45,6 +45,7 @@ const navTo = async (page, path, sel) => { await page.goto(B + path, { waitUntil
 const desk = await context(false);
 // 1. Публична заявка през формата на сайта (без съгласие за маркетинг – Meta Pixel не се зарежда)
 {
+  await desk.addInitScript(() => { window.__LEGACY_FORM = 1; }); // старата дълга форма (новият процес: two-stage-ui.mjs)
   await desk.addInitScript(([seed]) => {
     if (window !== top) return;
     if (!localStorage.getItem("cookie-consent")) localStorage.setItem("cookie-consent", JSON.stringify({ v: 2, necessary: true, marketing: false, date: "2026-10-01T00:00:00.000Z" }));

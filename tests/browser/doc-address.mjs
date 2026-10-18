@@ -24,6 +24,7 @@ async function session({ viewport = { width: 1280, height: 900 }, mobile = false
   await ctx.route("**/api/quote", fulfillQuote);
   await ctx.route("**/api/documents", (r) => r.fulfill({ json: { url: "/api/documents/syndoc" } }));
   await ctx.route("**/api/bookings", (r) => { posted.push(r.request().postDataJSON()); return r.fulfill({ status: 201, json: { id: "c".repeat(32), token: "d".repeat(64), status: "pending" } }); });
+  await ctx.addInitScript(() => { window.__LEGACY_FORM = 1; }); // старата дълга форма (новият процес: two-stage-ui.mjs)
   await ctx.addInitScript(([lang, consent]) => { try { localStorage.setItem("lang", lang); if (consent) localStorage.setItem("ck", JSON.stringify({ v: 1, marketing: true, t: Date.now() })); } catch (e) {} }, [lang, consent]);
   const page = await ctx.newPage();
   const errors = [];

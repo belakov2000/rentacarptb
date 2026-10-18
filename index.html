@@ -872,6 +872,7 @@ button.btn-ghost{background:transparent}
 </div>
 <div class="th-side">
 <aside class="hcard" id="th-sum" aria-label="Вашата резервация"></aside>
+<section class="hcard" id="th-docs" hidden aria-label="Документи на водачите"></section>
 <div class="gmap">
 <iframe src="https://maps.google.com/maps?q=%D0%A0%D0%B5%D0%BD%D1%82%D0%B0+%D0%9F%D0%A2%D0%91+%D0%A1%D1%82%D1%80%D0%BE%D0%B9+%E2%80%93+Rent+a+Car+Plovdiv,+bul.+Dunav+10,+Plovdiv&amp;z=16&amp;output=embed" title="Карта: Рента ПТБ Строй, гр. Пловдив, бул. Дунав 10" loading="lazy" referrerpolicy="no-referrer-when-downgrade" tabindex="-1" aria-hidden="true"></iframe>
 <a class="gmap-go" href="https://maps.app.goo.gl/3Z6hxjwnggn99cNu7" target="_blank" rel="noopener" aria-label="Упътване до гр. Пловдив, бул. Дунав 10 в Google Maps"><span class="gmap-bar"><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a7 7 0 0 0-7 7c0 5.2 7 13 7 13s7-7.8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z" fill="currentColor"/></svg><span><b>гр. Пловдив, бул. Дунав 10</b><small>Отвори упътване в Google Maps</small></span><em>Навигация →</em></span></a>
@@ -914,6 +915,8 @@ button.btn-ghost{background:transparent}
 <div class="addr" id="a2" hidden><label for="b-a2">Адрес за вземане на автомобила</label><input id="b-a2" placeholder="Град, улица, номер"><div class="pm" id="pm2"></div></div>
 </fieldset>
 <fieldset class="full"><legend>3. Допълнително</legend>
+<label class="opt"><input type="checkbox" id="b-chains"><span>Вериги за сняг — 3,50 € / ден</span></label>
+<label class="opt"><input type="checkbox" id="b-sd"><span>Втори допълнителен водач — 3 € / ден</span></label>
 <label class="opt"><input type="checkbox" id="b-seat" aria-controls="seat-n"><span>Добави детско столче — 3 € / ден</span></label>
 <div class="seatn" id="seat-n" hidden><p class="hint">Брой столчета (3 € / ден за всяко)</p><div class="seat-seg" role="radiogroup" aria-label="Брой столчета"><label class="opt"><input type="radio" name="seatn" value="1" checked><span>1 столче</span></label><label class="opt"><input type="radio" name="seatn" value="2"><span>2 столчета</span></label></div></div>
 </fieldset>
@@ -931,12 +934,23 @@ button.btn-ghost{background:transparent}
 <div class="bk-grid one">
 <form id="bk" novalidate>
 <fieldset class="fbox"><legend><span class="fn">1</span>Лични данни</legend>
-<div><label for="b-name">Имена (както са в личната карта)</label><input id="b-name" autocomplete="name" placeholder="Име, презиме, фамилия" required></div>
+<div data-flow1><label for="b-name">Имена (както са в личната карта)</label><input id="b-name" autocomplete="name" placeholder="Име, презиме, фамилия" required></div>
+<div data-flow2>
+<div><label for="b-mail-confirm">Потвърди имейл</label><input id="b-mail-confirm" type="email" autocomplete="off" placeholder="ivan@example.com" aria-describedby="email-match" required><small id="email-match" class="hint" role="status"></small></div>
+<div class="row"><div><label for="b-first">Име</label><input id="b-first" autocomplete="given-name" placeholder="Иван" required></div><div><label for="b-middle">Презиме</label><input id="b-middle" autocomplete="additional-name" placeholder="Петров" required></div><div><label for="b-last">Фамилия</label><input id="b-last" autocomplete="family-name" placeholder="Иванов" required></div></div>
+<div><span>Дата на раждане</span><div class="row"><select id="b-bday" aria-label="Ден" required></select><select id="b-bmonth" aria-label="Месец" required></select><select id="b-byear" aria-label="Година" required></select></div></div>
+<div class="row"><div><label for="b-phone-country">Телефонен код</label><select id="b-phone-country" autocomplete="tel-country-code"></select></div><div><label for="b-phone-local">Телефон</label><input id="b-phone-local" type="tel" autocomplete="tel-national" placeholder="877 123 456" required></div></div>
+</div>
 <div><label for="b-cit">Гражданство</label><input id="b-cit" autocomplete="country-name" value="България" placeholder="напр. България" required></div>
-<div class="row"><div><label for="b-phone">Телефон</label><input id="b-phone" type="tel" autocomplete="tel" required></div><div><label for="b-mail">Имейл</label><input id="b-mail" type="email" autocomplete="email" required></div></div>
-<div><label for="b-seat-count">Брой столчета</label><select id="b-seat-count" aria-describedby="b-seat-hint"><option value="0">Без детско столче</option><option value="1">1 столче</option><option value="2">2 столчета</option></select><small class="hint" id="b-seat-hint">Брой столчета (3 € / ден за всяко)</small></div>
+<div class="row" data-flow1><div><label for="b-phone">Телефон</label><input id="b-phone" type="tel" autocomplete="tel" required></div></div>
+<div><label for="b-mail">Имейл</label><input id="b-mail" type="email" autocomplete="email" placeholder="ivan@example.com" required></div>
+<div data-flow1><label for="b-seat-count">Брой столчета</label><select id="b-seat-count" aria-describedby="b-seat-hint"><option value="0">Без детско столче</option><option value="1">1 столче</option><option value="2">2 столчета</option></select><small class="hint" id="b-seat-hint">Брой столчета (3 € / ден за всяко)</small></div>
+<div class="seg" role="radiogroup" aria-label="Кой ще шофира" data-flow2><label class="opt"><input type="radio" name="rdrv" value="1" checked><span>Аз ще шофирам</span></label><label class="opt"><input type="radio" name="rdrv" value="0"><span>Ще шофира друг човек</span></label></div>
+<div id="main-driver-names" class="row" data-flow2 hidden><div><label for="b-dfirst">Име на водача</label><input id="b-dfirst" placeholder="Георги"></div><div><label for="b-dmiddle">Презиме на водача</label><input id="b-dmiddle" placeholder="Петров"></div><div><label for="b-dlast">Фамилия на водача</label><input id="b-dlast" placeholder="Иванов"></div></div>
+<div id="second-driver-names" class="row" data-flow2 hidden><div><label for="b-sfirst">Име на втория водач</label><input id="b-sfirst" placeholder="Петър"></div><div><label for="b-smiddle">Презиме на втория водач</label><input id="b-smiddle" placeholder="Иванов"></div><div><label for="b-slast">Фамилия на втория водач</label><input id="b-slast" placeholder="Петров"></div></div>
+<p class="hint" data-flow2>Документите на водача (лична карта / паспорт и шофьорска книжка) се подават след като потвърдим наличността – ще получите линк по имейл.</p>
 </fieldset>
-<fieldset class="fbox"><legend><span class="fn">2</span>Лична карта / паспорт</legend>
+<fieldset class="fbox" data-flow1><legend><span class="fn">2</span>Лична карта / паспорт</legend>
 <div class="seg" role="radiogroup" aria-label="Вид документ"><label class="opt"><input type="radio" name="idt" value="id" checked><span>Лична карта</span></label><label class="opt"><input type="radio" name="idt" value="pass"><span>Паспорт</span></label></div>
 <div class="row"><div><label for="b-idn">Номер на документа</label><input id="b-idn" autocomplete="off" required></div><div><label for="b-egn">ЕГН</label><input id="b-egn" inputmode="numeric" autocomplete="off" maxlength="20" required></div></div>
 <div class="row"><div><label for="b-idd">Дата на издаване</label><input id="b-idd" type="date" required></div><div><label for="b-idp">Издаден от / къде</label><input id="b-idp" placeholder="напр. МВР Пловдив" required></div></div>
@@ -949,7 +963,7 @@ button.btn-ghost{background:transparent}
 <p class="doc-tip">Поставете документа върху равна повърхност при добро осветление. Снимайте го целия, така че всички краища и данни да се виждат ясно. Избягвайте размазване, отблясъци и закриване с пръсти. Проверете четливостта преди изпращане.</p>
 <div class="row"><div><span class="phl" id="p-idf-t">Снимка – лицева страна</span><div class="phbtn"><button type="button" class="upb camb" data-cam="p-idf" aria-describedby="p-idf-t">Снимай с камерата</button><input id="p-idf" class="phin" type="file" accept="image/*" required aria-labelledby="p-idf-t p-idf-u"><label class="upb" id="p-idf-u" for="p-idf">Качи снимка/файл</label></div><p class="phmsg" id="p-idf-m" role="status"></p><img class="phprev" id="p-idf-v" alt="" hidden></div><div><span class="phl" id="p-idb-t">Снимка – гръб</span><div class="phbtn"><button type="button" class="upb camb" data-cam="p-idb" aria-describedby="p-idb-t">Снимай с камерата</button><input id="p-idb" class="phin" type="file" accept="image/*" required aria-labelledby="p-idb-t p-idb-u"><label class="upb" id="p-idb-u" for="p-idb">Качи снимка/файл</label></div><p class="phmsg" id="p-idb-m" role="status"></p><img class="phprev" id="p-idb-v" alt="" hidden></div></div>
 </fieldset>
-<fieldset class="fbox"><legend><span class="fn">3</span>Шофьорска книжка</legend>
+<fieldset class="fbox" data-flow1><legend><span class="fn">3</span>Шофьорска книжка</legend>
 <div class="row"><div><label for="b-dln">Номер на книжката</label><input id="b-dln" autocomplete="off" required></div><div><label for="b-dlname">Имена</label><input id="b-dlname" autocomplete="off" required><small class="hint">Попълват се автоматично от личната карта.</small></div></div>
 <div class="row"><div><label for="b-dld">Дата на издаване</label><input id="b-dld" type="date" required></div><div><label for="b-dlp">Издадена от / къде</label><input id="b-dlp" placeholder="напр. МВР Пловдив" required></div></div>
 <p class="doc-tip">Поставете документа върху равна повърхност при добро осветление. Снимайте го целия, така че всички краища и данни да се виждат ясно. Избягвайте размазване, отблясъци и закриване с пръсти. Проверете четливостта преди изпращане.</p>
@@ -957,10 +971,15 @@ button.btn-ghost{background:transparent}
 </fieldset>
 <fieldset class="fbox"><legend><span class="fn">4</span>Начин на плащане</legend>
 <div class="paybox">
-<div class="payopts" role="radiogroup" aria-label="Начин на плащане">
+<div class="payopts" data-flow1 role="radiogroup" aria-label="Начин на плащане">
 <label class="opt"><input type="radio" name="pay" value="bankp"><span class="pt"><b>По банков път – физическо лице</b><small>Получавате фактура на ваше име с банковите ни данни.</small></span></label>
 <label class="opt"><input type="radio" name="pay" value="bank"><span class="pt"><b>По банков път – фирма</b><small>Фактура на фирмата и плащане по банков път.</small></span></label>
 <label class="opt"><input type="radio" name="pay" value="cash"><span class="pt"><b>В брой на място</b><small>При вземане на автомобила – с касов бон.</small></span></label>
+</div>
+<div class="payopts" role="radiogroup" aria-label="Начин на плащане" data-flow2>
+<label class="opt"><input type="radio" name="pay2" value="cash"><span class="pt"><b>В брой на място</b><small>При вземане на автомобила – с касов бон.</small></span></label>
+<label class="opt"><input type="radio" name="pay2" value="bankp"><span class="pt"><b>По банков път</b></span></label>
+<label class="opt" id="company-choice" hidden><input type="checkbox" id="b-company"><span>Необходима ми е фактура за юридическо лице</span></label>
 </div>
 <div id="invp" class="invbox" hidden>
 <p class="invh">Данни за фактурата – физическо лице</p>
@@ -971,7 +990,8 @@ button.btn-ghost{background:transparent}
 <div id="inv" class="invbox" hidden>
 <p class="invh">Данни за фактурата – фирма</p>
 <div class="row"><div><label for="b-icn">Име на фирмата</label><input id="b-icn" autocomplete="organization"></div><div><label for="b-ieik">ЕИК / Булстат</label><input id="b-ieik" inputmode="numeric" autocomplete="off"></div></div>
-<div class="row"><div><label for="b-ivat">ДДС номер (ако има)</label><input id="b-ivat" autocomplete="off"></div><div><label for="b-imol">МОЛ</label><input id="b-imol" autocomplete="off"></div></div>
+<div class="row"><div><label for="b-ivat">ДДС номер (ако има)</label><input id="b-ivat" autocomplete="off"></div><div data-flow1><label for="b-imol">МОЛ</label><input id="b-imol" autocomplete="off"></div></div>
+<div data-flow2><label class="opt"><input type="checkbox" id="b-no-vat"><span>Фирмата не е регистрирана по ДДС</span></label><label for="b-icountry">Държава на регистрация</label><input id="b-icountry" value="България" autocomplete="country-name"></div>
 <div><label for="b-iaddr">Адрес по регистрация</label><input id="b-iaddr" placeholder="Град, улица, номер"></div>
 <small class="hint">Ще ви изпратим фактура с банковите ни данни за плащане.</small>
 </div>
@@ -981,6 +1001,7 @@ button.btn-ghost{background:transparent}
 <div><label for="b-note">Допълнителна информация <span class="lbl-opt">(по избор)</span></label><textarea id="b-note" placeholder="Например: номер на полет, специални изисквания или въпроси към нас"></textarea><small class="hint">Попълването на това поле не е задължително.</small></div>
 </fieldset>
 <label class="opt"><input type="checkbox" id="b-ok"><span>Запознат съм с <a href="#t-terms" data-open="t-terms">Общите условия</a> и <a href="#t-privacy" data-open="t-privacy">информацията за защита на личните данни</a> и съм съгласен данните ми да се обработват за целите на заявката.</span></label>
+<label class="opt" data-flow2><input type="checkbox" id="b-mkt"><span>Съгласен съм да получавам по имейл предложения и отстъпки от Rent a Car PTB (по избор).</span></label>
 <div id="b-err" class="alert" role="alert" hidden></div>
 <button class="btn btn-dark" type="submit" disabled>Изпрати резервацията</button>
 <p class="hint" id="b-need" aria-live="polite"></p>
@@ -1029,6 +1050,41 @@ button.btn-ghost{background:transparent}
 // ===== Езици (BG / EN / DE) =====
 // Ключът е българският текст на страницата: [английски, немски]. Непреведените текстове остават на български.
 const I18N={
+"Въведи кода":["Apply code", "Code anwenden"],
+"Кодът намалява само наема с 10% и важи до":["The code reduces the rental price by 10% and is valid until", "Der Code reduziert den Mietpreis um 10% und ist gültig bis"],
+"Кодът е проверен. Отстъпката ще се приложи при изпращане на документите.":["Code verified. The discount will be applied when you submit the documents.", "Code geprüft. Der Rabatt wird beim Einreichen der Dokumente angewendet."],
+"Кодът не е валиден за тази резервация или срокът е изтекъл.":["The code is invalid for this reservation or has expired.", "Der Code ist für diese Reservierung ungültig oder abgelaufen."],
+"Поставете документа върху равна повърхност при добро осветление. Снимайте го целия, без отблясъци, размазване и закрити краища.":["Place the document on a flat surface in good light. Capture the entire document without glare, blur or covered edges.", "Legen Sie das Dokument bei gutem Licht auf eine ebene Fläche. Fotografieren Sie es vollständig ohne Spiegelungen, Unschärfe oder verdeckte Ränder."],
+"за обработването на документите за договора.":["for processing the documents for the rental agreement.", "zur Verarbeitung der Dokumente für den Mietvertrag."],
+
+"Име":["First name","Vorname"],
+"Презиме":["Middle name","Zweiter Vorname"],
+"Фамилия":["Last name","Nachname"],
+"Дата на раждане":["Date of birth","Geburtsdatum"],
+"Ден":["Day","Tag"],
+"Месец":["Month","Monat"],
+"Година":["Year","Jahr"],
+"Потвърди имейл":["Confirm email","E-Mail bestätigen"],
+"Телефонен код":["Calling code","Telefonvorwahl"],
+"Име на водача":["Driver first name","Vorname des Fahrers"],
+"Презиме на водача":["Driver middle name","Zweiter Vorname des Fahrers"],
+"Фамилия на водача":["Driver last name","Nachname des Fahrers"],
+"Име на втория водач":["Second driver first name","Vorname des zweiten Fahrers"],
+"Презиме на втория водач":["Second driver middle name","Zweiter Vorname des zweiten Fahrers"],
+"Фамилия на втория водач":["Second driver last name","Nachname des zweiten Fahrers"],
+"Необходима ми е фактура за юридическо лице":["I need an invoice for a company","Ich benötige eine Firmenrechnung"],
+"Фирмата не е регистрирана по ДДС":["The company is not VAT registered","Das Unternehmen ist nicht umsatzsteuerpflichtig"],
+"Държава на регистрация":["Country of registration","Land der Registrierung"],
+"По банков път":["Bank transfer","Banküberweisung"],
+"Имейлите не съвпадат.":["The email addresses do not match.","Die E-Mail-Adressen stimmen nicht überein."],
+"Попълнете име, презиме и фамилия.":["Enter your first, middle and last name.","Geben Sie Vor-, Zweit- und Nachname ein."],
+"Въведете валидна дата на раждане.":["Enter a valid date of birth.","Geben Sie ein gültiges Geburtsdatum ein."],
+"Попълнете трите имена на основния водач.":["Enter the main driver’s full name.","Geben Sie den vollständigen Namen des Hauptfahrers ein."],
+"Попълнете трите имена на втория водач.":["Enter the second driver’s full name.","Geben Sie den vollständigen Namen des zweiten Fahrers ein."],
+"Попълнете държавата и ДДС номера или отбележете, че фирмата не е регистрирана по ДДС.":["Enter the country and VAT number or select not VAT registered.","Geben Sie Land und USt.-Nummer ein oder wählen Sie nicht umsatzsteuerpflichtig."],
+"Попълнете данните за контакт. Документите се подават след одобрение на заявката.":["Enter your contact details. Documents are submitted after approval.","Geben Sie Ihre Kontaktdaten ein. Dokumente werden nach Genehmigung eingereicht."],
+"Потвърдете условията и информацията за обработване на документите.":["Accept the terms and document processing information.","Bestätigen Sie die Bedingungen und Hinweise zur Dokumentenverarbeitung."],
+
 "Ние използваме „бисквитки“":["We use cookies","Wir verwenden Cookies"],
 "Приемам":["Accept","Akzeptieren"],
 "Необходимите бисквитки и локалното хранилище са нужни, за да работи сайтът. Само с ваше съгласие използваме и маркетингови бисквитки (Meta Pixel), за да измерваме ефекта от рекламите си във Facebook и Instagram. Можете да промените избора си по всяко време от „Настройки за бисквитки“ в долната част на страницата.":["Essential cookies and local storage are needed for the site to work. Only with your consent do we also use marketing cookies (Meta Pixel) to measure the effect of our ads on Facebook and Instagram. You can change your choice at any time via “Cookie settings” at the bottom of the page.", "Notwendige Cookies und lokaler Speicher sind für den Betrieb der Website erforderlich. Nur mit Ihrer Einwilligung verwenden wir zusätzlich Marketing-Cookies (Meta Pixel), um die Wirkung unserer Werbung auf Facebook und Instagram zu messen. Sie können Ihre Auswahl jederzeit über „Cookie-Einstellungen“ unten auf der Seite ändern."],
@@ -1482,6 +1538,62 @@ const I18N={
 "Изчисляваме цената на сървъра…":["Calculating the price on our server…","Der Preis wird auf unserem Server berechnet…"],
 "Цената е изчислена от сървъра за тези данни. При промяна се изчислява наново.":["The price was calculated by our server for these details. It is recalculated if anything changes.","Der Preis wurde von unserem Server für diese Angaben berechnet. Bei Änderungen wird er neu berechnet."],
 "Изчисли цената отново":["Recalculate the price","Preis neu berechnen"],
+"Вериги за сняг — 3,50 € / ден":["Snow chains — €3.50 / day", "Schneeketten — 3,50 € / Tag"],
+"Втори допълнителен водач — 3 € / ден":["Second additional driver — €3 / day", "Zweiter Zusatzfahrer — 3 € / Tag"],
+"Аз ще шофирам":["I will drive", "Ich fahre selbst"],
+"Ще шофира друг човек":["Someone else will drive", "Eine andere Person fährt"],
+"Документите на водача (лична карта / паспорт и шофьорска книжка) се подават след като потвърдим наличността – ще получите линк по имейл.":["The driver's documents (ID card / passport and driving licence) are submitted after we confirm availability – you will receive a link by email.", "Die Dokumente des Fahrers (Personalausweis / Reisepass und Führerschein) reichen Sie ein, nachdem wir die Verfügbarkeit bestätigt haben – Sie erhalten einen Link per E-Mail."],
+"Съгласен съм да получавам по имейл предложения и отстъпки от Rent a Car PTB (по избор).":["I agree to receive offers and discounts from Rent a Car PTB by email (optional).", "Ich möchte Angebote und Rabatte von Rent a Car PTB per E-Mail erhalten (optional)."],
+"Заявката е получена":["Your request has been received", "Ihre Anfrage ist eingegangen"],
+"Проверяваме наличността на автомобила. След одобрение ще получите имейл с линк към тази страница, за да подадете документите на водача.":["We are checking the availability of the car. After approval you will receive an email with a link to this page to submit the driver's documents.", "Wir prüfen die Verfügbarkeit des Fahrzeugs. Nach der Freigabe erhalten Sie eine E-Mail mit einem Link zu dieser Seite, um die Dokumente des Fahrers einzureichen."],
+"Одобрение от нас":["Approval by us", "Freigabe durch uns"],
+"Заявката е одобрена – подайте документите":["Your request is approved – please submit the documents", "Ihre Anfrage ist freigegeben – bitte reichen Sie die Dokumente ein"],
+"Попълнете данните и приложете снимки на документите на водача. След проверката ще получите окончателно потвърждение.":["Fill in the details and attach photos of the driver's documents. After the check you will receive the final confirmation.", "Füllen Sie die Angaben aus und fügen Sie Fotos der Dokumente des Fahrers hinzu. Nach der Prüfung erhalten Sie die endgültige Bestätigung."],
+"Документи":["Documents", "Dokumente"],
+"Получени документи — очакват проверка":["Documents received — check pending", "Dokumente erhalten — Prüfung ausstehend"],
+"Благодарим! Проверяваме документите и ще ви изпратим окончателно потвърждение по имейл.":["Thank you! We are checking the documents and will send you the final confirmation by email.", "Vielen Dank! Wir prüfen die Dokumente und senden Ihnen die endgültige Bestätigung per E-Mail."],
+"Проверка на документите":["Document check", "Dokumentenprüfung"],
+"Заявител":["Requester", "Antragsteller"],
+"Водачи":["Drivers", "Fahrer"],
+"2 (основен и допълнителен)":["2 (main and additional)", "2 (Haupt- und Zusatzfahrer)"],
+"Документи на водача":["Driver's documents", "Dokumente des Fahrers"],
+"Документи на водачите":["Drivers' documents", "Dokumente der Fahrer"],
+"Водач 1 – основен водач (наемател)":["Driver 1 – main driver (renter)", "Fahrer 1 – Hauptfahrer (Mieter)"],
+"Водач 2 – допълнителен водач":["Driver 2 – additional driver", "Fahrer 2 – Zusatzfahrer"],
+"Имена (както са в документа)":["Full name (as in the document)", "Vollständiger Name (wie im Dokument)"],
+"Гражданство":["Citizenship", "Staatsangehörigkeit"],
+"Лична карта":["ID card", "Personalausweis"],
+"Паспорт":["Passport", "Reisepass"],
+"Номер на документа":["Document number", "Dokumentnummer"],
+"ЕГН (за лична карта)":["Personal number (EGN, for Bulgarian ID cards)", "Persönliche Nummer (EGN, für bulgarische Ausweise)"],
+"Дата на издаване":["Date of issue", "Ausstellungsdatum"],
+"Издаден от":["Issued by", "Ausgestellt von"],
+"Област":["Region", "Region"],
+"Община":["Municipality", "Gemeinde"],
+"Град":["Town", "Stadt"],
+"Село":["Village", "Dorf"],
+"Населено място":["Town / village", "Ort"],
+"Адрес по документа":["Address in the document", "Adresse laut Dokument"],
+"Номер на шофьорската книжка":["Driving licence number", "Führerscheinnummer"],
+"Дата на издаване на книжката":["Licence date of issue", "Ausstellungsdatum des Führerscheins"],
+"Книжката е издадена от":["Licence issued by", "Führerschein ausgestellt von"],
+"Лична карта / паспорт – лицева страна":["ID card / passport – front", "Ausweis / Reisepass – Vorderseite"],
+"Лична карта / паспорт – гръб":["ID card / passport – back", "Ausweis / Reisepass – Rückseite"],
+"Шофьорска книжка – лицева страна":["Driving licence – front", "Führerschein – Vorderseite"],
+"Шофьорска книжка – гръб":["Driving licence – back", "Führerschein – Rückseite"],
+"Код за отстъпка (по избор)":["Discount code (optional)", "Rabattcode (optional)"],
+"Изпрати документите":["Submit the documents", "Dokumente einreichen"],
+"Изпращаме документите…":["Sending the documents…", "Dokumente werden gesendet…"],
+"✓ Снимката е готова":["✓ The photo is ready", "✓ Das Foto ist bereit"],
+"Снимката не може да бъде прочетена. Изберете JPG или PNG.":["The photo cannot be read. Please choose a JPG or PNG.", "Das Foto kann nicht gelesen werden. Bitte wählen Sie JPG oder PNG."],
+"Вериги за сняг":["Snow chains", "Schneeketten"],
+"Втори допълнителен водач":["Second additional driver", "Zweiter Zusatzfahrer"],
+"Отстъпка RENTY10":["RENTY10 discount", "RENTY10-Rabatt"],
+"10% от наема":["10% of the rental", "10 % der Miete"],
+"Кодът за отстъпка не е валиден за тази резервация или срокът му е изтекъл.":["The discount code is not valid for this booking or has expired.", "Der Rabattcode gilt nicht für diese Buchung oder ist abgelaufen."],
+"Документите вече са получени или заявката не очаква документи. Презаредете страницата.":["The documents have already been received or the booking is not waiting for documents. Please reload the page.", "Die Dokumente sind bereits eingegangen oder die Buchung wartet nicht auf Dokumente. Bitte laden Sie die Seite neu."],
+"Документите не бяха изпратени. Опитайте отново или се обадете на +359877748693.":["The documents were not sent. Please try again or call +359877748693.", "Die Dokumente wurden nicht gesendet. Bitte versuchen Sie es erneut oder rufen Sie +359877748693 an."],
+"Снимките не бяха качени. Проверете връзката и опитайте отново.":["The photos were not uploaded. Please check your connection and try again.", "Die Fotos wurden nicht hochgeladen. Bitte prüfen Sie die Verbindung und versuchen Sie es erneut."],
 "Потвърждавам мястото на картата":["I confirm the place on the map","Ort auf der Karte bestätigen"],
 "Посочи мястото на картата":["Point to the place on the map","Ort auf der Karte angeben"],"Промени мястото на картата":["Change the place on the map","Ort auf der Karte ändern"],"Премахни мястото":["Remove the place","Ort entfernen"],
 "Населено място (за ориентация)":["Town (for orientation)","Ort (zur Orientierung)"],"Изберете…":["Choose…","Bitte wählen…"],"Откажи":["Cancel","Abbrechen"],
@@ -1510,6 +1622,12 @@ const I18N_RULES=[
 [/^до потвърдената точка на картата · /,"to the confirmed point on the map · ","zum bestätigten Punkt auf der Karte · "],
 [/Избраният адрес за доставка е извън България\. Доставката се изчислява само до адреси в България\./,"The selected delivery address is outside Bulgaria. Delivery is only calculated to addresses in Bulgaria.","Die gewählte Lieferadresse liegt außerhalb Bulgariens. Die Lieferung wird nur zu Adressen in Bulgarien berechnet."],
 [/Избраният адрес за връщане е извън България\. Връщането се изчислява само от адреси в България\./,"The selected collection address is outside Bulgaria. Collection is only calculated from addresses in Bulgaria.","Die gewählte Abholadresse liegt außerhalb Bulgariens. Die Abholung wird nur von Adressen in Bulgarien berechnet."],
+[/^Моля, попълнете всички данни на водач (\d)\.$/,"Please fill in all details of driver $1.","Bitte füllen Sie alle Angaben von Fahrer $1 aus."],
+[/^Моля, попълнете ЕГН на водач (\d)\.$/,"Please fill in the personal number (EGN) of driver $1.","Bitte geben Sie die persönliche Nummer (EGN) von Fahrer $1 ein."],
+[/^Моля, изберете град или село за адреса на водач (\d)\.$/,"Please choose town or village for the address of driver $1.","Bitte wählen Sie Stadt oder Dorf für die Adresse von Fahrer $1."],
+[/^Моля, приложете всички снимки на документите на водач (\d)\.$/,"Please attach all document photos of driver $1.","Bitte fügen Sie alle Dokumentfotos von Fahrer $1 hinzu."],
+[/^Моля, проверете адреса по документа на водач (\d) \(за българска лична карта – и областта и общината\)\.$/,"Please check the document address of driver $1 (for a Bulgarian ID card – also region and municipality).","Bitte prüfen Sie die Adresse laut Dokument von Fahrer $1 (bei bulgarischem Ausweis auch Region und Gemeinde)."],
+[/^Кодът намалява само наема с 10% и важи до (.+)\.$/,"The code reduces only the rental by 10% and is valid until $1.","Der Code reduziert nur die Miete um 10 % und gilt bis $1."],
 [/Изберете терминал на Летище София за доставката – Терминал 1 и Терминал 2 са на различни места\./,"Please choose the Sofia Airport terminal for the delivery – Terminal 1 and Terminal 2 are in different places.","Bitte wählen Sie das Terminal am Flughafen Sofia für die Lieferung – Terminal 1 und Terminal 2 liegen an verschiedenen Orten."],
 [/Изберете терминал на Летище София за връщането – Терминал 1 и Терминал 2 са на различни места\./,"Please choose the Sofia Airport terminal for the collection – Terminal 1 and Terminal 2 are in different places.","Bitte wählen Sie das Terminal am Flughafen Sofia für die Abholung – Terminal 1 und Terminal 2 liegen an verschiedenen Orten."],
 [/^до Летище София, Терминал (\d) · /,"to Sofia Airport, Terminal $1 · ","zum Flughafen Sofia, Terminal $1 · "],
@@ -1656,7 +1774,7 @@ return{d,r,tot,rows,pend,base:r*d}}
 // в обобщението и в резервацията са от сървъра. Офертата е за точно тези данни (автомобил, дати, часове, места, услуги) –
 // при промяна се изчислява наново, а без валидна оферта резервацията не се изпраща. Срокът ѝ се проверява на сървъра.
 const Q={key:"",st:"",d:null,err:"",seq:0,changed:null};
-const qInput=R=>({carId:R.car,startDate:R.d1,startTime:R.t1,endDate:R.d2,endTime:R.t2,seats:seatN(R),delivery:R.m1==="addr"?(R.a1||"").trim():null,return:R.m2==="addr"?(R.a2||"").trim():null,abroad:abrSel(R).map(([k])=>k),deliveryPin:pinRef(R,1),returnPin:pinRef(R,2)});
+const qInput=R=>({carId:R.car,startDate:R.d1,startTime:R.t1,endDate:R.d2,endTime:R.t2,seats:seatN(R),delivery:R.m1==="addr"?(R.a1||"").trim():null,return:R.m2==="addr"?(R.a2||"").trim():null,abroad:abrSel(R).map(([k])=>k),deliveryPin:pinRef(R,1),returnPin:pinRef(R,2),...(FLOW2&&(R.chains||R.sd)?{extras:{chains:!!R.chains,secondDriver:!!R.sd}}:{})});
 const qKey=R=>JSON.stringify(qInput(R));
 const qOk=()=>Q.st==="ok"&&!!Q.d&&Q.key===qKey(S);
 const Q_ERR={del:"Не успяхме да изчислим разстоянието до адреса за доставка. Проверете адреса (населено място, улица, номер).",ret:"Не успяхме да изчислим разстоянието до адреса за връщане. Проверете адреса (населено място, улица, номер).",
@@ -1678,6 +1796,12 @@ const qErrText=()=>(/_pin$/.test(Q.err)&&Q.pin?`Намерихме само ${Q.
 // Клиентът мести пина до точното място и изрично го потвърждава; маршрутът се изчислява до потвърдения пин.
 // Пинът важи само за въведения текст – при промяна на адреса се изисква ново потвърждение. Картата (Leaflet и плочки на
 // OpenStreetMap) се зарежда само в този случай; не е нужен ключ.
+// Новият процес (кратка форма → одобрение → документи на страницата на заявката → окончателно потвърждение).
+// window.__LEGACY_FORM – само за тестовете на старата дълга форма (документите във формата).
+const FLOW2=!window.__LEGACY_FORM;
+$$(FLOW2?"[data-flow1]":"[data-flow2]").forEach(e=>{e.hidden=true;e.querySelectorAll("[required]").forEach(i=>i.removeAttribute("required"))});
+if(FLOW2)$("#details .sec-head p").textContent=tr("Попълнете данните за контакт. Документите се подават след одобрение на заявката.");
+if(!FLOW2)["#b-chains","#b-sd"].forEach(x=>{const e=$(x);if(e)e.closest("label").hidden=true});
 function pinRef(R,n){const p=R["pin"+n];return R["m"+n]==="addr"&&p&&p.a===(R["a"+n]||"").trim()?{lat:p.lat,lon:p.lon,...(p.free?{free:true}:{})}:null}
 let LEAF=null;const leaflet=()=>LEAF||(LEAF=new Promise((ok,bad)=>{const c=document.createElement("link");c.rel="stylesheet";c.href="/vendor/leaflet/leaflet.css";document.head.appendChild(c);
 const s=document.createElement("script");s.src="/vendor/leaflet/leaflet.js";s.onload=()=>ok(window.L);s.onerror=()=>{LEAF=null;bad(new Error("map"))};document.head.appendChild(s)}));
@@ -1723,7 +1847,8 @@ if(prev!=null&&Q.d.totalCents!==prev){Q.changed={from:prev,to:Q.d.totalCents};re
 // Разпознат обект (летище / терминал) за реда на доставката / връщането – името идва от сървъра
 const poiOf=(d,l)=>{const g=d.legs&&d.legs[l.code==="delivery"?"del":"ret"];return g&&g.poi?"до "+g.poi:g&&g.precision==="pin"?"до потвърдената точка на картата":""};
 const qLine=(l,d)=>l.code==="rent"?["Цена",`${d.days} × ${fmt(l.unitCents/100)} / ден`]:l.code==="seats"?["Детско столче",`${l.qty/d.days>1?l.qty/d.days+" × ":""}${d.days} × ${fmt(l.unitCents/100)}`]
-:l.code==="delivery"||l.code==="return"?[l.code==="delivery"?"Доставка":"Връщане от адрес",`${poiOf(d,l)?poiOf(d,l)+" · ":""}${String(l.km).replace(".",",")} км × ${rateTxt(l.rate)}`]:l.code==="abroad"?[(ABROAD.find(([k])=>k===l.country)||[,l.country])[1],"Пътуване в чужбина · еднократна такса"]:[l.code,""];
+:l.code==="delivery"||l.code==="return"?[l.code==="delivery"?"Доставка":"Връщане от адрес",`${poiOf(d,l)?poiOf(d,l)+" · ":""}${String(l.km).replace(".",",")} км × ${rateTxt(l.rate)}`]:l.code==="abroad"?[(ABROAD.find(([k])=>k===l.country)||[,l.country])[1],"Пътуване в чужбина · еднократна такса"]
+:l.code==="chains"?["Вериги за сняг",`${d.days} × ${fmt(l.unitCents/100)} / ден`]:l.code==="second_driver"?["Втори допълнителен водач",`${d.days} × ${fmt(l.unitCents/100)} / ден`]:l.code==="discount"?["Отстъпка RENTY10","10% от наема"]:[l.code,""];
 // ===== Компоненти =====
 const whyCard=([i,t,p,hl])=>`<article class="card rv ${hl?"hl":""}"><div class="ico"><svg width="24" height="24" aria-hidden="true"><use href="#${i}"/></svg></div><h3>${t}</h3><p>${p}</p></article>`;
 const carCard=c=>{const[a,b,d]=c.tiers,alt=`${c.color?c.color+" ":""}${c.name} под наем в Пловдив`,q=hasD()?quote(c,S):null,sel=S.car===c.id,na=q&&q.err==="busy";
@@ -1757,7 +1882,12 @@ function showFaq(){$("#faq").hidden=false}
 $("#fct").addEventListener("click",function(){const o=this.getAttribute("aria-expanded")!=="true";this.setAttribute("aria-expanded",o);$("#fct-list").hidden=!o});
 $$("[data-faq]").forEach(a=>a.addEventListener("click",()=>{showFaq();if(location.hash==="#faq")$("#faq").scrollIntoView()}));
 // ===== Форма с данни (началната страница) =====
-const fields={name:"#b-name",cit:"#b-cit",phone:"#b-phone",mail:"#b-mail",idn:"#b-idn",egn:"#b-egn",idd:"#b-idd",idp:"#b-idp",reg:"#b-reg",mun:"#b-mun",city:"#b-city",addr:"#b-addr",dln:"#b-dln",dlname:"#b-dlname",dld:"#b-dld",dlp:"#b-dlp",note:"#b-note",icn:"#b-icn",ieik:"#b-ieik",ivat:"#b-ivat",imol:"#b-imol",iaddr:"#b-iaddr",pname:"#b-pname",pegn:"#b-pegn",paddr:"#b-paddr"};
+// Calling codes from libphonenumber metadata (MIT); country labels use Intl.DisplayNames.
+const PHONE_COUNTRIES=[["AC","247"],["AD","376"],["AE","971"],["AF","93"],["AG","1"],["AI","1"],["AL","355"],["AM","374"],["AO","244"],["AR","54"],["AS","1"],["AT","43"],["AU","61"],["AW","297"],["AX","358"],["AZ","994"],["BA","387"],["BB","1"],["BD","880"],["BE","32"],["BF","226"],["BG","359"],["BH","973"],["BI","257"],["BJ","229"],["BL","590"],["BM","1"],["BN","673"],["BO","591"],["BQ","599"],["BR","55"],["BS","1"],["BT","975"],["BW","267"],["BY","375"],["BZ","501"],["CA","1"],["CC","61"],["CD","243"],["CF","236"],["CG","242"],["CH","41"],["CI","225"],["CK","682"],["CL","56"],["CM","237"],["CN","86"],["CO","57"],["CR","506"],["CU","53"],["CV","238"],["CW","599"],["CX","61"],["CY","357"],["CZ","420"],["DE","49"],["DJ","253"],["DK","45"],["DM","1"],["DO","1"],["DZ","213"],["EC","593"],["EE","372"],["EG","20"],["EH","212"],["ER","291"],["ES","34"],["ET","251"],["FI","358"],["FJ","679"],["FK","500"],["FM","691"],["FO","298"],["FR","33"],["GA","241"],["GB","44"],["GD","1"],["GE","995"],["GF","594"],["GG","44"],["GH","233"],["GI","350"],["GL","299"],["GM","220"],["GN","224"],["GP","590"],["GQ","240"],["GR","30"],["GT","502"],["GU","1"],["GW","245"],["GY","592"],["HK","852"],["HN","504"],["HR","385"],["HT","509"],["HU","36"],["ID","62"],["IE","353"],["IL","972"],["IM","44"],["IN","91"],["IO","246"],["IQ","964"],["IR","98"],["IS","354"],["IT","39"],["JE","44"],["JM","1"],["JO","962"],["JP","81"],["KE","254"],["KG","996"],["KH","855"],["KI","686"],["KM","269"],["KN","1"],["KP","850"],["KR","82"],["KW","965"],["KY","1"],["KZ","7"],["LA","856"],["LB","961"],["LC","1"],["LI","423"],["LK","94"],["LR","231"],["LS","266"],["LT","370"],["LU","352"],["LV","371"],["LY","218"],["MA","212"],["MC","377"],["MD","373"],["ME","382"],["MF","590"],["MG","261"],["MH","692"],["MK","389"],["ML","223"],["MM","95"],["MN","976"],["MO","853"],["MP","1"],["MQ","596"],["MR","222"],["MS","1"],["MT","356"],["MU","230"],["MV","960"],["MW","265"],["MX","52"],["MY","60"],["MZ","258"],["NA","264"],["NC","687"],["NE","227"],["NF","672"],["NG","234"],["NI","505"],["NL","31"],["NO","47"],["NP","977"],["NR","674"],["NU","683"],["NZ","64"],["OM","968"],["PA","507"],["PE","51"],["PF","689"],["PG","675"],["PH","63"],["PK","92"],["PL","48"],["PM","508"],["PR","1"],["PS","970"],["PT","351"],["PW","680"],["PY","595"],["QA","974"],["RE","262"],["RO","40"],["RS","381"],["RU","7"],["RW","250"],["SA","966"],["SB","677"],["SC","248"],["SD","249"],["SE","46"],["SG","65"],["SH","290"],["SI","386"],["SJ","47"],["SK","421"],["SL","232"],["SM","378"],["SN","221"],["SO","252"],["SR","597"],["SS","211"],["ST","239"],["SV","503"],["SX","1"],["SY","963"],["SZ","268"],["TA","290"],["TC","1"],["TD","235"],["TG","228"],["TH","66"],["TJ","992"],["TK","690"],["TL","670"],["TM","993"],["TN","216"],["TO","676"],["TR","90"],["TT","1"],["TV","688"],["TW","886"],["TZ","255"],["UA","380"],["UG","256"],["US","1"],["UY","598"],["UZ","998"],["VA","39"],["VC","1"],["VE","58"],["VG","1"],["VI","1"],["VN","84"],["VU","678"],["WF","681"],["WS","685"],["XK","383"],["YE","967"],["YT","262"],["ZA","27"],["ZM","260"],["ZW","263"]];
+const fields={first:"#b-first",middle:"#b-middle",last:"#b-last",mailConfirm:"#b-mail-confirm",phoneLocal:"#b-phone-local",phoneCountry:"#b-phone-country",bday:"#b-bday",bmonth:"#b-bmonth",byear:"#b-byear",dfirst:"#b-dfirst",dmiddle:"#b-dmiddle",dlast:"#b-dlast",sfirst:"#b-sfirst",smiddle:"#b-smiddle",slast:"#b-slast",icountry:"#b-icountry",name:"#b-name",cit:"#b-cit",phone:"#b-phone",mail:"#b-mail",idn:"#b-idn",egn:"#b-egn",idd:"#b-idd",idp:"#b-idp",reg:"#b-reg",mun:"#b-mun",city:"#b-city",addr:"#b-addr",dln:"#b-dln",dlname:"#b-dlname",dld:"#b-dld",dlp:"#b-dlp",note:"#b-note",icn:"#b-icn",ieik:"#b-ieik",ivat:"#b-ivat",imol:"#b-imol",iaddr:"#b-iaddr",pname:"#b-pname",pegn:"#b-pegn",paddr:"#b-paddr"};
+const DAYS=Array.from({length:31},(_,i)=>i+1),YEARS=Array.from({length:new Date().getFullYear()-1899},(_,i)=>new Date().getFullYear()-i);
+for(const[id,values,label]of [["b-bday",DAYS,"Ден"],["b-bmonth",DAYS.slice(0,12),"Месец"],["b-byear",YEARS,"Година"]])$("#"+id).innerHTML='<option value="">'+tr(label)+'</option>'+values.map(v=>`<option value="${v}">${id==="b-bmonth"?new Intl.DateTimeFormat(LANG,{month:"long"}).format(new Date(2000,v-1,1)):v}</option>`).join("");
+const countryNames=new Intl.DisplayNames([LANG],{type:"region"});$("#b-phone-country").innerHTML=PHONE_COUNTRIES.map(([iso,code])=>`<option value="${iso}" data-code="${code}">${esc(countryNames.of(iso))} (+${code})</option>`).join("");$("#b-phone-country").value="BG";
 Object.entries(fields).forEach(([k,s])=>{if(S[k])$(s).value=S[k]});
 if(S.idt==="pass")document.querySelector("input[name=idt][value=pass]").checked=true;
 const idt=()=>document.querySelector("input[name=idt]:checked").value;
@@ -1781,12 +1911,28 @@ $("#b-cit").addEventListener("input",syncAdm);$$("input[name=idt]").forEach(e=>e
 // Начин на плащане: bankp – по банков път, физическо лице; bank – по банков път, фирма; cash – в брой на място с касов бон
 const PAY={bankp:"По банков път – физическо лице (фактура)",bank:"По банков път – фирма (фактура)",cash:"В брой на място с касов бон"};
 if(PAY[S.pay])document.querySelector(`input[name=pay][value=${S.pay}]`).checked=true;
-const pay=()=>{const e=document.querySelector("input[name=pay]:checked");return e?e.value:""};
-const syncPay=()=>{$("#inv").hidden=pay()!=="bank";$("#invp").hidden=pay()!=="bankp"};syncPay();
+const pay=()=>{const e=document.querySelector(FLOW2?"input[name=pay2]:checked":"input[name=pay]:checked");return e?(FLOW2&&e.value==="bankp"&&$("#b-company").checked?"bank":e.value):""};
+if(FLOW2){if(S.pay){const e=document.querySelector(`input[name=pay2][value=${S.pay==="cash"?"cash":"bankp"}]`);if(e)e.checked=true}$("#b-company").checked=!!S.company;$("#b-no-vat").checked=!!S.noVat}
+const syncPay=()=>{$("#inv").hidden=pay()!=="bank";$("#invp").hidden=FLOW2||pay()!=="bankp";$("#company-choice").hidden=!FLOW2||pay()==="cash"||!pay();if(FLOW2){$("#b-ivat").disabled=$("#b-no-vat").checked;if($("#b-no-vat").checked)$("#b-ivat").value=""}};syncPay();
+$$("input[name=pay2],#b-company,#b-no-vat").forEach(e=>e.addEventListener("change",syncPay));
 $$("input[name=pay]").forEach(e=>e.addEventListener("change",syncPay));
-const invText=R=>R.pay==="bank"?[`Фирма: ${R.icn||"-"}`,`ЕИК / Булстат: ${R.ieik||"-"}`,R.ivat?`ДДС номер: ${R.ivat}`:"",R.imol?`МОЛ: ${R.imol}`:"",`Адрес: ${R.iaddr||"-"}`].filter(Boolean).join("\n")
+const invText=R=>FLOW2?(R.pay==="bank"?[`Фирма: ${R.icn}`,`ЕИК / регистрационен номер: ${R.ieik}`,R.noVat?"Фирмата не е регистрирана по ДДС":`ДДС номер: ${R.ivat}`,`Държава: ${R.icountry}`,`Адрес: ${R.iaddr}`].join("\n"):""):R.pay==="bank"?[`Фирма: ${R.icn||"-"}`,`ЕИК / Булстат: ${R.ieik||"-"}`,R.ivat?`ДДС номер: ${R.ivat}`:"",R.imol?`МОЛ: ${R.imol}`:"",`Адрес: ${R.iaddr||"-"}`].filter(Boolean).join("\n")
 :R.pay==="bankp"?["Физическо лице",`Имена: ${R.pname||R.name||"-"}`,`ЕГН: ${R.pegn||R.egn||"-"}`,`Адрес: ${R.paddr||docAddr(R)||"-"}`].join("\n"):"";
 // Имената в шофьорската книжка се попълват от личната карта, докато клиентът не ги промени ръчно
+
+function birthDate(){const parts=[$("#b-byear").value,$("#b-bmonth").value,$("#b-bday").value];return parts.every(Boolean)?parts.map((v,i)=>i?String(v).padStart(2,"0"):v).join("-"):""}
+function shortSync(){if(!FLOW2)return;$("#b-name").value=[$("#b-first").value,$("#b-middle").value,$("#b-last").value].map(v=>v.trim()).filter(Boolean).join(" ");
+const option=$("#b-phone-country").selectedOptions[0],digits=$("#b-phone-local").value.replace(/\D/g,"");$("#b-phone").value="+"+(option?.dataset.code||"359")+digits.replace(/^0/,"");
+const mismatch=!!$("#b-mail-confirm").value&&$("#b-mail-confirm").value.trim().toLowerCase()!==$("#b-mail").value.trim().toLowerCase();$("#b-mail-confirm").setAttribute("aria-invalid",String(mismatch));$("#b-mail-confirm").style.borderColor=mismatch?"#c0392b":"";$("#email-match").textContent=mismatch?tr("Имейлите не съвпадат."):"";
+$("#main-driver-names").hidden=document.querySelector("input[name=rdrv]:checked")?.value!=="0";$("#second-driver-names").hidden=!$("#b-sd").checked;
+}
+function shortFormError(){shortSync();const nm=prefix=>["first","middle","last"].every(k=>/^[\p{L}\p{M}][\p{L}\p{M} .’'\-]{0,79}$/u.test($("#b-"+prefix+k).value.trim()));
+if(!nm(""))return tr("Попълнете име, презиме и фамилия.");const dob=birthDate(),d=new Date(dob+"T12:00:00Z");if(!dob||!Number.isFinite(+d)||d.toISOString().slice(0,10)!==dob||dob<"1900-01-01"||dob>=new Date().toISOString().slice(0,10))return tr("Въведете валидна дата на раждане.");
+if(!$("#b-mail-confirm").value||$("#b-mail-confirm").value.trim().toLowerCase()!==$("#b-mail").value.trim().toLowerCase())return tr("Имейлите не съвпадат.");if(!/^\+[1-9]\d{7,14}$/.test($("#b-phone").value))return tr("Моля, въведете валиден телефон.");
+if(document.querySelector("input[name=rdrv]:checked")?.value==="0"&&!nm("d"))return tr("Попълнете трите имена на основния водач.");if($("#b-sd").checked&&!nm("s"))return tr("Попълнете трите имена на втория водач.");
+if(pay()==="bank"&&(!$("#b-icountry").value.trim()||(!$("#b-no-vat").checked&&!$("#b-ivat").value.trim())))return tr("Попълнете държавата и ДДС номера или отбележете, че фирмата не е регистрирана по ДДС.");return ""}
+if(FLOW2){["input","change"].forEach(t=>document.addEventListener(t,e=>{if(e.target.closest("#bk")||e.target.id==="b-sd")shortSync()}));shortSync()}
+
 let dlPrev=$("#b-name").value.trim();
 $("#b-name").addEventListener("input",()=>{const d=$("#b-dlname"),n=$("#b-name").value.trim();if(!d.value.trim()||d.value.trim()===dlPrev)d.value=n;dlPrev=n});
 function fail(t){const e=$("#b-err");e.textContent=t;e.hidden=false;e.scrollIntoView({behavior:"smooth",block:"center"})}
@@ -1833,7 +1979,7 @@ const BOOKINGS_ENDPOINT="/api/bookings";
 let newBid="";
 async function sendBooking(links){const R=S,c=CARS.find(x=>x.id===R.car),q=c&&hasD()?quote(c,R):null,place=(n,a)=>R["m"+n]==="addr"?a+" "+R["a"+n]:BASE;
 S.berr="";if(!S.rk){S.rk=crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2);store.set(S)}try{const r=await fetch(BOOKINGS_ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({requestKey:S.rk,name:R.name,email:R.mail,phone:R.phone,lang:LANG,car:c?c.name:"",carId:c?c.id:"",startDate:R.d1,endDate:R.d2,startTime:R.t1||"",endTime:R.t2||"",payment:R.pay,invoice:invText(R),
-pickup:bf(R.d1,R.t1)+", "+place(1,"доставка до"),dropoff:bf(R.d2,R.t2)+", "+place(2,"вземане от"),quote:Q.d.quote,quoteTotalCents:Q.d.totalCents,pins:{del:pinRef(R,1),ret:pinRef(R,2)},
+pickup:bf(R.d1,R.t1)+", "+place(1,"доставка до"),dropoff:bf(R.d2,R.t2)+", "+place(2,"вземане от"),quote:Q.d.quote,quoteTotalCents:Q.d.totalCents,pins:{del:pinRef(R,1),ret:pinRef(R,2)},...(FLOW2?{flow:2,customerComment:R.note||"",requester:{first:R.first,middle:R.middle,last:R.last,birthDate:birthDate(),phoneCountry:R.phoneCountry,citizen:R.cit},emailConfirmation:R.mailConfirm,termsAccepted:$("#b-ok").checked,invoiceData:{name:R.icn,registration:R.ieik,vat:R.ivat,notVatRegistered:R.noVat,country:R.icountry,address:R.iaddr},drivers:{requesterDrives:R.rdrv!==false,main:{first:R.dfirst,middle:R.dmiddle,last:R.dlast},second:{first:R.sfirst,middle:R.smiddle,last:R.slast}},marketingConsent:!!R.mkt,...(R.chains||R.sd?{extras:{chains:!!R.chains,secondDriver:!!R.sd}}:{})}:{}),
 attribution:window.adAttribution?window.adAttribution():null,message:buildText()+(Object.keys(links).length?"\n\nСНИМКИ НА ДОКУМЕНТИТЕ\n"+Object.entries(links).map(([l,u])=>l+": "+u).join("\n"):""),contract:contractData(R,q)})});
 const j=await r.json().catch(()=>({}));if(r.status===409&&/^(quote_|price_changed)/.test(j.error||""))return"requote";if(r.status===409)return"busy";if(r.status===400&&j.error==="hours")return"hours";if(r.status===400&&j.error==="address")return"address";if(!r.ok||!j.id){S.berr=j.detail||j.error||("HTTP "+r.status);return false}S.bid=j.id;S.btok=j.token;S.bst=j.status;S.bnote="";S.rk="";newBid=j.duplicate?"":j.id;return j.notify==="failed"?"unnotified":true}catch(e){S.berr="Няма връзка със сървъра";return false}}
 // Данни за автоматичното попълване на договора за наем (изпраща се до фирмата като прикачен файл)
@@ -1912,7 +2058,7 @@ document.addEventListener("visibilitychange",()=>{if(document.hidden)camClose()}
 async function uploadPhotos(){const out={};for(const[id,l]of Object.entries(PHOTOS)){const r=await fetch(DOCS_ENDPOINT,{method:"POST",headers:{"Content-Type":"image/jpeg"},body:PH[id]});const j=await r.json().catch(()=>({}));if(!r.ok||!j.url)throw 0;out[l]=j.url}return out}
 // Проверка на задължителните полета (без „Допълнително“). Докато има липси, бутонът за изпращане е неактивен.
 const v=i=>$(i).value.trim();
-function formErr(){const c=CARS.find(x=>x.id===S.car),q=c&&hasD()?quote(c,S):null;if(!c)return("Моля, изберете автомобил.");const pe=planErr();if(pe)return(pe);if(!q||q.err)return("Автомобилът не е наличен за избрания период. Изберете друг автомобил или променете датите.");if(!v("#b-name"))return("Моля, въведете име.");if(!v("#b-cit"))return("Моля, попълнете гражданство.");if(v("#b-phone").replace(/\D/g,"").length<9)return("Моля, въведете валиден телефон.");if(!/^\S+@\S+\.\S+$/.test(v("#b-mail")))return("Моля, въведете валиден имейл.");if(!v("#b-idn"))return("Моля, попълнете номера на документа за самоличност.");if(idt()==="id"&&!v("#b-egn"))return("Моля, попълнете ЕГН.");if(!v("#b-idd"))return("Моля, попълнете датата на издаване на документа за самоличност.");if(!v("#b-idp"))return("Моля, попълнете от кого е издаден документът за самоличност.");if(!ptype())return("Моля, изберете дали населеното място е град или село.");if(!v("#b-city")||!v("#b-addr"))return("Моля, попълнете населеното място и адреса.");if(admReq(v("#b-cit"),idt())&&(!v("#b-reg")||!v("#b-mun")))return("Моля, попълнете областта и общината по документа.");if(!PH["p-idf"]||!PH["p-idb"])return("Моля, приложете снимки на документа за самоличност от двете страни.");if(!v("#b-dln"))return("Моля, попълнете номера на шофьорската книжка.");if(!v("#b-dlname"))return("Моля, попълнете имената от шофьорската книжка.");if(!v("#b-dld"))return("Моля, попълнете датата на издаване на шофьорската книжка.");if(!v("#b-dlp"))return("Моля, попълнете от кого е издадена шофьорската книжка.");if(!PH["p-dlf"]||!PH["p-dlb"])return("Моля, приложете снимки на шофьорската книжка от двете страни.");if(!pay())return("Моля, изберете начин на плащане.");if(pay()==="bank"&&(!v("#b-icn")||!v("#b-ieik")||!v("#b-iaddr")))return("Моля, попълнете име на фирмата, ЕИК и адрес за фактурата.");if(!$("#b-ok").checked)return("Моля, потвърдете, че сте запознат с Общите условия и информацията за защита на личните данни.");if(!qOk())return Q.st==="err"&&Q.key===qKey(S)?qErrText():"Изчакайте изчисляването на цената.";return""}
+function formErr(){if(FLOW2){const e=shortFormError();if(e)return e;}const c=CARS.find(x=>x.id===S.car),q=c&&hasD()?quote(c,S):null;if(!c)return("Моля, изберете автомобил.");const pe=planErr();if(pe)return(pe);if(!q||q.err)return("Автомобилът не е наличен за избрания период. Изберете друг автомобил или променете датите.");if(!v("#b-name"))return("Моля, въведете име.");if(!v("#b-cit"))return("Моля, попълнете гражданство.");if(v("#b-phone").replace(/\D/g,"").length<9)return("Моля, въведете валиден телефон.");if(!/^\S+@\S+\.\S+$/.test(v("#b-mail")))return("Моля, въведете валиден имейл.");if(!FLOW2){if(!v("#b-idn"))return("Моля, попълнете номера на документа за самоличност.");if(idt()==="id"&&!v("#b-egn"))return("Моля, попълнете ЕГН.");if(!v("#b-idd"))return("Моля, попълнете датата на издаване на документа за самоличност.");if(!v("#b-idp"))return("Моля, попълнете от кого е издаден документът за самоличност.");if(!ptype())return("Моля, изберете дали населеното място е град или село.");if(!v("#b-city")||!v("#b-addr"))return("Моля, попълнете населеното място и адреса.");if(admReq(v("#b-cit"),idt())&&(!v("#b-reg")||!v("#b-mun")))return("Моля, попълнете областта и общината по документа.");if(!PH["p-idf"]||!PH["p-idb"])return("Моля, приложете снимки на документа за самоличност от двете страни.");if(!v("#b-dln"))return("Моля, попълнете номера на шофьорската книжка.");if(!v("#b-dlname"))return("Моля, попълнете имената от шофьорската книжка.");if(!v("#b-dld"))return("Моля, попълнете датата на издаване на шофьорската книжка.");if(!v("#b-dlp"))return("Моля, попълнете от кого е издадена шофьорската книжка.");if(!PH["p-dlf"]||!PH["p-dlb"])return("Моля, приложете снимки на шофьорската книжка от двете страни.");}if(!pay())return("Моля, изберете начин на плащане.");if(pay()==="bank"&&(!v("#b-icn")||!v("#b-ieik")||!v("#b-iaddr")))return("Моля, попълнете име на фирмата, ЕИК и адрес за фактурата.");if(!$("#b-ok").checked)return("Моля, потвърдете, че сте запознат с Общите условия и информацията за защита на личните данни.");if(!qOk())return Q.st==="err"&&Q.key===qKey(S)?qErrText():"Изчакайте изчисляването на цената.";return""}
 let sending=false;
 function syncSubmit(){if(sending)return;const er=formErr(),n=$("#b-need"),b=$("#bk button[type=submit]"),qe=!!er&&!qOk()&&(er===qErrText()||er.startsWith("Изчакайте"));
 b.disabled=!!er;b.textContent=Q.changed&&qOk()?"Потвърждавам новата цена и изпращам":"Изпрати резервацията";
@@ -1920,13 +2066,13 @@ n.innerHTML=!er?"":!qe?"За да изпратите резервацията, �
 ["input","change"].forEach(t=>$("#bk").addEventListener(t,()=>setTimeout(syncSubmit)));
 $("#bk").addEventListener("submit",async e=>{e.preventDefault();$("#b-err").hidden=true;
 tidyAdm();const er=formErr();if(er)return fail(er);
-S=Object.assign(S,Object.fromEntries(Object.entries(fields).map(([k,s])=>[k,v(s)])),{idt:idt(),ptype:ptype(),pay:pay(),done:"",bid:"",btok:"",bst:"",bnote:""});store.set(S);
+S=Object.assign(S,Object.fromEntries(Object.entries(fields).map(([k,s])=>[k,v(s)])),{idt:idt(),ptype:ptype(),pay:pay(),company:$("#b-company").checked,noVat:$("#b-no-vat").checked,rdrv:(document.querySelector("input[name=rdrv]:checked")||{}).value!=="0",mkt:$("#b-mkt").checked,done:"",bid:"",btok:"",bst:"",bnote:"",view:null});store.set(S);
 if(BOOKING_ENDPOINT){const b=$("#bk button[type=submit]"),m=$("#b-msg");sending=b.disabled=true;m.textContent="Изпращаме резервацията…";
 // Сумата е от сървърната оферта. Преди изпращането офертата се подновява, ако изтича; ако сървърът я откаже, се изчислява нова:
 // при същата сума резервацията се изпраща автоматично, при различна – новата сума се показва и се иска ново потвърждение.
 const was=Q.changed;Q.changed=null;
 let r="err";newBid="";try{if(!qOk()||Date.parse(Q.d.expiresAt)-Date.now()<12e4){const x=await requote();if(x!=="same")r="q-"+x}
-if(r==="err"){const links=await uploadPhotos();let sb=await sendBooking(links);
+if(r==="err"){const links=FLOW2?{}:await uploadPhotos();let sb=await sendBooking(links);
 if(sb==="requote"){const x=await requote();sb=x==="same"?await sendBooking(links):"q-"+x;if(sb==="requote")sb="q-err"}
 r=/^q-/.test(sb)?sb:sb==="busy"||sb==="hours"||sb==="address"?sb:sb===true?"sent":sb?(await sendAlert(),"sent"):await sendReq(links)}}catch(x){}
 if(r==="err"&&was&&!Q.changed)Q.changed=was;
@@ -1942,10 +2088,10 @@ const syncHours=()=>[1,2].forEach(n=>{const h=hoursOf($("#b-d"+n).value),t=$("#b
 const hoursErr=()=>S.d1&&S.t1&&!inHours(S.d1,S.t1)?"Часът на получаване трябва да е в работното време: пн–пт 08:00–20:00, сб–нд 09:00–19:00.":S.d2&&S.t2&&!inHours(S.d2,S.t2)?"Часът на връщане трябва да е в работното време: пн–пт 08:00–20:00, сб–нд 09:00–19:00.":"";
 const sync=()=>{syncHours();$("#a1").hidden=mode(1)!=="addr";$("#a2").hidden=mode(2)!=="addr";$("#abr-list").hidden=!$("#b-abr").checked;$("#seat-n").hidden=!$("#b-seat").checked;$("#b-seat-count").value=String(seatN(S))};
 $("#ctry-grid").innerHTML=ABROAD.map(([k,n,f])=>`<label class="opt"><input type="checkbox" value="${k}"><img src="https://flagcdn.com/w80/${k}.png" alt="" width="30" height="20" loading="lazy"><span class="cn">${n}<small>еднократна такса</small></span><b>${fmt(f)}</b></label>`).join("");
-function readPlan(){S.d1=$("#b-d1").value;S.t1=$("#b-t1").value;S.d2=$("#b-d2").value;S.t2=$("#b-t2").value;S.m1=mode(1);S.a1=addr(1);S.m2=mode(2);S.a2=addr(2);S.seat=$("#b-seat").checked;S.seatN=+($("input[name=seatn]:checked")||{}).value||1;S.abr=$("#b-abr").checked;S.ctry=$$("#ctry-grid input:checked").map(e=>e.value);store.set(S)}
+function readPlan(){S.d1=$("#b-d1").value;S.t1=$("#b-t1").value;S.d2=$("#b-d2").value;S.t2=$("#b-t2").value;S.m1=mode(1);S.a1=addr(1);S.m2=mode(2);S.a2=addr(2);S.seat=$("#b-seat").checked;S.seatN=+($("input[name=seatn]:checked")||{}).value||1;S.abr=$("#b-abr").checked;S.ctry=$$("#ctry-grid input:checked").map(e=>e.value);S.chains=FLOW2&&$("#b-chains").checked;S.sd=FLOW2&&$("#b-sd").checked;store.set(S)}
 function writePlan(){$("#b-d1").value=S.d1||"";$("#b-d2").value=S.d2||"";$("#b-t1").value=S.t1||"12:00";$("#b-t2").value=S.t2||"12:00";
 document.querySelector(`input[name=m1][value=${S.m1==="addr"?"addr":"store"}]`).checked=true;document.querySelector(`input[name=m2][value=${S.m2==="addr"?"addr":"store"}]`).checked=true;
-$("#b-a1").value=S.a1||"";$("#b-a2").value=S.a2||"";$("#b-seat").checked=!!S.seat;$$("input[name=seatn]").forEach(e=>e.checked=+e.value===(+S.seatN===2?2:1));$("#b-abr").checked=!!S.abr;$$("#ctry-grid input").forEach(e=>e.checked=(S.ctry||[]).includes(e.value));sync()}
+$("#b-a1").value=S.a1||"";$("#b-a2").value=S.a2||"";$("#b-chains").checked=!!S.chains;$("#b-sd").checked=!!S.sd;$("#b-seat").checked=!!S.seat;$$("input[name=seatn]").forEach(e=>e.checked=+e.value===(+S.seatN===2?2:1));$("#b-abr").checked=!!S.abr;$$("#ctry-grid input").forEach(e=>e.checked=(S.ctry||[]).includes(e.value));sync()}
 // Пазим позицията на екрана: картите с автомобили над календара сменят височината си при нови дати и иначе избутват страницата
 function keepView(fn){const a=$("#cal"),r=a&&!a.hidden?a.getBoundingClientRect():null,on=r&&r.bottom>0&&r.top<innerHeight;fn();
 if(on){const d=a.getBoundingClientRect().top-r.top;if(d)window.scrollBy({top:d,behavior:"instant"})}}
@@ -1959,7 +2105,7 @@ $$("input[name=seatn]").forEach(e=>e.addEventListener("change",()=>planChanged()
 $("#b-seat-count").addEventListener("change",()=>{const count=+$("#b-seat-count").value;$("#b-seat").checked=count>0;$$("input[name=seatn]").forEach(e=>e.checked=+e.value===(count||1));planChanged()});
 $$("#ctry-grid input").forEach(e=>e.addEventListener("change",()=>planChanged()));
 $$("input[name=m1]").forEach(e=>e.addEventListener("change",()=>planChanged(1)));$$("input[name=m2]").forEach(e=>e.addEventListener("change",()=>planChanged(2)));
-pinPanels();$("#b-a1").addEventListener("input",()=>{S.a1=addr(1);planChanged(1)});$("#b-a2").addEventListener("input",()=>{S.a2=addr(2);planChanged(2)});
+pinPanels();["#b-chains","#b-sd"].forEach(x=>$(x).addEventListener("change",()=>planChanged(0)));$("#b-a1").addEventListener("input",()=>{S.a1=addr(1);planChanged(1)});$("#b-a2").addEventListener("input",()=>{S.a2=addr(2);planChanged(2)});
 function planErr(){if(!S.d1||!S.t1)return"Моля, изберете дата и час на получаване.";if(!S.d2||!S.t2)return"Моля, изберете дата и час на връщане.";if(span(S.d1,S.t1,S.d2,S.t2)<0)return"Датата на връщане трябва да е след датата на получаване.";{const he=hoursErr();if(he)return he}if(S.m1==="addr"&&(S.a1||"").length<5)return"Моля, въведете адрес за доставка.";if(S.m2==="addr"&&(S.a2||"").length<5)return"Моля, въведете адрес за връщане.";return""}
 function renderCars(){const p=+$("#f-price").value||1e9,t=$("#f-type").value,f=$("#f-fuel").value,g=$("#f-gear").value;
 const l=CARS.filter(c=>c.tiers[0]<=p&&(!t||c.body===t)&&(!f||c.fuel===f)&&(!g||c.gear===g));
@@ -2039,7 +2185,55 @@ if(er){m.textContent=er;m.style.color="#ffb4ab";$("#plan").scrollIntoView({behav
 // Без валидна сървърна оферта не се продължава (бутонът е неактивен; проверка и тук)
 if(!qOk()){m.textContent=Q.st==="err"&&Q.key===qKey(S)?qErrText():"Изчакайте изчисляването на цената.";m.style.color="#ffb4ab";return}
 m.textContent="";$("#details").scrollIntoView({behavior:"smooth",block:"start"})}});
-function renderThanks(){const R=S,c=CARS.find(x=>x.id===R.car),st0=R.bid?R.bst:"",off=st0==="cancelled"||st0==="no_show",st=off?"rejected":st0;
+function renderThanks(){renderThanks0();const V=S.view;$("#th-docs").hidden=true;if(!V||!V.stage)return;
+const st=S.bst,stg=V.stage,set=(h,sub,step)=>{$("#th-h").textContent=h;$("#th-sub").textContent=sub;$("#th-step").textContent=step};
+if(st==="pending"&&stg==="request")set("Заявката е получена","Проверяваме наличността на автомобила. След одобрение ще получите имейл с линк към тази страница, за да подадете документите на водача.","Одобрение от нас");
+else if(st==="pending"&&stg==="docs"){set("Заявката е одобрена – подайте документите","Попълнете данните и приложете снимки на документите на водача. След проверката ще получите окончателно потвърждение.","Документи");renderDocs(V)}
+else if(st==="pending"&&stg==="review")set("Получени документи — очакват проверка","Благодарим! Проверяваме документите и ще ви изпратим окончателно потвърждение по имейл.","Проверка на документите");
+const c=CARS.find(x=>x.id===V.carId),row=(k,v)=>v?`<div><span>${esc(k)}</span><b>${esc(v)}</b></div>`:"";
+$("#th-sum").innerHTML=`<h2>Вашата резервация</h2><div class="kv">${row("Заявител",V.name)}${row("Телефон",V.phone)}${row("Автомобил",c?c.name:V.car)}${row("Получаване",V.pickup)}${row("Връщане",V.dropoff)}${row("Общо за услугите",V.total)}${PAY[V.payment]?row("Плащане",PAY[V.payment]):""}${V.drivers?row("Водачи",V.drivers.count===2?"2 (основен и допълнителен)":"1"):""}</div>`}
+// ===== Документи на водачите (етап „docs“): данни, снимки, RENTY10 → POST /api/bookings/:id/documents =====
+// Плащането, столчетата и коментарът не се попълват отново – те са от заявката.
+const DOCS={busy:false,ph:{},n:0};
+const DPH={idf:"Лична карта / паспорт – лицева страна",idb:"Лична карта / паспорт – гръб",dlf:"Шофьорска книжка – лицева страна",dlb:"Шофьорска книжка – гръб"};
+function couponMarkup(V){return V.coupon?.available?`<div><label for="d-coupon">Код за отстъпка (по избор)</label><input id="d-coupon" autocomplete="off" placeholder="RENTY10"><button type="button" data-apply-coupon>Въведи кода</button><small class="hint" id="coupon-message">${tr("Кодът намалява само наема с 10% и важи до")} ${esc(new Date(V.coupon.until).toLocaleString(LANG,{timeZone:"Europe/Sofia",dateStyle:"short",timeStyle:"short"}))}.</small></div>`:""}
+function renderDocs(V){const box=$("#th-docs"),n=V.drivers?V.drivers.count:1;box.hidden=false;if(DOCS.n===n&&box.querySelector("form")){const cp=box.querySelector("#docs-coupon-box"),key=JSON.stringify(V.coupon);if(cp&&cp.dataset.key!==key){cp.innerHTML=couponMarkup(V);cp.dataset.key=key}return}DOCS.n=n;DOCS.ph={};
+const f=(i,k,l,o="")=>`<div><label for="d${i}-${k}">${l}</label><input id="d${i}-${k}" ${o}></div>`;
+const drv=i=>`<fieldset class="fbox"><legend>${i?"Водач 2 – допълнителен водач":"Водач 1 – основен водач (наемател)"}</legend>
+${f(i,"name","Имена (както са в документа)",V.drivers?.names?.[i]?`value="${esc(V.drivers.names[i])}"`:i===0&&V.drivers?.requesterDrives?`value="${esc(V.name||"")}"`:"")}${f(i,"citizen","Гражданство",'value="България"')}
+<div class="seg" role="radiogroup" aria-label="Вид документ"><label class="opt"><input type="radio" name="d${i}-idt" value="id" checked><span>Лична карта</span></label><label class="opt"><input type="radio" name="d${i}-idt" value="pass"><span>Паспорт</span></label></div>
+<div class="row">${f(i,"idn","Номер на документа")}${f(i,"egn","ЕГН (за лична карта)",'inputmode="numeric"')}</div>
+<div class="row">${f(i,"idd","Дата на издаване",'type="date"')}${f(i,"idp","Издаден от","placeholder=\"напр. МВР Пловдив\"")}</div>
+<div class="row">${f(i,"region","Област")}${f(i,"municipality","Община")}</div>
+<div class="seg" role="radiogroup" aria-label="Населено място"><label class="opt"><input type="radio" name="d${i}-pt" value="city"><span>Град</span></label><label class="opt"><input type="radio" name="d${i}-pt" value="village"><span>Село</span></label></div>
+<div class="row">${f(i,"city","Населено място")}${f(i,"addr","Адрес по документа")}</div>
+<div class="row">${f(i,"dln","Номер на шофьорската книжка")}${f(i,"dld","Дата на издаване на книжката",'type="date"')}</div>${f(i,"dlp","Книжката е издадена от")}
+<div class="row">${Object.entries(DPH).map(([k,l])=>`<div><label for="d${i}-p${k}">${l}</label><input id="d${i}-p${k}" type="file" accept="image/*" data-dph="${i}-${k}"><button type="button" data-doc-camera="${i}-${k}">Снимай с камерата</button><input id="d${i}-c${k}" type="file" accept="image/*" capture="environment" hidden data-dph="${i}-${k}"><small id="d${i}-c${k}-m" hidden></small><small class="hint" id="d${i}-p${k}-m"></small></div>`).join("")}</div></fieldset>`;
+const cp=`<div id="docs-coupon-box" data-key="${esc(JSON.stringify(V.coupon))}">${couponMarkup(V)}</div>`;
+box.innerHTML=`<h2>Документи на ${n===2?"водачите":"водача"}</h2><form id="docs-f" novalidate>${Array.from({length:n},(_,i)=>drv(i)).join("")}${cp}<p class="hint">Поставете документа върху равна повърхност при добро осветление. Снимайте го целия, без отблясъци, размазване и закрити краища.</p><label class="opt"><input id="d-consent" type="checkbox"><span>Запознат съм с <a href="#t-terms" data-open="t-terms">Общите условия</a> и <a href="#t-privacy" data-open="t-privacy">информацията за защита на личните данни</a> за обработването на документите за договора.</span></label>
+<div id="d-err" class="alert" role="alert" hidden></div><button class="btn btn-acc" type="submit">Изпрати документите</button><p class="fmsg" id="d-msg" role="status"></p></form>`}
+document.addEventListener("click",async e=>{const b=e.target.closest("[data-apply-coupon]");if(!b)return;const m=$("#coupon-message");try{const r=await fetch(`${BOOKINGS_ENDPOINT}/${S.bid}?t=${S.btok}`,{cache:"no-store"}),j=await r.json();const ok=r.ok&&j.coupon?.available&&$("#d-coupon").value.trim().toUpperCase()==="RENTY10";m.textContent=tr(ok?"Кодът е проверен. Отстъпката ще се приложи при изпращане на документите.":"Кодът не е валиден за тази резервация или срокът е изтекъл.");$("#d-coupon").setAttribute("aria-invalid",String(!ok))}catch{m.textContent=tr("Няма връзка със сървъра. Опитайте отново.")}});
+document.addEventListener("click",e=>{const b=e.target.closest("[data-doc-camera]");if(b)$("#d"+b.dataset.docCamera.replace("-","-c")).click()});
+document.addEventListener("change",async e=>{const t=e.target.closest&&e.target.closest("[data-dph]");if(!t)return;const k=t.dataset.dph,m=$("#"+t.id+"-m");delete DOCS.ph[k];m.textContent="";
+const fl=t.files[0];if(!fl)return;try{DOCS.ph[k]=await shrink(fl);const cameraMsg=document.getElementById("d"+k.replace("-","-p")+"-m");if(cameraMsg)cameraMsg.textContent=tr("✓ Снимката е готова");m.textContent="✓ Снимката е готова"}catch(x){t.value="";m.textContent="Снимката не може да бъде прочетена. Изберете JPG или PNG."}});
+document.addEventListener("submit",async e=>{if(e.target.id!=="docs-f")return;e.preventDefault();const err=$("#d-err"),msg=$("#d-msg"),b=e.target.querySelector("button[type=submit]");err.hidden=true;
+const V=S.view,n=DOCS.n,val=id=>($("#"+id)||{}).value?.trim()||"",rad=nm=>(document.querySelector(`input[name="${nm}"]:checked`)||{}).value||"";
+const fail=t=>{err.textContent=tr(t);err.hidden=false};
+for(let i=0;i<n;i++){for(const k of ["name","citizen","idn","idd","idp","city","addr","dln","dld","dlp"])if(!val(`d${i}-${k}`))return fail(`Моля, попълнете всички данни на водач ${i+1}.`);
+if(rad(`d${i}-idt`)==="id"&&!val(`d${i}-egn`))return fail(`Моля, попълнете ЕГН на водач ${i+1}.`);if(!rad(`d${i}-pt`))return fail(`Моля, изберете град или село за адреса на водач ${i+1}.`);
+for(const k of Object.keys(DPH))if(!DOCS.ph[`${i}-${k}`])return fail(`Моля, приложете всички снимки на документите на водач ${i+1}.`)}
+if(!$("#d-consent").checked)return fail("Потвърдете условията и информацията за обработване на документите.");
+DOCS.busy=b.disabled=true;msg.textContent="Изпращаме документите…";
+try{const drivers=[];for(let i=0;i<n;i++){const photos={};for(const k of Object.keys(DPH)){const r=await fetch(DOCS_ENDPOINT,{method:"POST",headers:{"Content-Type":"image/jpeg"},body:DOCS.ph[`${i}-${k}`]});const j=await r.json().catch(()=>({}));if(!r.ok||!j.url)throw new Error("photo");photos[k]=j.url.split("/").pop()}
+drivers.push({name:val(`d${i}-name`),citizen:val(`d${i}-citizen`),idt:rad(`d${i}-idt`),idn:val(`d${i}-idn`),egn:val(`d${i}-egn`),idd:val(`d${i}-idd`),idp:val(`d${i}-idp`),region:val(`d${i}-region`),municipality:val(`d${i}-municipality`),placeType:rad(`d${i}-pt`),city:val(`d${i}-city`),addr:val(`d${i}-addr`),dln:val(`d${i}-dln`),dld:val(`d${i}-dld`),dlp:val(`d${i}-dlp`),photos})}
+const r=await fetch(`${BOOKINGS_ENDPOINT}/${S.bid}/documents?t=${S.btok}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({drivers,coupon:val("d-coupon"),documentsConsent:$("#d-consent").checked})});const j=await r.json().catch(()=>({}));
+if(!r.ok){DOCS.busy=b.disabled=false;msg.textContent="";return fail(j.error==="coupon"?"Кодът за отстъпка не е валиден за тази резервация или срокът му е изтекъл.":j.error==="address"?`Моля, проверете адреса по документа на водач ${(j.index||0)+1} (за българска лична карта – и областта и общината).`:j.error==="stage"?"Документите вече са получени или заявката не очаква документи. Презаредете страницата.":"Документите не бяха изпратени. Опитайте отново или се обадете на +359877748693.")}
+S.view=j;S.bst=j.status;store.set(S);DOCS.busy=false;DOCS.n=0;renderThanks();scrollTo({top:0,behavior:"smooth"})}
+catch(x){DOCS.busy=b.disabled=false;msg.textContent="";fail("Снимките не бяха качени. Проверете връзката и опитайте отново.")}});
+// Линк от имейла (/?b=…&t=…#blagodarim): страницата на заявката в нов браузър
+{const p=new URLSearchParams(location.search),b=p.get("b"),t=p.get("t");if(/^[a-f0-9]{32}$/.test(b||"")&&/^[a-f0-9]{64}$/.test(t||"")&&(S.bid!==b||S.btok!==t)){S.bid=b;S.btok=t;S.bst="pending";S.done="sent";S.view={stage:"request"};store.set(S)}
+if(S.bid&&S.btok&&S.view)fetch(`${BOOKINGS_ENDPOINT}/${S.bid}?t=${S.btok}`,{cache:"no-store"}).then(r=>r.ok?r.json():null).then(j=>{if(j&&j.status){S.bst=j.status;S.bnote=j.note||"";S.view=j.stage?j:null;store.set(S);if(cur==="blagodarim")renderThanks()}}).catch(()=>{})}
+function renderThanks0(){const R=S,c=CARS.find(x=>x.id===R.car),st0=R.bid?R.bst:"",off=st0==="cancelled"||st0==="no_show",st=off?"rejected":st0;
 $("#th-h").textContent=off?"Резервацията е отменена":st==="confirmed"?"Резервацията е потвърдена!":st==="rejected"?"Резервацията не е потвърдена":"Благодарим за доверието!";
 $("#th-sub").textContent=off?"Резервацията вече не е активна. За въпроси се обадете на +359877748693.":st==="confirmed"?"Очакваме ви! Изпратихме ви имейл с потвърждението и данните за резервацията.":st==="rejected"?"За съжаление не можем да потвърдим резервацията за избрания период. Изпратихме ви имейл с подробности. Обадете ни се, за да намерим друг вариант.":st==="pending"?"Вашата заявка е получена успешно и в момента се обработва от нашия екип. Тази страница ще се обнови автоматично, когато потвърдим резервацията, и ще получите имейл.":"Вашата заявка е получена успешно и в момента се обработва от нашия екип. Моля, изчакайте — ще се свържем с Вас възможно най-скоро, в рамките на 1 работен ден.";
 $("#th-step").className=st==="confirmed"?"done":"now";$("#th-ic").classList.toggle("no",st==="rejected");
@@ -2049,13 +2243,15 @@ $("#th-cta").innerHTML='<a class="btn btn-ghost" href="#home">Към начал�
 $("#th-sum").innerHTML=`<h2>Вашата резервация</h2><div class="kv"><div><span>Име</span><b>${esc(R.name)}</b></div><div><span>Телефон</span><b>${esc(R.phone)}</b></div><div><span>Автомобил</span><b>${c?c.name:""}</b></div><div><span>Получаване</span><b>${bf(R.d1,R.t1)}</b></div><div><span>Връщане</span><b>${bf(R.d2,R.t2)}</b></div>${PAY[R.pay]?`<div><span>Плащане</span><b>${PAY[R.pay]}</b></div>`:""}</div>`}
 // Проверява статуса, докато клиентът е на страницата „Благодарим“
 let pollT;async function pollStatus(){clearTimeout(pollT);if(cur!=="blagodarim"||!S.bid||S.bst!=="pending")return;
-if(!document.hidden)try{const r=await fetch(`${BOOKINGS_ENDPOINT}/${S.bid}?t=${S.btok}`,{cache:"no-store"});const j=await r.json();if(r.ok&&j.status&&j.status!==S.bst){S.bst=j.status;S.bnote=j.note||"";store.set(S);renderThanks()}}catch(e){}
+if(!document.hidden&&!DOCS.busy)try{const r=await fetch(`${BOOKINGS_ENDPOINT}/${S.bid}?t=${S.btok}`,{cache:"no-store"});const j=await r.json();
+if(r.ok&&j.status){const was=JSON.stringify([S.bst,S.view&&S.view.stage,S.view&&S.view.coupon]);S.bst=j.status;S.bnote=j.note||"";if(j.stage)S.view=j;store.set(S);
+if(was!==JSON.stringify([S.bst,S.view&&S.view.stage,S.view&&S.view.coupon]))renderThanks()}}catch(e){}
 if(S.bst==="pending")pollT=setTimeout(pollStatus,15000)}
 document.addEventListener("visibilitychange",()=>{if(!document.hidden)pollStatus()});
 $("#view-thanks").addEventListener("click",e=>{if(e.target.closest("[data-sms]"))sendSms()});
 // ===== Превключване между страниците (един файл) =====
 const T0="Коли под наем в Пловдив от 15 € на ден | Рента ПТБ Строй";let cur="";
-function go(){const h=decodeURIComponent(location.hash.slice(1));if(h==="t-terms"||h==="t-privacy"||h==="t-cookies")showLegal(h);else $("#legal").hidden=true;$("#faq").hidden=h!=="faq";const v=(h==="potvurzhdenie"||h==="avtomobili"||h==="book")?"avtomobili":(h==="blagodarim"&&S.done&&hasC()&&S.car&&hasD())?h:h==="plan"?(cur&&cur!=="home"?cur:"avtomobili"):"home",ch=v!==cur;cur=v;
+function go(){const h=decodeURIComponent(location.hash.slice(1));if(h==="t-terms"||h==="t-privacy"||h==="t-cookies")showLegal(h);else $("#legal").hidden=true;$("#faq").hidden=h!=="faq";const v=(h==="potvurzhdenie"||h==="avtomobili"||h==="book")?"avtomobili":(h==="blagodarim"&&(S.done&&hasC()&&S.car&&hasD()||S.view&&S.bid))?h:h==="plan"?(cur&&cur!=="home"?cur:"avtomobili"):"home",ch=v!==cur;cur=v;
 $("#view-home").hidden=v!=="home";$("#view-cars").hidden=v==="home"||v==="blagodarim";$("#view-thanks").hidden=v!=="blagodarim";
 if(v==="home")setTitle(T0);
 else if(v==="blagodarim"){renderThanks();pollStatus();setTitle("Благодарим | Рента ПТБ Строй")}

@@ -1,0 +1,10 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { parseRequester, validBirthDate } from '../server/requester.ts';
+const body = () => ({ requester: { first: 'Иван', middle: 'Петров', last: 'Иванов', birthDate: '1990-02-01', phoneCountry: 'BG', citizen: 'България' }, email: 'ivan@example.com', emailConfirmation: 'IVAN@example.com', phone: '+359877123456', termsAccepted: true, payment: 'bankp', drivers: { requesterDrives: true }, extras: {} });
+test('short request contact has separate names and valid date',()=>{const p=parseRequester(body());assert.ok('requester'in p);assert.equal(p.name,'Иван Петров Иванов');assert.equal(p.invoice,'')});
+test('invalid calendar day, future date and missing names rejected',()=>{assert.equal(validBirthDate('2000-02-30'),false);assert.equal(validBirthDate('2099-01-01'),false);assert.equal(validBirthDate('2000-02-29'),true);const b=body();b.requester.middle='';assert.deepEqual(parseRequester(b),{error:'requester'})});
+test('email confirmation and accepted terms enforced by server',()=>{assert.deepEqual(parseRequester({...body(),emailConfirmation:'other@example.com'}),{error:'email_confirmation'});assert.deepEqual(parseRequester({...body(),termsAccepted:false}),{error:'terms'})});
+test('international phone required',()=>assert.deepEqual(parseRequester({...body(),phone:'0877123456'}),{error:'phone'}));
+test('different sole driver requires their own name',()=>{const b=body();b.drivers={requesterDrives:false} as any;assert.deepEqual(parseRequester(b),{error:'driver_name'});(b.drivers as any).main={first:'Георги',middle:'Иванов',last:'Петров'};assert.ok('requester'in parseRequester(b))});
+test('company invoice conditional, VAT checkbox respected',()=>{const b:any={...body(),payment:'bank',invoiceData:{name:'ТЕСТ',registration:'123456789',country:'България',address:'Тест 1'}};assert.deepEqual(parseRequester(b),{error:'invoice'});b.invoiceData.notVatRegistered=true;const p=parseRequester(b);assert.ok('invoice'in p&&p.invoice.includes('не е регистрирана'));b.invoiceData.notVatRegistered=false;b.invoiceData.vat='BG123456789';assert.ok('invoice'in parseRequester(b))});

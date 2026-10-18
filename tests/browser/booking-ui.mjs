@@ -38,8 +38,10 @@ async function session({ viewport = { width: 1280, height: 900 }, init = TRACK, 
   await ctx.route("**/api/quote", fulfillQuote);
   await ctx.route("**/api/documents", (r) => { posted.push("doc"); return r.fulfill({ json: { url: "/api/documents/" + SECRET.doc + posted.length } }); });
   await ctx.route("**/api/bookings", (r) => { posted.push(r.request().postDataJSON()); return booking === "hours" ? r.fulfill({ status: 400, json: { error: "hours" } }) : r.fulfill({ status: 201, json: { id: "c".repeat(32), token: "d".repeat(64), status: "pending" } }); });
-  if (init) await ctx.addInitScript(init);
-  if (consent) await ctx.addInitScript(() => { try { localStorage.setItem("ck", JSON.stringify({ v: 1, marketing: true, t: Date.now() })); } catch (e) {} });
+  if (init) await ctx.addInitScript(() => { window.__LEGACY_FORM = 1; }); // старата дълга форма (новият процес: two-stage-ui.mjs)
+  await ctx.addInitScript(init);
+  if (consent) await ctx.addInitScript(() => { window.__LEGACY_FORM = 1; }); // старата дълга форма (новият процес: two-stage-ui.mjs)
+  await ctx.addInitScript(() => { try { localStorage.setItem("ck", JSON.stringify({ v: 1, marketing: true, t: Date.now() })); } catch (e) {} });
   const page = await ctx.newPage();
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));

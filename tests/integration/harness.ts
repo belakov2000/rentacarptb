@@ -17,10 +17,26 @@ export const migrations = () => readdirSync(MIG).sort();
 export const sha = (d: Uint8Array | ArrayBuffer | string) => createHash("sha256").update(typeof d === "string" ? d : new Uint8Array(d as ArrayBuffer)).digest("hex");
 
 // ===== База =====
-const ADMIN_URL = process.env.TEST_DATABASE_URL!;
+const ADMIN_URL = process.env.TEST_DATABASE_URL || (process.env.TEST_USE_PGLITE ? "postgres://local-test-only" : "");
 if (!ADMIN_URL) throw new Error("TEST_DATABASE_URL is not set – run tests via tests/integration/run.mjs");
 const pools: pg.Pool[] = [];
 export async function freshDb(name: string, upTo = Infinity) {
+  if (process.env.TEST_USE_PGLITE === "1") {
+    // WASM PostgreSQL for constrained environments; native PostgreSQL remains the default.
+    // This mode does not replace native multi-connection concurrency checks.
+    const { PGlite } = await import("@electric-sql/pglite");
+    const { drizzle: wasmDrizzle } = await import("drizzle-orm/pglite");
+    const { btree_gist } = await import("@electric-sql/pglite/contrib/btree_gist");
+    const client = new PGlite({ extensions: { btree_gist } });
+    const q = (text: string, params?: unknown[]) => client.query(text, params?.map((v, i) =>
+      typeof v === "string" && new RegExp("\\$" + (i + 1) + "::bytea\\b").test(text) ? new TextEncoder().encode(v) : v));
+    const applyMigration = async (m: string) => {
+      for (const st of readFileSync(`${MIG}/${m}/migration.sql`, "utf8").split("--> statement-breakpoint")) if (st.trim()) await client.exec(st);
+    };
+    for (const m of migrations().slice(0, upTo === Infinity ? undefined : upTo)) await applyMigration(m);
+    const db = wasmDrizzle({ client, schema }) as any;
+    return { url: ADMIN_URL, pool: { end: () => client.close() }, q, db, applyMigration, use: () => { state.db = db; } };
+  }
   const admin = new pg.Client({ connectionString: ADMIN_URL });
   await admin.connect();
   const dbName = `t_${name}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
@@ -221,8 +237,9 @@ export function adminJar(email = "admin@example.com", roles = ["admin"]) {
 export async function quoteFor(body: any, ip = "203.0.113.50") {
   const i = bookingInput({ carId: body.carId, startDate: body.startDate, startTime: body.startTime, endDate: body.endDate, endTime: body.endTime }, body);
   if ("error" in i) return { status: 400, json: { error: i.error } as any };
-  const { del, ret, delPin, retPin, ...rest } = i.input;
-  const r = await quoteFn(new Request(O + "/api/quote", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...rest, delivery: del, return: ret, deliveryPin: delPin ?? null, returnPin: retPin ?? null }) }), { ip } as any);
+  const { del, ret, delPin, retPin, chains, secondDriver, ...rest } = i.input;
+  const extras = chains || secondDriver ? { extras: { chains: !!chains, secondDriver: !!secondDriver } } : {};
+  const r = await quoteFn(new Request(O + "/api/quote", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...rest, ...extras, delivery: del, return: ret, deliveryPin: delPin ?? null, returnPin: retPin ?? null }) }), { ip } as any);
   return { status: r.status, json: (await r.json()) as any };
 }
 export async function withQuote(body: any) {

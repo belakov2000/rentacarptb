@@ -18,6 +18,7 @@ const browser = await chromium.launch();
 async function open(seed, opts = {}) {
   const ctx = await browser.newContext({ locale: "bg-BG", viewport: { width: 1280, height: 900 }, ...opts });
   await ctx.route((u) => !u.href.startsWith(B), (r) => r.fulfill({ status: 204, body: "" }));
+  await ctx.addInitScript(() => { window.__LEGACY_FORM = 1; }); // старата дълга форма (новият процес: two-stage-ui.mjs)
   await ctx.addInitScript((s) => { localStorage.setItem("cookie-consent", JSON.stringify({ v: 2, necessary: true, marketing: false, date: "2026-10-01T00:00:00.000Z" })); if (!sessionStorage.getItem("req")) sessionStorage.setItem("req", JSON.stringify(s)); }, { car: "golf", d1: D1, t1: "10:00", d2: D2, t2: "10:00", m1: "office", m2: "office", open: true, ...seed });
   const page = await ctx.newPage(); page.errs = []; page.on("pageerror", (e) => page.errs.push(e.message));
   return { ctx, page };

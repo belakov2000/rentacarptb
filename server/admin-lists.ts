@@ -21,6 +21,7 @@ export type View = (typeof VIEWS)[number];
 export const LIST = {
   id: bookings.id, status: bookings.status, car: bookings.car, carId: bookings.carId, name: bookings.name, phone: bookings.phone, email: bookings.email,
   pickup: bookings.pickup, dropoff: bookings.dropoff, startDate: bookings.startDate, startTime: bookings.startTime, endDate: bookings.endDate, endTime: bookings.endTime,
+  stage: bookings.stage, docsInvitedAt: bookings.docsInvitedAt,
   total: bookings.total, createdAt: bookings.createdAt, handedOverAt: bookings.handedOverAt, returnedAt: bookings.returnedAt, closedAt: bookings.closedAt, closeReason: bookings.closeReason,
 };
 export type ListRow = { [K in keyof typeof LIST]: (typeof bookings.$inferSelect)[K] };
