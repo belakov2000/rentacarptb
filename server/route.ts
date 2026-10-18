@@ -3,17 +3,18 @@
 // rate е цената на км: 1,00 € в Пловдив и околните села (вкл. летище Пловдив и Асеновград), 0,70 € извън тази зона.
 // Основно се ползва Google Maps (Routes API) – същото разстояние като в Google Maps. Нужна е променлива GOOGLE_MAPS_API_KEY.
 // Без ключ (или ако Google не отговори) адресът се намира с OpenStreetMap (Nominatim), а маршрутът – с OSRM.
+// И двата доставчика тръгват от едни и същи координати (BASE). Намереното място се приема само ако е в посоченото
+// населено място и на посочената улица (server/geocode.ts); иначе клиентът трябва да уточни адреса („ambiguous“).
 // cachedRoute() пази резултатите в базата (route_cache) и при едновременни заявки за един адрес пита доставчика само веднъж.
 // В логовете няма адреси и отговори на доставчика – само кодове на грешки.
 import { createHash, randomUUID } from "node:crypto";
 import { sql } from "drizzle-orm";
 import { db } from "../db/index.js";
-const OFFICE_ADDRESS = "бул. Дунав 10, Пловдив, България";
-// Координати на бул. Дунав 10, Пловдив (началната точка за доставка и връщане от адрес)
-const BASE = { lat: 42.1622, lon: 24.7366 };
+import { pickPlace, queriesFor, townMatches, type NomResult, type Place } from "./geocode.js";
+// Координати на бул. Дунав 10, Пловдив (началната точка за доставка и връщане от адрес) – ширина, дължина.
+// OSRM приема точките като „дължина,ширина“, Google – latLng { latitude, longitude }.
+export const BASE = { lat: 42.1622, lon: 24.7366 };
 const UA = "rentacar-ptb.com booking distance (rentaptb_stroi@abv.bg)";
-
-type Place = { lat: number; lon: number; name: string };
 
 // Зона „Пловдив и района“ (1,00 €/км): гр. Пловдив, околните села, летище Пловдив (Крумово) и Асеновград.
 // Многоъгълник от точки [дължина, ширина]; адресите извън него се таксуват по 0,70 €/км.
@@ -51,24 +52,38 @@ const PLOVDIV_BOX = "24.45,42.35,25.05,41.95";
 const withCity = (addr: string) =>
   /пловдив|plovdiv|(^|[\s,])(гр|с|град|село)(\.|\s)/i.test(addr) ? addr : `${addr}, Пловдив`;
 
-async function geocode(q: string, bgOnly: boolean): Promise<Place | null> {
+// До 5 резултата с подробности за адреса (населено място, улица) – проверяват се в pickPlace()
+async function geocode(q: string | Record<string, string>, bgOnly: boolean): Promise<NomResult[]> {
   const u = new URL("https://nominatim.openstreetmap.org/search");
-  u.search = new URLSearchParams({ q, format: "json", limit: "1", "accept-language": "bg", viewbox: PLOVDIV_BOX, ...(bgOnly ? { countrycodes: "bg" } : {}) }).toString();
+  u.search = new URLSearchParams({ ...(typeof q === "string" ? { q } : q), format: "jsonv2", addressdetails: "1", limit: "5", "accept-language": "bg", viewbox: PLOVDIV_BOX, ...(bgOnly ? { countrycodes: "bg" } : {}) }).toString();
   const r = await fetch(u, { headers: { "User-Agent": UA, Accept: "application/json" } });
-  if (!r.ok) return null;
-  const [p] = (await r.json()) as { lat: string; lon: string; display_name: string }[];
-  return p ? { lat: +p.lat, lon: +p.lon, name: p.display_name } : null;
+  if (!r.ok) return [];
+  const j = await r.json().catch(() => null);
+  return Array.isArray(j) ? j : [];
 }
 
-// Първо търсим точния адрес, после без данни за блок/вход/етаж/апартамент и накрая извън България
-async function findPlace(addr: string) {
-  const full = withCity(addr);
-  if (full !== addr) {
-    const p = await geocode(full, true);
-    if (p) return p;
-  }
+// Населеното място в дадена точка (за проверка на крайната точка от Google)
+async function reverse(p: { lat: number; lon: number }): Promise<NomResult | null> {
+  const u = new URL("https://nominatim.openstreetmap.org/reverse");
+  u.search = new URLSearchParams({ lat: String(p.lat), lon: String(p.lon), format: "jsonv2", addressdetails: "1", zoom: "14", "accept-language": "bg" }).toString();
+  const r = await fetch(u, { headers: { "User-Agent": UA, Accept: "application/json" } });
+  const j = r.ok ? await r.json().catch(() => null) : null;
+  return j && j.address ? j : null;
+}
+
+// Първо търсим точния адрес, после без данни за блок/вход/етаж/апартамент и накрая извън България.
+// "ambiguous" – намерени са само места в друго населено място или на друга улица.
+async function findPlace(addr: string): Promise<Place | "ambiguous" | null> {
   const short = addr.replace(/(^|[,\s])(бл|вх|ет|ап)(\.\s*|\s+)[\wА-я-]+/gi, "").trim();
-  return (await geocode(addr, true)) || (short !== addr && (await geocode(short, true))) || (await geocode(addr, false));
+  let ambiguous = false;
+  const qs = [...queriesFor(addr, withCity(addr)), ...(short !== addr ? queriesFor(short, withCity(short)) : [])];
+  for (const q of qs) {
+    const p = pickPlace(addr, await geocode(q, true));
+    if (p && p !== "ambiguous") return p;
+    if (p === "ambiguous") ambiguous = true;
+  }
+  if (ambiguous) return "ambiguous";
+  return pickPlace(addr, await geocode(addr, false));
 }
 
 // Разстояние по маршрута, който Google Maps предлага по подразбиране
@@ -79,7 +94,7 @@ async function googleKm(dest: string): Promise<{ km: number; place: string; end:
     method: "POST",
     headers: { "Content-Type": "application/json", "X-Goog-Api-Key": key, "X-Goog-FieldMask": "routes.distanceMeters,routes.legs.endLocation" },
     body: JSON.stringify({
-      origin: { address: OFFICE_ADDRESS },
+      origin: { location: { latLng: { latitude: BASE.lat, longitude: BASE.lon } } },
       destination: { address: withCity(dest) },
       travelMode: "DRIVE",
       languageCode: "bg",
@@ -100,17 +115,26 @@ async function googleKm(dest: string): Promise<{ km: number; place: string; end:
 }
 
 export type Route = { km: number; place: string; local: boolean; rate: number; source: "google" | "osm" };
-export type RouteError = "not_found" | "no_route";
+export type RouteError = "not_found" | "no_route" | "ambiguous";
 
 // Разстояние до адреса или причината да няма такова. Мрежовите грешки се пропускат нагоре (извикващият решава).
 export async function routeTo(dest: string): Promise<Route | RouteError> {
   const g = await googleKm(dest).catch((e) => (console.error("Google Routes failed", (e as Error)?.name), null));
   if (g) {
-    // Ако Google не върне координати на адреса, зоната се определя чрез OpenStreetMap
-    const end = g.end || (await findPlace(dest).catch(() => null));
-    return { km: g.km, place: g.place, ...zone(end), source: "google" };
+    // Крайната точка от Google трябва да е в посоченото населено място; без нея зоната се определя чрез OpenStreetMap.
+    // Непроверима точка не получава тарифа „по подразбиране“ – тогава се ползва резервният път по-долу.
+    if (g.end) {
+      const town = await reverse(g.end).catch(() => null);
+      if (town && townMatches(dest, town)) return { km: g.km, place: g.place, ...zone(g.end), source: "google" };
+      if (town) return "ambiguous";
+    } else {
+      const p = await findPlace(dest).catch(() => null);
+      if (p === "ambiguous") return p;
+      if (p) return { km: g.km, place: g.place, ...zone(p), source: "google" };
+    }
   }
   const p = await findPlace(dest);
+  if (p === "ambiguous") return p;
   if (!p) return "not_found";
   const r = await fetch(
     `https://router.project-osrm.org/route/v1/driving/${BASE.lon},${BASE.lat};${p.lon},${p.lat}?overview=false`,
@@ -138,7 +162,8 @@ export function validAddr(a: unknown) {
 // останалите изчакват резултата ѝ. Заето търсене, което не е завършило за CLAIM_MS (прекъсната функция), може да бъде заето
 // отново. Едно търсене може да направи няколко заявки към доставчиците (Google + OpenStreetMap за зоната или резервния път).
 // Грешките се помнят кратко (FAIL_TTL_MS), за да не се повтарят веднага, но повторен опит след това пита отново.
-const CACHE_VERSION = "1";
+// Версия 2: проверка на населеното място и улицата (резултатите от версия 1 вече не се използват)
+const CACHE_VERSION = "2";
 export const ROUTE_CACHE = { okTtlMs: 24 * 3600_000, failTtlMs: 15_000, errorTtlMs: 5_000, claimMs: 20_000, waitMs: 12_000, pollMs: 150 };
 const cacheKey = (dest: string) => "v" + CACHE_VERSION + "/" + createHash("sha256").update(normAddr(dest).toLowerCase()).digest("hex");
 const secs = (ms: number) => ms / 1000;
