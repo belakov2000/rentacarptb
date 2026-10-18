@@ -1,11 +1,12 @@
 // Договори: генериране, последователни версии, запазване на старите версии и проверка на съдържанието.
 import { eq } from "drizzle-orm";
 import { strFromU8, unzipSync } from "fflate";
-import { bookingBody, check, contractData, finish, freshDb, O, setContext, schema, sha, withQuote } from "./harness.ts";
+import { adminJar, bookingBody, check, contractData, finish, freshDb, O, setContext, schema, sha, withQuote } from "./harness.ts";
 import { getStore, stores } from "./stubs/blobs.ts";
 import { listContractVersions, saveContract } from "../../server/contracts.ts";
 import { buildContract, parseContract } from "../../contract/index.ts";
 import bookingsFn from "../../netlify/functions/bookings.mts";
+import adminContractsFn from "../../netlify/functions/admin-contracts.mts";
 
 setContext("deploy-preview");
 const t = await freshDb("contracts");
@@ -70,4 +71,20 @@ check("Приложение с двама водачи: трите подпис�
 const legacyAppendix=xml(buildContract({...old,appendix:[...appendix,"Втори (допълнителен) водач: ТЕСТ Втори Водач"]}));
 check("Запазено старо приложение с втори водач получава третия подпис при ново генериране",signPart(legacyAppendix).includes("Втори водач:"));
 check("Без приложение не се добавя празна страница с подписи",!xml(buildContract(old)).includes("Подписи по приложението"));
+// Regeneration uses saved data and preserves the original versions and booking state.
+const regen = (origin = O) => adminContractsFn(new Request(`${O}/api/admin/contracts/${id}`, { method: "POST", headers: { Origin: origin, "Content-Type": "application/json" }, body: JSON.stringify({ action: "regenerate" }) }), {} as any);
+setContext("deploy-preview");
+check("Нова версия без администратор е забранена", (await regen()).status === 401);
+setContext("deploy-preview", { cookies: adminJar() });
+check("Нова версия от чужд сайт е забранена", (await regen("https://other.example")).status === 403);
+await saveContract(id, { ...old, appendix, appendixSecondDriver: true }, "test", "Двама водачи");
+const before = await listContractVersions(id);
+const beforeHashes = before.map(x => sha(S().get(x.blobKey)!.data));
+const regenResponse = await regen();
+const after = await listContractVersions(id);
+const [unchanged] = await t.db.select().from(schema.bookings).where(eq(schema.bookings.id,id));
+check("Администраторът създава нова версия със запазени данни и трите подписа", regenResponse.status === 200 && after.length === before.length + 1 && xml(S().get(id)!.data).includes(clause) && signPart(xml(S().get(id)!.data)).includes("Втори водач:") && after.at(-1)!.signStatus === "awaiting");
+check("Обновяването запазва старите файлове и статуса на резервацията", before.every((x,i) => sha(S().get(x.blobKey)!.data) === beforeHashes[i]) && unchanged.status === b.status);
+await getStore("deploypreview-contracts").delete(`${id}.json`);
+check("Без записани данни не се създава празен договор", (await regen()).status === 409 && (await listContractVersions(id)).length === after.length);
 await finish();

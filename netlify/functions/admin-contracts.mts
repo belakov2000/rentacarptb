@@ -3,7 +3,8 @@ import { asc, desc, eq, sql } from "drizzle-orm";
 import { db } from "../../db/index.js";
 import { bookings, contractVersions } from "../../db/schema.js";
 import { audit, json, requireAdmin } from "../../server/auth.js";
-import { contracts } from "../../server/contracts.js";
+import { contracts, contractDataKey, saveContract } from "../../server/contracts.js";
+import type { ContractData } from "../../contract/index.js";
 import { store } from "../../server/stores.js";
 import { LIST, searchWhere } from "../../server/admin-lists.js";
 
@@ -51,6 +52,17 @@ export default async (req: Request, context: Context) => {
   const url = new URL(req.url);
   const parts = url.pathname.split("/").filter(Boolean); // api admin contracts :booking file|document :doc
   const id = parts[3] || "";
+  if (req.method === "POST") {
+    if (!ID_RE.test(id) || parts.length !== 4) return json({ error: "not_found" }, 404);
+    const body = await req.json().catch(() => null);
+    if (body?.action !== "regenerate") return json({ error: "invalid" }, 400);
+    const [booking] = await db.select({ id: bookings.id }).from(bookings).where(eq(bookings.id, id));
+    if (!booking) return json({ error: "not_found" }, 404);
+    const data = await contracts().get(contractDataKey(id), { type: "json" }).catch(() => null) as ContractData | null;
+    if (!data || typeof data.name !== "string" || !data.carId) return json({ error: "missing_data" }, 409);
+    const result = await saveContract(id, data, admin.email, "Обновяване по актуалния шаблон");
+    return json({ ok: true, version: result.version });
+  }
   if (!id) {
     const q = (url.searchParams.get("q") || "").slice(0, 100);
     const page = Math.max(1, Math.min(1000, Number(url.searchParams.get("page")) || 1));
@@ -95,5 +107,5 @@ export default async (req: Request, context: Context) => {
 
 export const config: Config = {
   path: ["/api/admin/contracts", "/api/admin/contracts/:booking", "/api/admin/contracts/:booking/file", "/api/admin/contracts/:booking/document/:doc"],
-  method: ["GET"],
+  method: ["GET", "POST"],
 };
