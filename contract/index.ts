@@ -77,6 +77,7 @@ export type ContractData = {
   // Приложение към договора (двуетапна заявка): допълнителни услуги (вериги, втори водач), данните на втория водач, отстъпка.
   // Шаблонът няма полета за тях – редовете се добавят като отделни абзаци в края на документа.
   appendix?: string[];
+  appendixSecondDriver?: boolean;
 };
 
 const s = (v: unknown, max = 200) => (typeof v === "string" ? v.trim().slice(0, max) : "");
@@ -186,8 +187,18 @@ function values(d: ContractData): Record<string, string> {
 }
 
 // Абзаци на приложението (първият ред – удебелен заглавен)
-const appendixXml = (lines?: string[]) =>
-  !lines?.length ? "" : lines.map((t, i) => `<w:p><w:r>${i ? "" : "<w:rPr><w:b/></w:rPr>"}<w:t xml:space="preserve">${xmlEsc(t)}</w:t></w:r></w:p>`).join("");
+function appendixXml(lines?: string[], secondDriver?: boolean) {
+  if (!lines?.length) return "";
+  const p = (text: string, opts: { bold?: boolean; page?: boolean; keep?: boolean; before?: number } = {}) =>
+    `<w:p><w:pPr>${opts.page ? "<w:pageBreakBefore/>" : ""}${opts.keep ? "<w:keepNext/>" : ""}<w:keepLines/><w:spacing w:before="${opts.before || 0}" w:after="60" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:sz w:val="20"/><w:szCs w:val="20"/>${opts.bold ? "<w:b/>" : ""}</w:rPr><w:t xml:space="preserve">${xmlEsc(text)}</w:t></w:r></w:p>`;
+  // Keep the final terms with the signatures. The signature block stays together
+  // if a longer appendix requires another page; it is never left half on each.
+  const text = lines.map((t, i) => p(t, { bold: i === 0, page: i === 0, keep: i === 0 || i === lines.length - 1 })).join("");
+  const hasSecond = secondDriver ?? lines.some(t => t.startsWith("Втори (допълнителен) водач:"));
+  const roles = ["Наемодател", "Наемател", ...(hasSecond ? ["Втори водач"] : [])];
+  return text + p("Подписи по приложението", { bold: true, keep: true, before: 180 }) +
+    roles.map((role, i) => p(`${role}: ______________________________ (подпис)`, { keep: i < roles.length - 1, before: 180 })).join("");
+}
 const xmlEsc = (v: string) => v.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
 
 // Допълнения, които могат да останат празни (без линия)
@@ -204,7 +215,7 @@ export function buildContract(d: ContractData): Uint8Array {
     // „Място“ в двете декларации е мястото, откъдето клиентът взема автомобила (офисът или адресът за доставка)
     .replace(/Място: Пловдив[.,] бул\. Дунав 10/g, "Място: {{pickupPlace}}")
     .replace(/\{\{(\w+)\}\}/g, (_, k) => xmlEsc(v[k] || (OPTIONAL.has(k) ? "" : BLANK)))
-    .replace(/(<w:sectPr[\s>])/, (m) => appendixXml(d.appendix) + m);
+    .replace(/(<w:sectPr[\s>])/, (m) => appendixXml(d.appendix, d.appendixSecondDriver) + m);
   return zipSync({ ...template, "word/document.xml": strToU8(xml) }, { level: 6 });
 }
 
