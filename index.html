@@ -524,6 +524,45 @@ button.btn-ghost{background:transparent}
 @media(min-width:640px){#docs-f .row{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:420px){#docs-f .fbox{padding:12px}#docs-f .seg{grid-template-columns:minmax(0,1fr)}#docs-f button[type=submit]{width:100%}}
 
+/* Mobile booking: wider fields and short, reversible document steps. */
+.doc-section,.doc-section-body{display:contents}.doc-section-head,.doc-next,.docs-intro,.doc-upload{display:none}
+@media(max-width:639px){
+ #details .wrap{padding-inline:16px}#details .sec-head{margin-bottom:20px}#details .sec-head h2{font-size:1.7rem}
+ #bk{padding:0;background:transparent;gap:14px;min-width:0}
+ #bk .fbox{box-sizing:border-box;width:100%;max-width:100%;min-inline-size:0;border:0;box-shadow:inset 0 0 0 1px #dce3eb;border-radius:18px;padding:18px 16px;margin:0;gap:12px}
+ #bk .fbox legend{box-sizing:border-box;max-width:100%;font-size:1rem;line-height:1.4;margin-bottom:10px}
+ #bk .fbox>*{min-width:0}#bk .row{grid-template-columns:minmax(0,1fr);gap:12px}
+ #bk .birth-row{grid-template-columns:.8fr 1.25fr 1fr;gap:6px}#bk .birth-row select{padding-inline:7px}
+ #bk input:not([type=checkbox]):not([type=radio]),#bk select,#bk textarea,#docs-f input:not([type=checkbox]):not([type=radio]){font-size:16px;min-width:0;width:100%;box-sizing:border-box;min-height:48px;border-radius:12px}
+ #bk .seg{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}#bk .seg .opt{padding:11px 9px;font-size:.85rem;line-height:1.4}
+ #bk>.opt,#docs-f>.opt{font-size:.85rem;line-height:1.5;padding:13px;border-radius:14px}
+ #bk button[type=submit],#docs-f button[type=submit]{width:100%;min-height:50px;border-radius:14px}
+ #th-docs{padding:18px 14px;border-radius:22px;background:#f5f7fa;order:2}
+ .okh-grid:has(#th-docs:not([hidden])) .th-side{order:3}.okh-grid:has(#th-docs:not([hidden])) .th-side .gmap{display:none}
+ #th-docs h2{font-family:inherit;text-transform:none;font-size:1.35rem;line-height:1.3;margin:0 0 8px;letter-spacing:-.02em}
+ .docs-intro{display:block;font-size:.88rem;margin:0 0 18px!important}
+ #docs-f{padding:0;background:transparent;gap:16px}
+ #docs-f .fbox{padding:0;border:0;background:transparent;gap:10px;min-inline-size:0}
+ #docs-f legend{padding:0;margin-bottom:12px;font-size:.94rem;font-weight:750}
+ #docs-f .doc-section{scroll-margin-top:90px;display:block;min-width:0;border:1px solid #dce3eb;border-radius:16px;background:#fff;overflow:hidden}
+ #docs-f .doc-section-head{display:flex;align-items:center;gap:10px;width:100%;border:0;background:#fff;color:var(--navy);padding:14px;text-align:left;font:inherit;font-weight:750;cursor:pointer;min-height:54px}
+ .doc-section-head .step-num{display:grid;place-items:center;flex:none;width:28px;height:28px;border-radius:9px;background:#edf2f7;font-size:.85rem}
+ .doc-section-head .step-arrow{margin-left:auto;color:var(--muted);font-size:1.2rem}
+ #docs-f .doc-section-head[aria-expanded=true] .step-num{background:var(--navy);color:#fff}
+ #docs-f .doc-section-body{display:grid;gap:12px;padding:0 14px 16px;min-width:0}
+ #docs-f [data-collapsed=true]>.doc-section-body{display:none}
+ #docs-f [data-collapsed=false] .step-arrow{transform:rotate(180deg)}
+ #docs-f label{font-size:.83rem;font-weight:650;margin-bottom:5px}#docs-f .seg{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+ #docs-f .seg .opt{font-size:.83rem;padding:10px;align-items:center}
+ #docs-f .doc-next{display:block;min-height:44px;border:0;border-radius:11px;background:#edf2f7;color:var(--navy);font:inherit;font-size:.9rem;font-weight:750;padding:11px 16px;margin-top:4px;cursor:pointer}
+ #docs-f .doc-photos{gap:14px}#docs-f .doc-photo{padding:12px;border-radius:12px;background:#f5f7fa;min-width:0}
+ #docs-f .doc-file{position:absolute;width:1px!important;height:1px;min-height:0!important;opacity:0;overflow:hidden;padding:0;clip-path:inset(50%)}
+ #docs-f .doc-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+ #docs-f .doc-upload,#docs-f [data-doc-camera]{display:flex;align-items:center;justify-content:center;margin:0;min-height:44px;padding:9px 6px;border-radius:10px;font-size:.78rem;text-align:center;font-weight:700;line-height:1.3}
+ #docs-f .doc-upload{background:white;border:1px solid #cbd5e1;cursor:pointer}#docs-f .doc-file:focus-visible+.doc-actions .doc-upload{outline:2px solid var(--navy)}
+ #docs-coupon-box:empty{display:none}#docs-coupon-box:not(:empty){padding:14px;background:#fff;border:1px solid #dce3eb;border-radius:16px}
+ #docs-f .fmsg:empty{display:none}
+}
 
 </style>
 <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"AutoRental","@id":"https://rentacar-ptb.com/#business","name":"Рента ПТБ Строй ЕООД","legalName":"РЕНТА ПТБ СТРОЙ ЕООД","description":"Коли под наем в Пловдив с доставка до Летище Пловдив и до адрес в цяла България.","url":"https://rentacar-ptb.com/","logo":"https://rentacar-ptb.com/images/logo.png","image":"https://rentacar-ptb.com/images/og-image.jpg","telephone":"+359877748693","email":"rentaptb_stroi@abv.bg","identifier":{"@type":"PropertyValue","propertyID":"ЕИК","value":"208817102"},"address":{"@type":"PostalAddress","streetAddress":"бул. Дунав 10","addressLocality":"Пловдив","postalCode":"4027","addressCountry":"BG"},"hasMap":"https://maps.app.goo.gl/3Z6hxjwnggn99cNu7","areaServed":[{"@type":"City","name":"Пловдив"},{"@type":"Country","name":"България"},{"@type":"Airport","name":"Летище Пловдив","iataCode":"PDV"}],"priceRange":"15–25 € на ден","currenciesAccepted":"EUR","paymentAccepted":"В брой, банков превод","knowsLanguage":["bg","en","de"]},{"@type":"WebSite","@id":"https://rentacar-ptb.com/#website","url":"https://rentacar-ptb.com/","name":"Рента ПТБ Строй – коли под наем в Пловдив","inLanguage":["bg","en","de"],"publisher":{"@id":"https://rentacar-ptb.com/#business"}}]}</script>
@@ -959,7 +998,7 @@ button.btn-ghost{background:transparent}
 <div data-flow2>
 <div><label for="b-mail-confirm">Потвърди имейл</label><input id="b-mail-confirm" type="email" autocomplete="off" placeholder="ivan@example.com" aria-describedby="email-match" required><small id="email-match" class="hint" role="status"></small></div>
 <div class="row"><div><label for="b-first">Име</label><input id="b-first" autocomplete="given-name" placeholder="Иван" required></div><div><label for="b-middle">Презиме</label><input id="b-middle" autocomplete="additional-name" placeholder="Петров" required></div><div><label for="b-last">Фамилия</label><input id="b-last" autocomplete="family-name" placeholder="Иванов" required></div></div>
-<div><span>Дата на раждане</span><div class="row"><select id="b-bday" aria-label="Ден" required></select><select id="b-bmonth" aria-label="Месец" required></select><select id="b-byear" aria-label="Година" required></select></div></div>
+<div><span>Дата на раждане</span><div class="row birth-row"><select id="b-bday" aria-label="Ден" required></select><select id="b-bmonth" aria-label="Месец" required></select><select id="b-byear" aria-label="Година" required></select></div></div>
 <div class="row"><div><label for="b-phone-country">Телефонен код</label><select id="b-phone-country" autocomplete="tel-country-code"></select></div><div><label for="b-phone-local">Телефон</label><input id="b-phone-local" type="tel" autocomplete="tel-national" placeholder="877 123 456" required></div></div>
 </div>
 <div><label for="b-cit">Гражданство</label><input id="b-cit" autocomplete="country-name" value="България" placeholder="напр. България" required></div>
@@ -1606,6 +1645,11 @@ const I18N={
 "Лична карта / паспорт – гръб":["ID card / passport – back", "Ausweis / Reisepass – Rückseite"],
 "Шофьорска книжка – лицева страна":["Driving licence – front", "Führerschein – Vorderseite"],
 "Шофьорска книжка – гръб":["Driving licence – back", "Führerschein – Rückseite"],
+"Самоличност":["Identity", "Identität"],
+"Снимки на документите":["Document photos", "Dokumentfotos"],
+"Продължи":["Continue", "Weiter"],
+"Към изпращане":["Review and submit", "Prüfen und absenden"],
+"Попълнете кратките секции една по една. Можете да се връщате, без да губите въведеното.":["Complete the short sections one at a time. You can go back without losing your entries.", "Füllen Sie die kurzen Abschnitte nacheinander aus. Ihre Eingaben bleiben beim Zurückgehen erhalten."],
 "Код за отстъпка (по избор)":["Discount code (optional)", "Rabattcode (optional)"],
 "Изпрати документите":["Submit the documents", "Dokumente einreichen"],
 "Изпращаме документите…":["Sending the documents…", "Dokumente werden gesendet…"],
@@ -2229,29 +2273,36 @@ const DPH={idf:"Лична карта / паспорт – лицева стра
 function couponMarkup(V){return V.coupon?.available?`<div><label for="d-coupon">Код за отстъпка (по избор)</label><input id="d-coupon" autocomplete="off" placeholder="RENTY10"><button type="button" data-apply-coupon>Въведи кода</button><small class="hint" id="coupon-message">${tr("Кодът намалява само наема с 10% и важи до")} ${esc(new Date(V.coupon.until).toLocaleString(LANG,{timeZone:"Europe/Sofia",dateStyle:"short",timeStyle:"short"}))}.</small></div>`:""}
 function renderDocs(V){const box=$("#th-docs"),n=V.drivers?V.drivers.count:1;box.hidden=false;if(DOCS.n===n&&box.querySelector("form")){const cp=box.querySelector("#docs-coupon-box"),key=JSON.stringify(V.coupon);if(cp&&cp.dataset.key!==key){cp.innerHTML=couponMarkup(V);cp.dataset.key=key}return}DOCS.n=n;DOCS.ph={};
 const f=(i,k,l,o="")=>`<div><label for="d${i}-${k}">${l}</label><input id="d${i}-${k}" ${o}></div>`;
+const step=(i,k,title,body)=>`<section class="doc-section" data-doc-section data-collapsed="${i!==0||k!==0}"><button type="button" class="doc-section-head" aria-expanded="${i===0&&k===0}" aria-controls="ds-${i}-${k}"><span class="step-num">${k+1}</span><span>${tr(title)}</span><span class="step-arrow" aria-hidden="true">⌄</span></button><div class="doc-section-body" id="ds-${i}-${k}">${body}<button type="button" class="doc-next">${tr(i===n-1&&k===3?"Към изпращане":"Продължи")}</button></div></section>`;
 const drv=i=>`<fieldset class="fbox"><legend>${i?"Водач 2 – допълнителен водач":"Водач 1 – основен водач (наемател)"}</legend>
-${f(i,"name","Имена (както са в документа)",V.drivers?.names?.[i]?`value="${esc(V.drivers.names[i])}"`:i===0&&V.drivers?.requesterDrives?`value="${esc(V.name||"")}"`:"")}${f(i,"citizen","Гражданство",'value="България"')}
+${step(i,0,"Самоличност",`${f(i,"name","Имена (както са в документа)",V.drivers?.names?.[i]?`value="${esc(V.drivers.names[i])}"`:i===0&&V.drivers?.requesterDrives?`value="${esc(V.name||"")}"`:"")}${f(i,"citizen","Гражданство",'value="България"')}
 <div class="seg" role="radiogroup" aria-label="Вид документ"><label class="opt"><input type="radio" name="d${i}-idt" value="id" checked><span>Лична карта</span></label><label class="opt"><input type="radio" name="d${i}-idt" value="pass"><span>Паспорт</span></label></div>
 <div class="row">${f(i,"idn","Номер на документа")}${f(i,"egn","ЕГН (за лична карта)",'inputmode="numeric"')}</div>
 <div class="row">${f(i,"idd","Дата на издаване",'type="date"')}${f(i,"idp","Издаден от","placeholder=\"напр. МВР Пловдив\"")}</div>
-<div class="row">${f(i,"region","Област")}${f(i,"municipality","Община")}</div>
+`)}
+${step(i,1,"Адрес по документа",`<div class="row">${f(i,"region","Област")}${f(i,"municipality","Община")}</div>
 <div class="seg" role="radiogroup" aria-label="Населено място"><label class="opt"><input type="radio" name="d${i}-pt" value="city"><span>Град</span></label><label class="opt"><input type="radio" name="d${i}-pt" value="village"><span>Село</span></label></div>
 <div class="row">${f(i,"city","Населено място")}${f(i,"addr","Адрес по документа")}</div>
-<div class="row">${f(i,"dln","Номер на шофьорската книжка")}${f(i,"dld","Дата на издаване на книжката",'type="date"')}</div>${f(i,"dlp","Книжката е издадена от")}
-<div class="row">${Object.entries(DPH).map(([k,l])=>`<div><label for="d${i}-p${k}">${l}</label><input id="d${i}-p${k}" type="file" accept="image/*" data-dph="${i}-${k}"><button class="btn btn-dark" type="button" data-doc-camera="${i}-${k}">Снимай с камерата</button><input id="d${i}-c${k}" type="file" accept="image/*" capture="environment" hidden data-dph="${i}-${k}"><small class="hint" id="d${i}-p${k}-m"></small></div>`).join("")}</div></fieldset>`;
+`)}
+${step(i,2,"Шофьорска книжка",`<div class="row">${f(i,"dln","Номер на шофьорската книжка")}${f(i,"dld","Дата на издаване на книжката",'type="date"')}</div>${f(i,"dlp","Книжката е издадена от")}
+`)}
+${step(i,3,"Снимки на документите",`<div class="row doc-photos">${Object.entries(DPH).map(([k,l])=>`<div class="doc-photo"><label for="d${i}-p${k}">${l}</label><input id="d${i}-p${k}" class="doc-file" type="file" accept="image/*" data-dph="${i}-${k}"><div class="doc-actions"><label class="doc-upload" for="d${i}-p${k}">${tr("Качи снимка/файл")}</label><button class="btn btn-dark" type="button" data-doc-camera="${i}-${k}">Снимай с камерата</button></div><input id="d${i}-c${k}" type="file" accept="image/*" capture="environment" hidden data-dph="${i}-${k}"><small class="hint" id="d${i}-p${k}-m"></small></div>`).join("")}</div>`)}
+</fieldset>`;
 const cp=`<div id="docs-coupon-box" data-key="${esc(JSON.stringify(V.coupon))}">${couponMarkup(V)}</div>`;
-box.innerHTML=`<h2>Документи на ${n===2?"водачите":"водача"}</h2><form id="docs-f" novalidate>${Array.from({length:n},(_,i)=>drv(i)).join("")}${cp}<p class="hint">Поставете документа върху равна повърхност при добро осветление. Снимайте го целия, без отблясъци, размазване и закрити краища.</p><label class="opt"><input id="d-consent" type="checkbox"><span>Запознат съм с <a href="#t-terms" data-open="t-terms">Общите условия</a> и <a href="#t-privacy" data-open="t-privacy">информацията за защита на личните данни</a> за обработването на документите за договора.</span></label>
+box.innerHTML=`<h2>Документи на ${n===2?"водачите":"водача"}</h2><p class="docs-intro">${tr("Попълнете кратките секции една по една. Можете да се връщате, без да губите въведеното.")}</p><form id="docs-f" novalidate>${Array.from({length:n},(_,i)=>drv(i)).join("")}${cp}<p class="hint">Поставете документа върху равна повърхност при добро осветление. Снимайте го целия, без отблясъци, размазване и закрити краища.</p><label class="opt"><input id="d-consent" type="checkbox"><span>Запознат съм с <a href="#t-terms" data-open="t-terms">Общите условия</a> и <a href="#t-privacy" data-open="t-privacy">информацията за защита на личните данни</a> за обработването на документите за договора.</span></label>
 <div id="d-err" class="alert" role="alert" hidden></div><button class="btn btn-acc" type="submit">Изпрати документите</button><p class="fmsg" id="d-msg" role="status"></p></form>`}
+function openDocSection(section,scroll=false){if(!section)return;document.querySelectorAll("[data-doc-section]").forEach(s=>{const open=s===section;s.dataset.collapsed=String(!open);s.querySelector(".doc-section-head").setAttribute("aria-expanded",String(open))});if(scroll&&matchMedia("(max-width:639px)").matches)section.scrollIntoView({behavior:matchMedia("(prefers-reduced-motion:reduce)").matches?"instant":"smooth",block:"start"})}
+document.addEventListener("click",e=>{const head=e.target.closest(".doc-section-head"),next=e.target.closest(".doc-next");if(head){const s=head.closest("[data-doc-section]");if(s.dataset.collapsed==="true")openDocSection(s);else{s.dataset.collapsed="true";head.setAttribute("aria-expanded","false")}}if(next){const all=[...document.querySelectorAll("[data-doc-section]")],s=next.closest("[data-doc-section]"),following=all[all.indexOf(s)+1];if(following)openDocSection(following,true);else document.querySelector("#d-consent").closest("label").scrollIntoView({behavior:"smooth",block:"center"})}});
 document.addEventListener("click",async e=>{const b=e.target.closest("[data-apply-coupon]");if(!b)return;const m=$("#coupon-message");try{const r=await fetch(`${BOOKINGS_ENDPOINT}/${S.bid}?t=${S.btok}`,{cache:"no-store"}),j=await r.json();const ok=r.ok&&j.coupon?.available&&$("#d-coupon").value.trim().toUpperCase()==="RENTY10";m.textContent=tr(ok?"Кодът е проверен. Отстъпката ще се приложи при изпращане на документите.":"Кодът не е валиден за тази резервация или срокът е изтекъл.");$("#d-coupon").setAttribute("aria-invalid",String(!ok))}catch{m.textContent=tr("Няма връзка със сървъра. Опитайте отново.")}});
 document.addEventListener("click",e=>{const b=e.target.closest("[data-doc-camera]");if(b)$("#d"+b.dataset.docCamera.replace("-","-c")).click()});
 document.addEventListener("change",async e=>{const t=e.target.closest&&e.target.closest("[data-dph]");if(!t)return;const k=t.dataset.dph,m=$("#d"+k.replace("-","-p")+"-m");delete DOCS.ph[k];m.textContent="";
 const fl=t.files[0];if(!fl)return;try{DOCS.ph[k]=await shrink(fl);m.textContent="✓ Снимката е готова"}catch(x){t.value="";m.textContent="Снимката не може да бъде прочетена. Изберете JPG или PNG."}});
 document.addEventListener("submit",async e=>{if(e.target.id!=="docs-f")return;e.preventDefault();const err=$("#d-err"),msg=$("#d-msg"),b=e.target.querySelector("button[type=submit]");err.hidden=true;
 const V=S.view,n=DOCS.n,val=id=>($("#"+id)||{}).value?.trim()||"",rad=nm=>(document.querySelector(`input[name="${nm}"]:checked`)||{}).value||"";
-const fail=t=>{err.textContent=tr(t);err.hidden=false};
-for(let i=0;i<n;i++){for(const k of ["name","citizen","idn","idd","idp","city","addr","dln","dld","dlp"])if(!val(`d${i}-${k}`))return fail(`Моля, попълнете всички данни на водач ${i+1}.`);
-if(rad(`d${i}-idt`)==="id"&&!val(`d${i}-egn`))return fail(`Моля, попълнете ЕГН на водач ${i+1}.`);if(!rad(`d${i}-pt`))return fail(`Моля, изберете град или село за адреса на водач ${i+1}.`);
-for(const k of Object.keys(DPH))if(!DOCS.ph[`${i}-${k}`])return fail(`Моля, приложете всички снимки на документите на водач ${i+1}.`)}
+const fail=(t,target)=>{err.textContent=tr(t);err.hidden=false;if(target){openDocSection(target.closest("[data-doc-section]"),true);setTimeout(()=>target.focus({preventScroll:true}),0)}else err.scrollIntoView({block:"center",behavior:"smooth"})};
+for(let i=0;i<n;i++){for(const k of ["name","citizen","idn","idd","idp","city","addr","dln","dld","dlp"])if(!val(`d${i}-${k}`))return fail(`Моля, попълнете всички данни на водач ${i+1}.`,$(`#d${i}-${k}`));
+if(rad(`d${i}-idt`)==="id"&&!val(`d${i}-egn`))return fail(`Моля, попълнете ЕГН на водач ${i+1}.`,$(`#d${i}-egn`));if(!rad(`d${i}-pt`))return fail(`Моля, изберете град или село за адреса на водач ${i+1}.`,document.querySelector(`input[name="d${i}-pt"]`));
+for(const k of Object.keys(DPH))if(!DOCS.ph[`${i}-${k}`])return fail(`Моля, приложете всички снимки на документите на водач ${i+1}.`,$(`#d${i}-p${k}`))}
 if(!$("#d-consent").checked)return fail("Потвърдете условията и информацията за обработване на документите.");
 DOCS.busy=b.disabled=true;msg.textContent="Изпращаме документите…";
 try{const drivers=[];for(let i=0;i<n;i++){const photos={};for(const k of Object.keys(DPH)){const r=await fetch(DOCS_ENDPOINT,{method:"POST",headers:{"Content-Type":"image/jpeg"},body:DOCS.ph[`${i}-${k}`]});const j=await r.json().catch(()=>({}));if(!r.ok||!j.url)throw new Error("photo");photos[k]=j.url.split("/").pop()}
