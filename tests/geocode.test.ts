@@ -33,7 +33,7 @@ test("коректен адрес до номер, нееднозначен ад
   assert.equal(pickPlace("гр. Пловдив, ул. Няма 5", []), null);
 });
 
-test("номер на сградата: само улицата не е точно намерен адрес", () => {
+test("номер на сградата: само улицата не е точно намерен адрес (точност street → няма цена в server/route.ts)", () => {
   // бул. Дунав 10: в OpenStreetMap има само отсечки от булеварда – точност „street“, не „house“
   const d = pickPlace("гр. Пловдив, бул. Дунав 10", DUNAV_10);
   assert.ok(d && d !== "ambiguous");
@@ -79,6 +79,10 @@ test("населеното място: изрично, без „гр.“, кв�
   const v = nom(42.0598, 24.6998, "village", 19, "Брестник", { village: "Брестник", municipality: "Родопи", state: "Пловдив" });
   assert.equal((pickPlace("с. Брестник, ул. Първа 5", [v]) as any).precision, "place");
   assert.equal((pickPlace("с. Брестник", [v]) as any).precision, "place");
+  // Номер в село без улици: потвърден само ако сградата с този номер е намерена
+  const h5 = nom(42.0598, 24.6998, "building", 30, "", { house_number: "5", village: "Брестник", municipality: "Родопи", state: "Пловдив" });
+  assert.equal((pickPlace("с. Брестник 5", [v, h5]) as any).precision, "house");
+  assert.equal((pickPlace("с. Брестник 7", [v, h5]) as any).precision, "place");
   // Без населено място адресът е в гр. Пловдив (не в с. Свобода)
   assert.deepEqual(parseAddr("Свобода 73").towns, ["plovdiv"]);
   assert.equal(pickPlace("Свобода 73", [nom(43.4, 27.7, "road", 26, "Свобода", { road: "Свобода", village: "Свобода", state: "Добрич" })]), "ambiguous");

@@ -4,9 +4,9 @@
 // съвпада и с името на областта – и сайтът изчисляваше 49,8 км × 0,70 € вместо маршрут до центъра на Пловдив.
 // Точност (precision) на намереното място:
 //   "house"  – намерен е въведеният номер на сградата (address.house_number съвпада);
-//   "street" – намерена е само улицата (номерът липсва в OpenStreetMap или не е въведен) – разстоянието е приблизително,
-//              до точката на улицата, която връща доставчикът; клиентът вижда това изрично (не като точен адрес);
+//   "street" – намерена е само улицата (номерът липсва в OpenStreetMap или не е въведен);
 //   "place"  – само населеното място (адрес без улица, напр. „с. Брестник“, или село без улици в OpenStreetMap).
+// Цена се изчислява само при "house" (server/route.ts); "street" и "place" → отказ „imprecise“ (уточняване / обаждане).
 // Без външни заявки и без база – само правилата (проверява ги tests/geocode.test.ts).
 
 export type NomResult = {
@@ -47,7 +47,7 @@ const NUMBER_RE = /(?:^|\s)(?:№\s*|no\.?\s*)?(\d+[а-яa-z]?)\s*$/i;
 export function parseAddr(addr: string): Parsed {
   const parts = String(addr || "").split(",").map((p) => p.trim()).filter(Boolean);
   const explicit: string[] = [], bare: string[] = [], bareText: string[] = [];
-  let street: string | null = null, area = false, townText: string | null = null, streetText: string | null = null, number: string | null = null;
+  let street: string | null = null, area = false, townText: string | null = null, streetText: string | null = null, number: string | null = null, villageNo: string | null = null;
   // streetText остава с „ул.“ / „бул.“ – структурираното търсене различава „бул. Дунав“ от „ул. Дунав“
   const setStreet = (name: string, part: string, isArea = false) => {
     if (street != null) return;
@@ -56,7 +56,10 @@ export function parseAddr(addr: string): Parsed {
   };
   for (const p of parts) {
     let m: RegExpExecArray | null;
-    if ((m = TOWN_RE.exec(p))) { explicit.push(fold(stripNo(m[3]))); townText ??= stripNo(m[3]); }
+    if ((m = TOWN_RE.exec(p))) {
+      explicit.push(fold(stripNo(m[3]))); townText ??= stripNo(m[3]);
+      villageNo ??= NUMBER_RE.exec(m[3])?.[1] ?? null; // „с. Брестник 5“ – номер в село без улици
+    }
     else if (ADMIN_RE.test(p) || /^(бл|вх|ет|ап|блок|вход|етаж|апартамент)(\.\s*|\s+)/i.test(p)) continue; // област / община, блок / вход / етаж
     else if ((m = STREET_RE.exec(p))) setStreet(m[3], p);
     else if ((m = AREA_RE.exec(p))) setStreet(m[3], p, true);
@@ -69,7 +72,7 @@ export function parseAddr(addr: string): Parsed {
   const isBare = !explicit.length && !mentionsPlovdiv && bare.length > 0;
   const towns = explicit.length ? explicit : mentionsPlovdiv ? (street ? [PLOVDIV] : []) : isBare ? bare : [PLOVDIV];
   townText ??= isBare ? bareText[0] : towns[0] === PLOVDIV ? "Пловдив" : null;
-  return { towns: [...new Set(towns.filter(Boolean))], bare: isBare, street: street || null, area, townText, streetText, number };
+  return { towns: [...new Set(towns.filter(Boolean))], bare: isBare, street: street || null, area, townText, streetText, number: street ? number : villageNo };
 }
 
 // Заявките към Nominatim по ред: свободен текст; улица + населено място (структурирано търсене – Nominatim
@@ -116,7 +119,7 @@ const sameNumber = (want: string, have: string | undefined) =>
 export function accepts(p: Parsed, r: NomResult): Precision | null {
   if (!r.address) return null; // без подробности за адреса мястото не може да бъде проверено
   if (!townOk(p, r)) return null;
-  if (!p.street) return "place";
+  if (!p.street) return p.number && sameNumber(p.number, r.address.house_number) ? "house" : "place";
   if (streetNames(r, p.area).some((n) => sameStreet(p.street!, n))) return p.number && sameNumber(p.number, r.address.house_number) ? "house" : "street";
   // Селата често нямат улици в OpenStreetMap – тогава се приема центърът на селото
   return VILLAGE_TYPES.has(String(r.addresstype || "")) && (r.place_rank ?? 0) < 26 ? "place" : null;
@@ -142,6 +145,6 @@ export function endPrecision(addr: string, r: NomResult | null): Precision | nul
   const p = parseAddr(addr);
   if (!r || !r.address) return p.towns.length ? null : "place";
   if (!townOk(p, r)) return null;
-  if (!p.street) return "place";
+  if (!p.street) return p.number && sameNumber(p.number, r.address.house_number) ? "house" : "place";
   return streetNames(r, p.area).some((n) => sameStreet(p.street!, n)) && p.number && sameNumber(p.number, r.address.house_number) ? "house" : "street";
 }

@@ -136,26 +136,30 @@ for (const [lang, re] of [["", /Направени са твърде много 
   check(`7.${lang || "bg/"} 429: съобщение на езика на страницата, бутонът е неактивен; „Изчисли отново“ след изчакване → цена`, re.test(t) && dis && ok && cid.length > 0 && cid.every((c) => /^[a-f0-9]{32}$/.test(c)) && new Set(cid).size === 1, t.replace(/\n/g, " / ").slice(0, 200));
   await ctx.close();
 }
-// 8. Нееднозначен адрес (регресия Бяла река) и адрес, намерен само до улицата, на трите езика:
-// „гр. Пловдив, пл. Централен 1“ → искане за уточнение, без сума; „ул. Улична 4“ → цена с бележка „приблизително“
-for (const [lang, amb, approx, total] of [
-  ["", /Адресът за доставка не беше намерен в посоченото населено място и улица\. Уточнете адреса/, /Приблизително: номерът не е намерен на картата, разстоянието е до улицата\./, /Общо за услугите\s*54,10 €/],
-  ["en/", /The delivery address was not found in the given town and street\. Please specify the address/, /Approximate: the house number was not found on the map, the distance is to the street\./, /Total for services\s*54,10 €/],
-  ["de/", /Die Lieferadresse wurde im angegebenen Ort und in der angegebenen Straße nicht gefunden\. Bitte präzisieren Sie die Adresse/, /Ungefähr: Die Hausnummer wurde auf der Karte nicht gefunden/, /Gesamt für Leistungen\s*54,10 €/],
+// 8. Нееднозначен адрес (регресия Бяла река) и адрес с непотвърден номер (на картата е само улицата) на трите езика:
+// „гр. Пловдив, пл. Централен 1“ → искане за уточнение; „ул. Улична 4“ → искане за уточнение на номера и контакт.
+// И в двата случая няма сума, изпращането е неактивно; с потвърден номер → цена.
+for (const [lang, amb, imp, total] of [
+  ["", /Адресът за доставка не беше намерен в посоченото населено място и улица\. Уточнете адреса/, /Не намерихме точния номер на адреса за доставка на картата – цената не може да бъде изчислена до произволна точка от улицата\. Уточнете улицата и номера или се обадете/, /Общо за услугите\s*55 €/],
+  ["en/", /The delivery address was not found in the given town and street\. Please specify the address/, /We could not find the exact house number of the delivery address on the map – the price cannot be calculated to an arbitrary point on the street\. Please specify the street and number or call us/, /Total for services\s*55 €/],
+  ["de/", /Die Lieferadresse wurde im angegebenen Ort und in der angegebenen Straße nicht gefunden\. Bitte präzisieren Sie die Adresse/, /Wir konnten die genaue Hausnummer der Lieferadresse auf der Karte nicht finden – der Preis kann nicht bis zu einem beliebigen Punkt der Straße berechnet werden/, /Gesamt für Leistungen\s*55 €/],
 ]) {
   const { ctx, page } = await open({ m1: "addr", a1: "гр. Пловдив, пл. Централен 1" });
   await page.goto(B + "/" + lang + "#avtomobili", { waitUntil: "load" });
   await page.waitForSelector("#pick [data-requote]", { timeout: 15000 });
   await fill(page);
   const t = await page.locator("#pick").innerText(), dis = await page.$eval("#bk button[type=submit]", (b) => b.disabled);
-  check(`8.${lang || "bg/"} нееднозначен адрес: искане за уточнение, без сума и без 49,8 км; изпращането е неактивно`, amb.test(t) && !/49,8|Общо за услугите|Total for services|Gesamt für/.test(t) && dis, t.replace(/\n/g, " / ").slice(0, 240));
+  const noSum = (x) => !/49,8|Общо за услугите|Total for services|Gesamt für/.test(x);
+  check(`8.${lang || "bg/"} нееднозначен адрес: искане за уточнение, без сума и без 49,8 км; изпращането е неактивно`, amb.test(t) && noSum(t) && dis, t.replace(/\n/g, " / ").slice(0, 240));
   await page.fill("#b-a1", "ул. Улична 4");
-  await page.waitForFunction(() => /(Общо за услугите|Total for services|Gesamt für Leistungen)/.test(document.querySelector("#pick").innerText), null, { timeout: 15000 });
-  const t2 = await page.locator("#pick").innerText();
-  check(`8.${lang || "bg/"} само улицата: 4,1 км × 1,00 € с бележка „приблизително“, обща сума 54,10 €`, /4,1 (км|km) × 1,00 €/.test(t2) && approx.test(t2) && total.test(t2) && page.errs.length === 0, t2.replace(/\n/g, " / ").slice(0, 300));
+  await page.waitForFunction((re) => new RegExp(re).test(document.querySelector("#pick").innerText), imp.source, { timeout: 15000 });
+  const t2 = await page.locator("#pick").innerText(), dis2 = await page.$eval("#bk button[type=submit]", (b) => b.disabled);
+  const tel = await page.$("#pick a[href^='tel:']"), rq = await page.$("#pick [data-requote]");
+  check(`8.${lang || "bg/"} непотвърден номер: искане за уточнение и бутон за обаждане, без км и сума; изпращането е неактивно`, imp.test(t2) && noSum(t2) && !/4,1 (км|km)/.test(t2) && !!tel && !!rq && dis2, t2.replace(/\n/g, " / ").slice(0, 300));
   await page.fill("#b-a1", "ул. Тестова 1");
   await page.waitForFunction(() => /5 (км|km) × 1,00 €/.test(document.querySelector("#pick").innerText), null, { timeout: 15000 });
-  check(`8.${lang || "bg/"} намерен номер: без бележка „приблизително“`, !(await page.$("#pick [data-approx]")));
+  const t3 = await page.locator("#pick").innerText();
+  check(`8.${lang || "bg/"} потвърден номер: цена 5 км × 1,00 €, обща сума 55 €; без грешки в страницата`, total.test(t3) && page.errs.length === 0, page.errs.join(";"));
   await ctx.close();
 }
 await browser.close();

@@ -5,6 +5,9 @@
 // Без ключ (или ако Google не отговори) адресът се намира с OpenStreetMap (Nominatim), а маршрутът – с OSRM.
 // И двата доставчика тръгват от едни и същи координати (BASE). Намереното място се приема само ако е в посоченото
 // населено място и на посочената улица (server/geocode.ts); иначе клиентът трябва да уточни адреса („ambiguous“).
+// Цена се изчислява само до потвърдена сграда (точност „house“ – въведеният номер е намерен на въведената улица).
+// Намерена само улица (номерът липсва или не е въведен) или само населено място → „imprecise“: няма оферта,
+// клиентът уточнява адреса или се обажда. Адресът не се заменя с точка от улицата или центъра на селото.
 // cachedRoute() пази резултатите в базата (route_cache) и при едновременни заявки за един адрес пита доставчика само веднъж.
 // В логовете няма адреси и отговори на доставчика – само кодове на грешки.
 import { createHash, randomUUID } from "node:crypto";
@@ -73,17 +76,21 @@ async function reverse(p: { lat: number; lon: number }): Promise<NomResult | nul
   return j && j.address ? j : null;
 }
 
-// Първо търсим точния адрес, после без данни за блок/вход/етаж/апартамент и накрая извън България.
+// Първо търсим точния адрес, после без данни за блок/вход/етаж/апартамент и накрая извън България. Спира се при
+// намерена сграда; иначе се връща най-точното приетото място (улица / населено място – за отказ „imprecise“).
 // "ambiguous" – намерени са само места в друго населено място или на друга улица.
+const RANK = { house: 3, street: 2, place: 1 } as const;
 async function findPlace(addr: string): Promise<Place | "ambiguous" | null> {
   const short = addr.replace(/(^|[,\s])(бл|вх|ет|ап)(\.\s*|\s+)[\wА-я-]+/gi, "").trim();
-  let ambiguous = false;
+  let ambiguous = false, best: Place | null = null;
   const qs = [...queriesFor(addr, withCity(addr)), ...(short !== addr ? queriesFor(short, withCity(short)) : [])];
   for (const q of qs) {
     const p = pickPlace(addr, await geocode(q, true));
-    if (p && p !== "ambiguous") return p;
     if (p === "ambiguous") ambiguous = true;
+    else if (p && (!best || RANK[p.precision] > RANK[best.precision])) best = p;
+    if (best?.precision === "house") return best;
   }
+  if (best) return best;
   if (ambiguous) return "ambiguous";
   return pickPlace(addr, await geocode(addr, false));
 }
@@ -116,31 +123,28 @@ async function googleKm(dest: string): Promise<{ km: number; place: string; end:
   return typeof m === "number" ? { km: Math.round(m / 100) / 10, place: dest, end } : null;
 }
 
-// precision: "house" – намерен е въведеният номер; "street" – само улицата (разстоянието е приблизително); "place" – населеното място
+// precision е винаги "house" – разстояние се връща само до потвърдена сграда
 export type Route = { km: number; place: string; local: boolean; rate: number; source: "google" | "osm"; precision: Precision };
-export type RouteError = "not_found" | "no_route" | "ambiguous";
+// imprecise – намерена е само улицата или населеното място, не въведеният номер (или номер не е въведен)
+export type RouteError = "not_found" | "no_route" | "ambiguous" | "imprecise";
 
 // Разстояние до адреса или причината да няма такова. Мрежовите грешки се пропускат нагоре (извикващият решава).
 export async function routeTo(dest: string): Promise<Route | RouteError> {
   const g = await googleKm(dest).catch((e) => (console.error("Google Routes failed", (e as Error)?.name), null));
   if (g) {
-    // Крайната точка от Google трябва да е в посоченото населено място; без нея зоната се определя чрез OpenStreetMap.
-    // Непроверима точка не получава тарифа „по подразбиране“ – тогава се ползва резервният път по-долу.
+    // Разстоянието от Google се приема само ако крайната му точка (обратно търсене) е въведеният номер в посоченото
+    // населено място; друго населено място → ambiguous. Иначе (без точка, само улица) – резервният път по-долу.
     if (g.end) {
       const at = await reverse(g.end).catch(() => null);
       const precision = at && endPrecision(dest, at);
-      if (precision) return { km: g.km, place: g.place, ...zone(g.end), source: "google", precision };
-      if (at) return "ambiguous";
-    } else {
-      const p = await findPlace(dest).catch(() => null);
-      if (p === "ambiguous") return p;
-      // Точката от OpenStreetMap само определя зоната – разстоянието от Google не е проверено до номер
-      if (p) return { km: g.km, place: g.place, ...zone(p), source: "google", precision: p.precision === "house" ? "street" : p.precision };
+      if (precision === "house") return { km: g.km, place: g.place, ...zone(g.end), source: "google", precision };
+      if (at && !precision) return "ambiguous";
     }
   }
   const p = await findPlace(dest);
   if (p === "ambiguous") return p;
   if (!p) return "not_found";
+  if (p.precision !== "house") return "imprecise";
   const r = await fetch(
     `https://router.project-osrm.org/route/v1/driving/${BASE.lon},${BASE.lat};${p.lon},${p.lat}?overview=false`,
     { headers: { "User-Agent": UA } },
@@ -167,10 +171,11 @@ export function validAddr(a: unknown) {
 // останалите изчакват резултата ѝ. Заето търсене, което не е завършило за CLAIM_MS (прекъсната функция), може да бъде заето
 // отново. Едно търсене може да направи няколко заявки към доставчиците (Google + OpenStreetMap за зоната или резервния път).
 // Грешките се помнят кратко (FAIL_TTL_MS), за да не се повтарят веднага, но повторен опит след това пита отново.
-// Версия 2: проверка на населеното място, улицата и номера, точност на резултата и точната начална точка (pin на офиса).
-// Началната точка е част от ключа – при нова точка старите разстояния не се използват. Записите от версия 1 не се четат
+// Версия 3: цена само до потвърден номер (версия 2 приемаше и точка от улицата); проверка на населеното място и улицата;
+// точната начална точка (pin на офиса).
+// Началната точка е част от ключа – при нова точка старите разстояния не се използват. Записите от версии 1 и 2 не се четат
 // (не се изтриват – изтичат сами след 24 ч).
-const CACHE_VERSION = "2";
+const CACHE_VERSION = "3";
 export const ROUTE_VERSION = `${CACHE_VERSION}@${BASE.lat},${BASE.lon}`;
 export const ROUTE_CACHE = { okTtlMs: 24 * 3600_000, failTtlMs: 15_000, errorTtlMs: 5_000, claimMs: 20_000, waitMs: 12_000, pollMs: 150 };
 const cacheKey = (dest: string) => "v" + CACHE_VERSION + "/" + createHash("sha256").update(ROUTE_VERSION + "\n" + normAddr(dest).toLowerCase()).digest("hex");
