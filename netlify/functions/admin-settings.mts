@@ -12,7 +12,7 @@ import { mailAllowed } from "../../mail/index.js";
 // POST /api/admin/settings { reminders } – запис на напомнянията; ползват се от функцията customer-emails при следващото ѝ изпълнение.
 // Не се връщат пароли, API ключове или токени – само дали пощенската услуга е настроена.
 const JOBS = [
-  { key: "customer-emails", schedule: "*/5 * * * *", label: "Напомняния и писма до клиентите (вкл. документи и RENTY10)" },
+  { key: "customer-emails", schedule: "*/15 * * * *", label: "Напомняния и писма до клиентите" },
   { key: "email-retry", schedule: "*/5 * * * *", label: "Повторни опити за неизпратени писма" },
   { key: "backup", schedule: "17 * * * *", label: "Резервни копия" },
 ];

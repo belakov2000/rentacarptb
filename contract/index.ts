@@ -74,9 +74,6 @@ export type ContractData = {
   d1: string; t1: string; d2: string; t2: string;
   days: number | null; rent: number | null; seat: number | null; seatN: number; seatDay: number | null;
   del: Leg; ret: Leg; abroad: { name: string; fee: number }[];
-  // Приложение към договора (двуетапна заявка): допълнителни услуги (вериги, втори водач), данните на втория водач, отстъпка.
-  // Шаблонът няма полета за тях – редовете се добавят като отделни абзаци в края на документа.
-  appendix?: string[];
 };
 
 const s = (v: unknown, max = 200) => (typeof v === "string" ? v.trim().slice(0, max) : "");
@@ -185,9 +182,6 @@ function values(d: ContractData): Record<string, string> {
   };
 }
 
-// Абзаци на приложението (първият ред – удебелен заглавен)
-const appendixXml = (lines?: string[]) =>
-  !lines?.length ? "" : lines.map((t, i) => `<w:p><w:r>${i ? "" : "<w:rPr><w:b/></w:rPr>"}<w:t xml:space="preserve">${xmlEsc(t)}</w:t></w:r></w:p>`).join("");
 const xmlEsc = (v: string) => v.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
 
 // Допълнения, които могат да останат празни (без линия)
@@ -203,8 +197,7 @@ export function buildContract(d: ContractData): Uint8Array {
     .replace(/Име: \{\{name\}\}/g, "Име: {{signName}}")
     // „Място“ в двете декларации е мястото, откъдето клиентът взема автомобила (офисът или адресът за доставка)
     .replace(/Място: Пловдив[.,] бул\. Дунав 10/g, "Място: {{pickupPlace}}")
-    .replace(/\{\{(\w+)\}\}/g, (_, k) => xmlEsc(v[k] || (OPTIONAL.has(k) ? "" : BLANK)))
-    .replace(/(<w:sectPr[\s>])/, (m) => appendixXml(d.appendix) + m);
+    .replace(/\{\{(\w+)\}\}/g, (_, k) => xmlEsc(v[k] || (OPTIONAL.has(k) ? "" : BLANK)));
   return zipSync({ ...template, "word/document.xml": strToU8(xml) }, { level: 6 });
 }
 

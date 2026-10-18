@@ -26,7 +26,7 @@ const cached = (body: object) =>
 export default async (req: Request, context: Context) => {
   const sp = new URL(req.url).searchParams;
   const raw = sp.get("destination") || "";
-  const pin = sp.has("lat") || sp.has("lon") ? { lat: Number(sp.get("lat")), lon: Number(sp.get("lon")) } : null;
+  const pin = sp.has("lat") || sp.has("lon") ? { lat: Number(sp.get("lat")), lon: Number(sp.get("lon")), free: sp.get("free") === "1" } : null;
   // Невалидният адрес / пин не стига до броячите и до доставчика
   if (!validAddr(raw)) return Response.json({ error: "Missing destination" }, { status: 400 });
   if (pin && !validPin(pin)) return Response.json({ error: "Bad pin" }, { status: 400 });
@@ -39,7 +39,7 @@ export default async (req: Request, context: Context) => {
       const r = await cachedRoute(raw, { pin, budget: async () => { const b = await lookupBudget(w); if (!b.ok) budgetFail = b; return b.ok; } });
       if (r === "limited") return tooMany(budgetFail || { scope: "lookup", retryAfter: 60 });
       if (r === "not_found") return Response.json({ error: "Address not found" }, { status: 404 });
-      if (r === "ambiguous" || r === "imprecise" || r === "terminal" || r === "pin_town" || r === "pin_far") return Response.json({ error: r }, { status: 422 });
+      if (r === "ambiguous" || r === "imprecise" || r === "terminal" || r === "pin_town" || r === "pin_far" || r === "pin_abroad") return Response.json({ error: r }, { status: 422 });
       if (typeof r === "object" && "pin" in r) return Response.json({ error: "pin", pin: { lat: r.lat, lon: r.lon, found: r.found } }, { status: 409 });
       if (typeof r === "string") return Response.json({ error: "No route" }, { status: 502 });
       const body = { km: r.km, place: r.place, local: r.local, rate: r.rate, source: r.source, precision: r.precision, ...(r.poi ? { poi: r.poi } : {}), version: ROUTE_VERSION };

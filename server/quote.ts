@@ -15,8 +15,7 @@ import { cachedRoute, normAddr, validAddr, validPin, type CacheResult, type Pin 
 //    и със същата сума, каквато клиентът е видял (quoteTotalCents). Цената се изчислява отново по текущите правила –
 //    ако е различна, резервацията НЕ се записва, а браузърът показва новата сума и иска ново потвърждение.
 // Офертата не блокира наличност – заетостта се проверява при подаването и при потвърждението, както досега.
-// Вериги (3,50 €/ден) и втори допълнителен водач (3 €/ден) – само през extras: { chains, secondDriver } (булеви стойности).
-// Старите полета chains / secondDriver / services в тялото или в договора се отказват (service), както досега.
+// Веригите и вторият водач не се предлагат в този етап – заявка с тях се отказва (service).
 
 export const QUOTE_TTL_MS = 30 * 60_000;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/, TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -27,7 +26,6 @@ export type QuoteInput = {
   seats: number; del: string | null; ret: string | null; abroad: string[];
   // Точка, посочена и потвърдена от клиента на картата (когато за адреса е намерена само улицата / населеното място)
   delPin?: Pin | null; retPin?: Pin | null;
-  chains?: boolean; secondDriver?: boolean;
 };
 export type InputError = "dates" | "past" | "order" | "hours" | "car" | "seats" | "country" | "service" | "address" | "pin";
 
@@ -37,8 +35,7 @@ export function inputHash(i: QuoteInput) {
   // Потвърдените пинове участват в отпечатъка – офертата е за точно тези местоположения (до 6 знака)
   const pt = (p?: Pin | null) => (p ? `${Math.round(p.lat * 1e6) / 1e6},${Math.round(p.lon * 1e6) / 1e6}` : null);
   const pl = i.delPin || i.retPin ? [[pt(i.delPin), pt(i.retPin)]] : [];
-  const ex = i.chains || i.secondDriver ? [["x", !!i.chains, !!i.secondDriver]] : [];
-  return sha(JSON.stringify([i.carId, i.startDate, i.startTime, i.endDate, i.endTime, i.seats, a(i.del), a(i.ret), [...i.abroad].sort(), ...pl, ...ex]));
+  return sha(JSON.stringify([i.carId, i.startDate, i.startTime, i.endDate, i.endTime, i.seats, a(i.del), a(i.ret), [...i.abroad].sort(), ...pl]));
 }
 
 // Проверка на входните данни – същите правила като при подаването на резервацията (работно време, не по-рано от днес)
@@ -64,22 +61,14 @@ const addrOf = (v: unknown) => (typeof v === "string" && v.trim() ? (v.length > 
 const pinOf = (v: unknown): Pin | null => {
   if (v == null) return null;
   const o = v as any;
-  return { lat: typeof o?.lat === "number" ? o.lat : NaN, lon: typeof o?.lon === "number" ? o.lon : NaN };
+  return { lat: typeof o?.lat === "number" ? o.lat : NaN, lon: typeof o?.lon === "number" ? o.lon : NaN, ...(o?.free === true ? { free: true } : {}) };
 };
 const hidden = (o: any) => !!(o && typeof o === "object" && (o.chains || o.secondDriver || o.second_driver));
-// extras: { chains?: boolean, secondDriver?: boolean }; друга форма → service
-const extrasOf = (v: unknown): { chains: boolean; secondDriver: boolean } | null => {
-  if (v == null) return { chains: false, secondDriver: false };
-  const o = v as any;
-  if (typeof o !== "object" || Object.keys(o).some((k) => !["chains", "secondDriver"].includes(k)) || [o.chains, o.secondDriver].some((x) => x != null && typeof x !== "boolean")) return null;
-  return { chains: !!o.chains, secondDriver: !!o.secondDriver };
-};
 
 // Тялото на /api/quote
 export function parseQuoteBody(b: any): { input: QuoteInput } | { error: InputError } {
   if (!b || typeof b !== "object") return { error: "dates" };
-  const ex = extrasOf(b.extras);
-  if (hidden(b) || hidden(b.services) || !ex) return { error: "service" };
+  if (hidden(b) || hidden(b.services) || b.extras != null) return { error: "service" };
   if (Array.isArray(b.abroad) && b.abroad.length > ABROAD.length) return { error: "country" };
   const abroad = Array.isArray(b.abroad) ? b.abroad.map((c: unknown) => s(c, 4)) : [];
   const seats = b.seats == null ? 0 : typeof b.seats === "number" ? b.seats : NaN;
@@ -87,7 +76,7 @@ export function parseQuoteBody(b: any): { input: QuoteInput } | { error: InputEr
     input: {
       carId: s(b.carId, 40), startDate: s(b.startDate, 10), startTime: s(b.startTime, 5), endDate: s(b.endDate, 10), endTime: s(b.endTime, 5),
       seats, del: addrOf(b.delivery), ret: addrOf(b.return), abroad,
-      delPin: pinOf(b.deliveryPin), retPin: pinOf(b.returnPin), ...ex,
+      delPin: pinOf(b.deliveryPin), retPin: pinOf(b.returnPin),
     },
   };
 }
@@ -96,8 +85,7 @@ export function parseQuoteBody(b: any): { input: QuoteInput } | { error: InputEr
 // столчета (seatN), адреси за доставка / връщане и държави (по името от формата). Сумите от браузъра не се ползват.
 export function bookingInput(b: { carId: string; startDate: string; startTime: string; endDate: string; endTime: string }, body: any): { input: QuoteInput } | { error: InputError } {
   const c = body?.contract && typeof body.contract === "object" ? body.contract : null;
-  const ex = extrasOf(body?.extras);
-  if (hidden(body) || hidden(c) || hidden(body?.services) || !ex) return { error: "service" };
+  if (hidden(body) || hidden(c) || hidden(body?.services) || body?.extras != null) return { error: "service" };
   const n = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : 0);
   const seats = c && (n(c.seat) > 0 || n(c.seatDay) > 0) ? (Number.isInteger(c.seatN) ? c.seatN : NaN) : 0;
   const abroad: string[] = [];
@@ -109,7 +97,7 @@ export function bookingInput(b: { carId: string; startDate: string; startTime: s
   const leg = (v: any) => (v && typeof v === "object" ? addrOf(v.addr) : null);
   // Потвърдените пинове идват отделно от договора (pins: { del, ret })
   const pins = body?.pins && typeof body.pins === "object" ? body.pins : {};
-  return { input: { ...b, seats, del: c ? leg(c.del) : null, ret: c ? leg(c.ret) : null, abroad, delPin: pinOf(pins.del), retPin: pinOf(pins.ret), ...ex } };
+  return { input: { ...b, seats, del: c ? leg(c.del) : null, ret: c ? leg(c.ret) : null, abroad, delPin: pinOf(pins.del), retPin: pinOf(pins.ret) } };
 }
 
 export const carActive = async (carId: string) => {
@@ -149,7 +137,6 @@ const priceOf = (i: QuoteInput, legs: Legs) =>
   price({
     carId: i.carId, startDate: i.startDate, startTime: i.startTime, endDate: i.endDate, endTime: i.endTime, seats: i.seats,
     del: legs.del ? { km: legs.del.km, rate: legs.del.rate } : null, ret: legs.ret ? { km: legs.ret.km, rate: legs.ret.rate } : null, abroad: i.abroad,
-    chains: !!i.chains, secondDriver: !!i.secondDriver,
   });
 
 type QuoteRow = typeof priceQuotes.$inferSelect;
@@ -175,7 +162,7 @@ export async function createQuote(i: QuoteInput, o: { route?: RouteFn; budget?: 
     .insert(priceQuotes)
     .values({
       id: sha(token), inputHash: inputHash(i),
-      input: { carId: i.carId, startDate: i.startDate, startTime: i.startTime, endDate: i.endDate, endTime: i.endTime, seats: i.seats, del: !!i.del, ret: !!i.ret, abroad: i.abroad, chains: !!i.chains, secondDriver: !!i.secondDriver },
+      input: { carId: i.carId, startDate: i.startDate, startTime: i.startTime, endDate: i.endDate, endTime: i.endTime, seats: i.seats, del: !!i.del, ret: !!i.ret, abroad: i.abroad },
       legs: r.legs, version: PRICING_VERSION, days: p.days, lines: p.lines, totalCents: p.totalCents, depositCents: p.depositCents,
       createdAt: now, expiresAt: new Date(now.getTime() + QUOTE_TTL_MS),
     })

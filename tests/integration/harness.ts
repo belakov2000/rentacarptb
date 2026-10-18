@@ -135,6 +135,8 @@ const fakeGeocode = (u: URL): Nom[] | Nom => {
   // Обратно търсене (проверка на пина): южно от 42.05 – с. Брестник (друго населено място), иначе гр. Пловдив
   if (u.pathname.includes("/reverse")) {
     const lat = Number(p.get("lat"));
+    // Западно от 22.6 – Сърбия (пин извън България)
+    if (Number(p.get("lon")) < 22.6) return { ...nom(lat, Number(p.get("lon")), "village", 19, "Синтетично село", { village: "Синтетично село", state: "Пирот" }), address: { village: "Синтетично село", country: "Сърбия", country_code: "rs" } } as any;
     return lat < 42.05 ? nom(lat, Number(p.get("lon")), "village", 19, "Брестник", { village: "Брестник", municipality: "Родопи", state: "Пловдив" })
       : nom(lat, Number(p.get("lon")), "building", 30, "", { road: "ул. Синтетична", city: "Пловдив", state: "Пловдив" });
   }
@@ -170,7 +172,8 @@ const fakeRoute = async (url: string, init?: any) => {
     // Летищата (server/geocode.ts → POIS): реалните разстояния от OSRM от офиса (18.10.2026)
     const AIRPORTS: Record<string, number> = { "23.402457": 138500, "23.414214": 139300, "24.844729": 19200 };
     const distance = AIRPORTS[String(lon)] ?? (lat > 42.6 ? 150000 : lon > 25.2 ? 49809.6 : lon === 24.751 ? 4100 : 5000);
-    return Response.json({ code: "Ok", routes: [{ distance }], waypoints: [] });
+    // Ширина 42.40–42.41: точката е далеч от път (OSRM я „закача“ на 5 км) – невъзможен автомобилен маршрут
+    return Response.json({ code: "Ok", routes: [{ distance }], waypoints: [{ distance: 0 }, { distance: lat >= 42.4 && lat < 42.41 ? 5000 : 12 }] });
   }
   return null;
 };

@@ -6,7 +6,6 @@ import { closedMail, customerMail, extendedMail } from "../mail/decision.js";
 import { btn, esc, OWNER_EMAIL, wrapMail, type Attachment } from "../mail/index.js";
 import { contracts } from "./contracts.js";
 import { sendLogged } from "./email.js";
-import { markInvited, sendDocsInvite, sendDocsReceived, sendOwnerDocs, sendStage } from "./stage.js";
 import { store } from "./stores.js";
 
 // Писмата около една резервация. Ползват се веднага при заявката / решението и от повторните опити (email-retry).
@@ -83,16 +82,6 @@ export async function retry(kind: string, bookingId: string | null, dedupeKey: s
   const [b] = await db.select().from(bookings).where(eq(bookings.id, bookingId));
   if (!b) return null;
   if (kind === "customer-received") return sendCustomerReceived(b);
-  // Двуетапна заявка: писмата важат само докато заявката е в съответния етап
-  if (kind === "customer-docs-invite" && b.status === "pending" && b.stage === "docs") {
-    const r = await sendDocsInvite(b);
-    if (r.result === "sent" || r.result === "duplicate") await markInvited(b.id);
-    return r;
-  }
-  if (kind === "customer-docs-reminder" && b.status === "pending" && b.stage === "docs") return sendStage("reminder", kind, dedupeKey || "", b);
-  if (kind === "customer-coupon" && b.status === "pending" && b.stage === "docs" && b.couponSentAt) return sendStage("coupon", kind, dedupeKey || "", b);
-  if (kind === "customer-docs-received" && b.stage === "review") return sendDocsReceived(b);
-  if (kind === "owner-docs" && b.stage === "review") return sendOwnerDocs(b);
   // След отмяна неизпратеното писмо за потвърждението вече не е вярно – не се изпраща
   if (kind === "customer-decision" && (b.status === "confirmed" || b.status === "rejected")) return sendDecision(b);
   if (kind === "customer-closed" && (b.status === "cancelled" || b.status === "no_show")) return sendClosed(b);
@@ -104,7 +93,6 @@ export async function retry(kind: string, bookingId: string | null, dedupeKey: s
   }
   return null;
 }
-export const RETRY_KINDS = ["owner-new", "customer-received", "customer-decision", "customer-closed", "customer-extended",
-  "customer-docs-invite", "customer-docs-reminder", "customer-coupon", "customer-docs-received", "owner-docs"];
+export const RETRY_KINDS = ["owner-new", "customer-received", "customer-decision", "customer-closed", "customer-extended"];
 // Писма, които се повтарят и след несигурен резултат (възможно второ копие): само известието до фирмата
-export const UNCERTAIN_RETRY_KINDS = ["owner-new", "owner-docs"];
+export const UNCERTAIN_RETRY_KINDS = ["owner-new"];

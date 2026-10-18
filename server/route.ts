@@ -135,38 +135,48 @@ export type Route = { km: number; place: string; local: boolean; rate: number; s
 export type NeedPin = { pin: true; lat: number; lon: number; found: "street" | "place" };
 // imprecise – (без начална точка) не е намерено конкретно място; terminal – Летище София без надеждно посочен терминал;
 // pin_town – пинът е в друго населено място; pin_far – пинът е твърде далеч от намерената улица / населено място
-export type RouteError = "not_found" | "no_route" | "ambiguous" | "imprecise" | "terminal" | "pin_town" | "pin_far";
-export type Pin = { lat: number; lon: number };
+// pin_abroad – пинът е извън България
+export type RouteError = "not_found" | "no_route" | "ambiguous" | "imprecise" | "terminal" | "pin_town" | "pin_far" | "pin_abroad";
+// free – мястото е посочено с бутона „Посочи мястото на картата“ (без предварително намерена улица): без ограничението
+// „до PIN_MAX_KM от намерената улица“ и без проверка на населеното място от текста – клиентът изрично е избрал точката
+export type Pin = { lat: number; lon: number; free?: boolean };
 export const PIN_MAX_KM = 3;
 // Пин в България (приблизителни граници) с точност до 6 знака след десетичната точка
 export const validPin = (p: unknown): p is Pin => {
   const o = p as any;
   return !!o && typeof o.lat === "number" && typeof o.lon === "number" && o.lat >= 41.2 && o.lat <= 44.25 && o.lon >= 22.35 && o.lon <= 28.65;
 };
-const roundPin = (p: Pin): Pin => ({ lat: Math.round(p.lat * 1e6) / 1e6, lon: Math.round(p.lon * 1e6) / 1e6 });
+const roundPin = (p: Pin): Pin => ({ lat: Math.round(p.lat * 1e6) / 1e6, lon: Math.round(p.lon * 1e6) / 1e6, free: !!p.free });
+// Пинът трябва да е до път: OSRM „закача“ точката към най-близкия път – по-далеч от това е невъзможен автомобилен маршрут
+export const PIN_SNAP_M = 400;
 const kmBetween = (a: Pin, b: Pin) => {
   const r = (x: number) => (x * Math.PI) / 180;
   return 6371 * Math.hypot(r(b.lon - a.lon) * Math.cos(r((a.lat + b.lat) / 2)), r(b.lat - a.lat));
 };
 
 // Маршрут с OSRM от офиса до точка (ред „дължина,ширина“)
-async function osrmKm(p: { lat: number; lon: number }): Promise<number | null> {
+async function osrmKm(p: { lat: number; lon: number }, maxSnapM = Infinity): Promise<number | null> {
   const r = await fetch(
     `https://router.project-osrm.org/route/v1/driving/${BASE.lon},${BASE.lat};${p.lon},${p.lat}?overview=false`,
     { headers: { "User-Agent": UA } },
   );
-  const j = (await r.json().catch(() => null)) as { code?: string; routes?: { distance: number }[] } | null;
+  const j = (await r.json().catch(() => null)) as { code?: string; routes?: { distance: number }[]; waypoints?: { distance?: number }[] } | null;
   if (!r.ok || j?.code !== "Ok" || !j.routes?.length) return null;
+  const snap = j.waypoints?.at(-1)?.distance;
+  if (typeof snap === "number" && snap > maxSnapM) return null;
   return Math.round(j.routes[0].distance / 100) / 10;
 }
 
-// Маршрут до потвърден пин: населеното място в пина (обратно търсене) трябва да е посоченото, и да е близо до намереното място
+// Маршрут до потвърден пин. Винаги: координати в България (обратно търсене, ако е достъпно; иначе границите на validPin)
+// и автомобилен маршрут до точка на път (PIN_SNAP_M). Пин към намерена улица / населено място (near, не free):
+// до PIN_MAX_KM от нея и в посоченото населено място. Свободен пин (free): само първите две проверки.
 async function routeToPin(dest: string, pin: Pin, near: Pin | null): Promise<Route | RouteError> {
-  if (near && kmBetween(pin, near) > PIN_MAX_KM) return "pin_far";
-  const at = await reverse(pin);
-  if (!at || !endPrecision(dest, at)) return "pin_town";
+  if (near && !pin.free && kmBetween(pin, near) > PIN_MAX_KM) return "pin_far";
+  const at = await reverse(pin).catch(() => null);
+  if (at && at.address?.country_code && at.address.country_code !== "bg") return "pin_abroad";
+  if (near && !pin.free && at && !endPrecision(dest, at)) return "pin_town";
   const g = await googleKm(pin).catch((e) => (console.error("Google Routes failed", (e as Error)?.name), null));
-  const km = g ? g.km : await osrmKm(pin);
+  const km = g ? g.km : await osrmKm(pin, PIN_SNAP_M);
   if (km == null) return "no_route";
   return { km, place: "", ...zone(pin), source: g ? "google" : "osm", precision: "pin" };
 }
@@ -220,15 +230,15 @@ export function validAddr(a: unknown) {
 // останалите изчакват резултата ѝ. Заето търсене, което не е завършило за CLAIM_MS (прекъсната функция), може да бъде заето
 // отново. Едно търсене може да направи няколко заявки към доставчиците (Google + OpenStreetMap за зоната или резервния път).
 // Грешките се помнят кратко (FAIL_TTL_MS), за да не се повтарят веднага, но повторен опит след това пита отново.
-// Пин: ключът е по адреса и координатите на пина. Версия 5: само улица → пин (вместо отказ). Версия 4: проверени обекти (летищата, отделни терминали); версия 3: цена само до потвърден номер (версия 2 приемаше и точка от улицата); проверка на населеното място и улицата;
+// Версия 6: свободен пин и проверка за път до пина. Пин: ключът е по адреса и координатите на пина. Версия 5: само улица → пин (вместо отказ). Версия 4: проверени обекти (летищата, отделни терминали); версия 3: цена само до потвърден номер (версия 2 приемаше и точка от улицата); проверка на населеното място и улицата;
 // точната начална точка (pin на офиса).
 // Началната точка е част от ключа – при нова точка старите разстояния не се използват. Записите от версии 1–3 не се четат
 // (не се изтриват – изтичат сами след 24 ч).
-const CACHE_VERSION = "5";
+const CACHE_VERSION = "6";
 export const ROUTE_VERSION = `${CACHE_VERSION}@${BASE.lat},${BASE.lon}`;
 export const ROUTE_CACHE = { okTtlMs: 24 * 3600_000, failTtlMs: 15_000, errorTtlMs: 5_000, claimMs: 20_000, waitMs: 12_000, pollMs: 150 };
 const cacheKey = (dest: string, pin?: Pin | null) =>
-  "v" + CACHE_VERSION + "/" + createHash("sha256").update(ROUTE_VERSION + "\n" + normAddr(dest).toLowerCase() + (pin ? `\npin:${pin.lat},${pin.lon}` : "")).digest("hex");
+  "v" + CACHE_VERSION + "/" + createHash("sha256").update(ROUTE_VERSION + "\n" + normAddr(dest).toLowerCase() + (pin ? `\npin:${pin.lat},${pin.lon}${pin.free ? ":free" : ""}` : "")).digest("hex");
 const secs = (ms: number) => ms / 1000;
 const rowsOf = (r: any): any[] => (Array.isArray(r) ? r : r?.rows ?? []);
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -238,13 +248,15 @@ export async function cachedRoute(dest: string, o: { budget?: () => Promise<bool
   if (!validAddr(dest)) return "not_found";
   if (o.pin != null && !validPin(o.pin)) return "pin_town";
   const pin = o.pin ? roundPin(o.pin) : null;
-  // С пин: първо адресът (обикновено от кеша) – друго населено място остава отказ; началната точка ограничава пина
+  // Пин към намерена улица / населено място: първо адресът (обикновено от кеша) – началната точка ограничава пина.
+  // Свободен пин не зависи от търсенето на адреса (работи и без резултат и при недостъпен доставчик).
   let near: Pin | null = null;
-  if (pin) {
+  if (pin && !pin.free) {
     const base = await cachedRoute(dest, { budget: o.budget });
-    if (base === "ambiguous" || base === "terminal" || base === "limited" || base === "timeout" || base === "error") return base;
+    // Друго населено място / неясен терминал остава отказ; летищата – проверената точка пред терминала
+    if (base === "limited" || base === "ambiguous" || base === "terminal") return base;
+    if (typeof base === "object" && !("pin" in base) && base.precision === "poi") return base;
     if (typeof base === "object" && "pin" in base) near = { lat: base.lat, lon: base.lon };
-    if (typeof base === "object" && !("pin" in base) && base.precision === "poi") return base; // летищата – проверената точка
   }
   const key = cacheKey(dest, pin);
   const deadline = Date.now() + ROUTE_CACHE.waitMs;

@@ -9,7 +9,6 @@ import { findConflict, lock, type Conflict } from "./conflicts.js";
 import { contractDataKey, contracts, saveContract } from "./contracts.js";
 import { queueEmail } from "./email.js";
 import { closedKey, decisionKey, extendedKey, sendClosed, sendDecision, sendExtended } from "./notify.js";
-import { docsInviteKey, markInvited, sendDocsInvite } from "./stage.js";
 
 // Действия по вече потвърдена резервация – общи за страницата от имейла (/api/bookings/:id/manage) и за админ панела.
 //   cancel   – предварителна отмяна; възможна веднага след потвърждаването, докато автомобилът не е предаден
@@ -115,12 +114,9 @@ export async function act(id: string, action: Action, o: { actor: string; reason
 // решение и не праща второ писмо. message – съобщение до клиента (само от страницата в имейла, влиза в писмото);
 // internalNote – вътрешна бележка, НЕ се изпраща на клиента. Не се създават плащания, възстановявания или събития към Meta.
 export type Decision = "confirm" | "reject";
-// Двуетапна заявка (stage): confirm при „request“ е първото одобрение (stage → docs, покана за документи);
-// при „docs“ не е възможно (docs_pending – документите още не са получени); при „review“ е окончателното потвърждение.
-// Старите резервации (stage = null) – едно одобрение, както досега.
-export type DecideError = "not_found" | "state" | "no_dates" | "expired" | "car_inactive" | "busy" | "docs_pending";
+export type DecideError = "not_found" | "state" | "no_dates" | "expired" | "car_inactive" | "busy";
 export type DecideResult =
-  | { ok: true; booking: Booking; email: "sent" | "queued" | "uncertain" | "none"; step?: "approved" | "confirmed" }
+  | { ok: true; booking: Booking; email: "sent" | "queued" | "uncertain" | "none" }
   | { ok: false; error: DecideError; booking?: Booking; conflict?: Conflict };
 
 // Може ли чакащата заявка да бъде потвърдена по дати (без проверка за заетост) – за бутона и за съобщението в панела
@@ -147,7 +143,6 @@ export async function decide(
     if (decision === "confirm" && cur.carId) await lock(tx, "car:" + cur.carId);
     const [b] = await tx.select().from(bookings).where(eq(bookings.id, id)).for("update");
     if (b.status !== "pending") return { ok: false as const, error: "state" as const, booking: b };
-    if (decision === "confirm" && b.stage === "docs") return { ok: false as const, error: "docs_pending" as const, booking: b };
     if (decision === "confirm") {
       const blocked = confirmBlock(b, now);
       if (blocked) return { ok: false as const, error: blocked, booking: b };
@@ -158,21 +153,9 @@ export async function decide(
       const c = await findConflict(b.carId, b.startDate!, b.endDate!, b.startTime, b.endTime, b.id, tx);
       if (c) return { ok: false as const, error: "busy" as const, booking: b, conflict: c };
     }
-    // Първо одобрение: заявката остава pending, етапът става docs, автомобилът се заема (server/conflicts.ts)
-    if (decision === "confirm" && b.stage === "request") {
-      const [u] = await tx
-        .update(bookings)
-        .set({ stage: "docs", note: message, firstApprovedAt: now, firstApprovedBy: o.actor, updatedAt: now })
-        .where(and(eq(bookings.id, id), eq(bookings.status, "pending"), eq(bookings.stage, "request")))
-        .returning();
-      if (!u) return { ok: false as const, error: "state" as const, booking: b };
-      await tx.insert(bookingEvents).values({ bookingId: id, actor: o.actor, action: "booking.approved", details: { from: "request", to: "docs", hasNote: !!internalNote, hasMessage: !!message } });
-      await queueEmail(tx, "customer-docs-invite", docsInviteKey(id), id, u.email);
-      return { ok: true as const, booking: u, step: "approved" as const };
-    }
     const [u] = await tx
       .update(bookings)
-      .set({ status: decision === "confirm" ? "confirmed" : "rejected", ...(decision === "confirm" && b.stage ? { stage: "done" } : {}), note: message, decidedAt: now, decidedBy: o.actor, decisionNote: internalNote, updatedAt: now })
+      .set({ status: decision === "confirm" ? "confirmed" : "rejected", note: message, decidedAt: now, decidedBy: o.actor, decisionNote: internalNote, updatedAt: now })
       .where(and(eq(bookings.id, id), eq(bookings.status, "pending")))
       .returning();
     if (!u) return { ok: false as const, error: "state" as const, booking: b };
@@ -185,18 +168,12 @@ export async function decide(
     return { ok: true as const, booking: u };
   });
   if (!out.ok) return out;
-  // Покана за документи – винаги (клиентът трябва да я получи); моментът на успешното изпращане е началото за напомнянията
-  if ("step" in out && out.step === "approved") {
-    const r = await sendDocsInvite(out.booking).catch(() => ({ result: "failed" as const }));
-    const sent = r.result === "sent" || r.result === "duplicate";
-    return { ok: true, booking: (sent ? await markInvited(out.booking.id) : null) || out.booking, email: sent ? "sent" : r.result === "uncertain" ? "uncertain" : "queued", step: "approved" };
-  }
   let email: "sent" | "queued" | "uncertain" | "none" = "none";
   if (notify) {
     const r = await sendDecision(out.booking).catch(() => ({ result: "failed" as const }));
     email = r.result === "sent" || r.result === "duplicate" ? "sent" : r.result === "uncertain" ? "uncertain" : "queued";
   }
-  return { ok: true, booking: out.booking, email, ...(out.booking.stage === "done" ? { step: "confirmed" as const } : {}) };
+  return { ok: true, booking: out.booking, email };
 }
 
 // Линкът от имейла до собственика важи до 30 дни след края на наема (без дати – 60 дни след заявката).

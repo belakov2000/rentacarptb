@@ -272,7 +272,7 @@ legend{font-weight:800;font-size:1.08rem;padding:0;margin-bottom:10px}
 .sum h3{font-size:1.3rem;font-weight:800;margin-bottom:8px}
 .srow{display:flex;justify-content:space-between;gap:14px;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.12);font-size:.95rem}
 .srow small{display:block;color:#9fb0c8}.srow b{white-space:nowrap}
-.pinmap{height:280px;border-radius:10px;margin:10px 0;background:#e8eef6;color:#0b1b33}
+.pinmap{height:280px;border-radius:10px;margin:10px 0;background:#e8eef6;color:#0b1b33}.pm{margin-top:8px}.pin-ok{color:#9be3b5;font-weight:700;margin:6px 0}
 .stot{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:16px 0 4px;font-weight:800}
 .stot b{font-size:1.9rem;color:var(--acc)}
 .sdep{background:var(--navy2);border-radius:14px;padding:14px;margin-top:14px;font-size:.9rem;color:#c5d0e0}
@@ -904,14 +904,14 @@ button.btn-ghost{background:transparent}
 <small class="hours-hint" id="b-t1-h">Работно време за получаване и връщане: пн–пт 08:00–20:00, сб–нд 09:00–19:00.</small>
 <label class="opt"><input type="radio" name="m1" value="store" checked><span>Вземане от нашия адрес — гр. Пловдив, бул. Дунав 10</span></label>
 <label class="opt"><input type="radio" name="m1" value="addr"><span>Доставка до адрес</span></label>
-<div class="addr" id="a1" hidden><label for="b-a1">Адрес за доставка</label><input id="b-a1" autocomplete="street-address" placeholder="Град, улица, номер"></div>
+<div class="addr" id="a1" hidden><label for="b-a1">Адрес за доставка</label><input id="b-a1" autocomplete="street-address" placeholder="Град, улица, номер"><div class="pm" id="pm1"></div></div>
 </fieldset>
 <fieldset><legend>2. Връщане</legend>
 <div class="row"><div><label for="b-d2">Дата на връщане</label><input id="b-d2" type="date" required></div><div><label for="b-t2">Час на връщане</label><input id="b-t2" type="time" required aria-describedby="b-t2-h"></div></div>
 <small class="hours-hint" id="b-t2-h">Работно време за получаване и връщане: пн–пт 08:00–20:00, сб–нд 09:00–19:00.</small>
 <label class="opt"><input type="radio" name="m2" value="store" checked><span>Връщане на нашия адрес — гр. Пловдив, бул. Дунав 10</span></label>
 <label class="opt"><input type="radio" name="m2" value="addr"><span>Връщане от адрес</span></label>
-<div class="addr" id="a2" hidden><label for="b-a2">Адрес за вземане на автомобила</label><input id="b-a2" placeholder="Град, улица, номер"></div>
+<div class="addr" id="a2" hidden><label for="b-a2">Адрес за вземане на автомобила</label><input id="b-a2" placeholder="Град, улица, номер"><div class="pm" id="pm2"></div></div>
 </fieldset>
 <fieldset class="full"><legend>3. Допълнително</legend>
 <label class="opt"><input type="checkbox" id="b-seat" aria-controls="seat-n"><span>Добави детско столче — 3 € / ден</span></label>
@@ -1482,7 +1482,13 @@ const I18N={
 "Изчисляваме цената на сървъра…":["Calculating the price on our server…","Der Preis wird auf unserem Server berechnet…"],
 "Цената е изчислена от сървъра за тези данни. При промяна се изчислява наново.":["The price was calculated by our server for these details. It is recalculated if anything changes.","Der Preis wurde von unserem Server für diese Angaben berechnet. Bei Änderungen wird er neu berechnet."],
 "Изчисли цената отново":["Recalculate the price","Preis neu berechnen"],
-"Потвърждавам мястото на картата":["I confirm the place on the map","Ort auf der Karte bestätigen"],"Промени точката на картата":["Change the point on the map","Punkt auf der Karte ändern"],
+"Потвърждавам мястото на картата":["I confirm the place on the map","Ort auf der Karte bestätigen"],
+"Посочи мястото на картата":["Point to the place on the map","Ort auf der Karte angeben"],"Промени мястото на картата":["Change the place on the map","Ort auf der Karte ändern"],"Премахни мястото":["Remove the place","Ort entfernen"],
+"Населено място (за ориентация)":["Town (for orientation)","Ort (zur Orientierung)"],"Изберете…":["Choose…","Bitte wählen…"],"Откажи":["Cancel","Abbrechen"],
+"Ако адресът не се намира автоматично, посочете точното място – цената се изчислява до него.":["If the address is not found automatically, point to the exact place – the price is calculated to it.","Wird die Adresse nicht automatisch gefunden, geben Sie die genaue Stelle an – der Preis wird bis dorthin berechnet."],
+"Преместете пина или натиснете върху картата на точното място.":["Move the pin or tap the exact place on the map.","Verschieben Sie die Markierung oder tippen Sie auf die genaue Stelle der Karte."],
+"Въведете кратко описание на адреса в полето по-горе (напр. улица, квартал, ориентир).":["Please enter a short description of the address in the field above (e.g. street, district, landmark).","Bitte geben Sie oben eine kurze Beschreibung der Adresse ein (z. B. Straße, Viertel, Orientierungspunkt)."],
+"Картата не можа да бъде заредена. Обадете се, за да уточним мястото.":["The map could not be loaded. Please call us to arrange the place.","Die Karte konnte nicht geladen werden. Bitte rufen Sie uns an, um den Ort abzustimmen."],"Промени точката на картата":["Change the point on the map","Punkt auf der Karte ändern"],
 "Терминал 1":["Terminal 1","Terminal 1"],"Терминал 2":["Terminal 2","Terminal 2"],
 "Обадете се":["Call us","Rufen Sie uns an"],
 "Цената се изчислява след това.":["The price is calculated after that.","Der Preis wird danach berechnet."],
@@ -1496,6 +1502,9 @@ const I18N_RULES=[
 [/Адресът за доставка не беше намерен в посоченото населено място и улица\./,"The delivery address was not found in the given town and street.","Die Lieferadresse wurde im angegebenen Ort und in der angegebenen Straße nicht gefunden."],
 [/Адресът за връщане не беше намерен в посоченото населено място и улица\./,"The collection address was not found in the given town and street.","Die Abholadresse wurde im angegebenen Ort und in der angegebenen Straße nicht gefunden."],
 [/Намерихме само (улицата|населеното място) на адреса за (доставка|връщане), без номера на сградата\. Преместете пина до точното място на картата и го потвърдете – разстоянието се изчислява до потвърдената точка\./,(m,a,b)=>`We only found the ${a==="улицата"?"street":"town"} of the ${b==="доставка"?"delivery":"collection"} address, not the house number. Move the pin to the exact place on the map and confirm it – the distance is calculated to the confirmed point.`,(m,a,b)=>`Wir haben nur ${a==="улицата"?"die Straße":"den Ort"} der ${b==="доставка"?"Liefer":"Abhol"}adresse gefunden, nicht die Hausnummer. Verschieben Sie die Markierung an die genaue Stelle auf der Karte und bestätigen Sie sie – die Entfernung wird bis zum bestätigten Punkt berechnet.`],
+[/^✓ Потвърдено място на картата: /,"✓ Confirmed place on the map: ","✓ Bestätigter Ort auf der Karte: "],
+[/Няма автомобилен маршрут до посоченото място на картата \(напр\. далеч от път\)\. Преместете пина до път или се обадете, за да уточним (доставката|връщането)\./,(m,a)=>`There is no driving route to the place on the map (e.g. far from a road). Move the pin to a road or call us to arrange the ${a==="доставката"?"delivery":"collection"}.`,(m,a)=>`Zum Ort auf der Karte gibt es keine Fahrstrecke (z. B. weit von einer Straße). Verschieben Sie die Markierung an eine Straße oder rufen Sie uns an, um die ${a==="доставката"?"Lieferung":"Abholung"} abzustimmen.`],
+[/Посоченото място на картата е извън България\. (Доставката е само до|Връщането е само от) места в България\./,(m,a)=>`The place on the map is outside Bulgaria. ${a.startsWith("Доставката")?"Delivery is only to":"Collection is only from"} places in Bulgaria.`,(m,a)=>`Der Ort auf der Karte liegt außerhalb Bulgariens. ${a.startsWith("Доставката")?"Lieferung nur zu":"Abholung nur von"} Orten in Bulgarien.`],
 [/Потвърдената точка на картата е в друго населено място\. Проверете адреса или преместете пина\./,"The confirmed point on the map is in another town. Please check the address or move the pin.","Der bestätigte Punkt auf der Karte liegt in einem anderen Ort. Bitte prüfen Sie die Adresse oder verschieben Sie die Markierung."],
 [/Потвърдената точка е твърде далеч от намерената улица\. Проверете адреса или преместете пина по-близо\./,"The confirmed point is too far from the street that was found. Please check the address or move the pin closer.","Der bestätigte Punkt ist zu weit von der gefundenen Straße entfernt. Bitte prüfen Sie die Adresse oder verschieben Sie die Markierung näher."],
 [/^до потвърдената точка на картата · /,"to the confirmed point on the map · ","zum bestätigten Punkt auf der Karte · "],
@@ -1652,6 +1661,8 @@ const qKey=R=>JSON.stringify(qInput(R));
 const qOk=()=>Q.st==="ok"&&!!Q.d&&Q.key===qKey(S);
 const Q_ERR={del:"Не успяхме да изчислим разстоянието до адреса за доставка. Проверете адреса (населено място, улица, номер).",ret:"Не успяхме да изчислим разстоянието до адреса за връщане. Проверете адреса (населено място, улица, номер).",
 del_amb:"Адресът за доставка не беше намерен в посоченото населено място и улица. Уточнете адреса (населено място, улица, номер).",ret_amb:"Адресът за връщане не беше намерен в посоченото населено място и улица. Уточнете адреса (населено място, улица, номер).",
+del_nr:"Няма автомобилен маршрут до посоченото място на картата (напр. далеч от път). Преместете пина до път или се обадете, за да уточним доставката.",ret_nr:"Няма автомобилен маршрут до посоченото място на картата (напр. далеч от път). Преместете пина до път или се обадете, за да уточним връщането.",
+del_pa:"Посоченото място на картата е извън България. Доставката е само до места в България.",ret_pa:"Посоченото място на картата е извън България. Връщането е само от места в България.",
 del_pt:"Потвърдената точка на картата е в друго населено място. Проверете адреса или преместете пина.",ret_pt:"Потвърдената точка на картата е в друго населено място. Проверете адреса или преместете пина.",
 del_pf:"Потвърдената точка е твърде далеч от намерената улица. Проверете адреса или преместете пина по-близо.",ret_pf:"Потвърдената точка е твърде далеч от намерената улица. Проверете адреса или преместете пина по-близо.",
 del_term:"Изберете терминал на Летище София за доставката – Терминал 1 и Терминал 2 са на различни места.",ret_term:"Изберете терминал на Летище София за връщането – Терминал 1 и Терминал 2 са на различни места.",
@@ -1667,7 +1678,7 @@ const qErrText=()=>(/_pin$/.test(Q.err)&&Q.pin?`Намерихме само ${Q.
 // Клиентът мести пина до точното място и изрично го потвърждава; маршрутът се изчислява до потвърдения пин.
 // Пинът важи само за въведения текст – при промяна на адреса се изисква ново потвърждение. Картата (Leaflet и плочки на
 // OpenStreetMap) се зарежда само в този случай; не е нужен ключ.
-function pinRef(R,n){const p=R["pin"+n];return R["m"+n]==="addr"&&p&&p.a===(R["a"+n]||"").trim()?{lat:p.lat,lon:p.lon}:null}
+function pinRef(R,n){const p=R["pin"+n];return R["m"+n]==="addr"&&p&&p.a===(R["a"+n]||"").trim()?{lat:p.lat,lon:p.lon,...(p.free?{free:true}:{})}:null}
 let LEAF=null;const leaflet=()=>LEAF||(LEAF=new Promise((ok,bad)=>{const c=document.createElement("link");c.rel="stylesheet";c.href="/vendor/leaflet/leaflet.css";document.head.appendChild(c);
 const s=document.createElement("script");s.src="/vendor/leaflet/leaflet.js";s.onload=()=>ok(window.L);s.onerror=()=>{LEAF=null;bad(new Error("map"))};document.head.appendChild(s)}));
 async function pinMap(){const el=$("#pinmap");if(!el||!Q.pin)return;const P=Q.pin;
@@ -1675,6 +1686,26 @@ try{const L=await leaflet();if(!el.isConnected)return;L.Icon.Default.imagePath="
 const m=L.map(el,{scrollWheelZoom:false}).setView([P.lat,P.lon],17);L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:'&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>'}).addTo(m);
 const mk=L.marker([P.lat,P.lon],{draggable:true,keyboard:true,title:"Точно място"}).addTo(m);const mv=ll=>{P.lat=Math.round(ll.lat*1e6)/1e6;P.lon=Math.round(ll.lng*1e6)/1e6;mk.setLatLng([P.lat,P.lon])};
 mk.on("dragend",()=>mv(mk.getLatLng()));m.on("click",e=>mv(e.latlng));el.dataset.ready="1"}catch(e){el.textContent="Картата не можа да бъде заредена. Обадете се, за да уточним мястото."}}
+// ===== „Посочи мястото на картата“ – винаги достъпно за доставка и връщане =====
+// Не зависи от търсенето на адреса: клиентът избира населено място за ориентация (списъкът е в страницата, без заявка
+// към доставчик), мести пина и потвърждава. Въведеният адрес остава описание; цената се изчислява на сървъра до
+// потвърдените координати (pin.free). Промяна на адреса или на пина обезсилва офертата (тя е обвързана с пина).
+const TOWNS=[["Пловдив",42.1442,24.7495],["Асеновград",42.0105,24.8772],["Летище Пловдив",42.0769,24.8447],["София",42.6977,23.3219],["Летище София",42.6889,23.4086],["Пазарджик",42.1928,24.3336],["Стара Загора",42.4258,25.6345],["Хасково",41.9344,25.5554],["Карлово",42.6417,24.8061],["Смолян",41.5774,24.7011],["Кърджали",41.6338,25.3777],["Пещера",42.0333,24.3000],["Велинград",42.0272,23.9917],["Бургас",42.5048,27.4626],["Варна",43.2141,27.9147],["Велико Търново",43.0757,25.6172],["Русе",43.8356,25.9657],["Благоевград",42.0209,23.0943],["Банско",41.8383,23.4885],["Свиленград",41.7667,26.2000]];
+const PM={n:0,lat:0,lon:0};
+function pinPanel(n){const box=$("#pm"+n);if(!box)return;const P=S["pin"+n],cur=P&&P.a===addr(n);
+if(PM.n!==n){box.innerHTML=cur?`<p class="pin-ok" data-pinset="${n}">✓ Потвърдено място на картата: ${P.lat.toFixed(5)}, ${P.lon.toFixed(5)}</p><button class="btn btn-dark" type="button" data-pickmap="${n}">Промени мястото на картата</button> <button class="btn btn-ghost" type="button" data-pinclear="${n}">Премахни мястото</button>`
+:`<button class="btn btn-dark" type="button" data-pickmap="${n}">Посочи мястото на картата</button><small class="ac-hint">Ако адресът не се намира автоматично, посочете точното място – цената се изчислява до него.</small>`;return}
+box.innerHTML=`<label for="pm-town-${n}">Населено място (за ориентация)</label><select id="pm-town-${n}" data-pmtown="${n}"><option value="">Изберете…</option>${TOWNS.map(([t],i)=>`<option value="${i}">${t}</option>`).join("")}</select>
+<div id="pm-map-${n}" class="pinmap" role="application" aria-label="Карта: преместете пина до точното място"></div><p class="hint">Преместете пина или натиснете върху картата на точното място.</p>
+<button class="btn btn-acc" type="button" data-pmok="${n}">Потвърждавам мястото на картата</button> <button class="btn btn-ghost" type="button" data-pmcancel="${n}">Откажи</button><p class="fmsg" id="pm-msg-${n}" role="status"></p>`;
+mountPick(n)}
+async function mountPick(n){const el=$("#pm-map-"+n);try{const L=await leaflet();if(!el||!el.isConnected)return;L.Icon.Default.imagePath="/vendor/leaflet/images/";
+const m=L.map(el,{scrollWheelZoom:false}).setView([PM.lat,PM.lon],PM.z||13);L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:'&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>'}).addTo(m);
+const mk=L.marker([PM.lat,PM.lon],{draggable:true,keyboard:true,title:"Точно място"}).addTo(m);const mv=ll=>{PM.lat=Math.round(ll.lat*1e6)/1e6;PM.lon=Math.round(ll.lng*1e6)/1e6;mk.setLatLng([PM.lat,PM.lon])};
+mk.on("dragend",()=>mv(mk.getLatLng()));m.on("click",e=>mv(e.latlng));PM.map=m;PM.mk=mk;el.dataset.ready="1"}catch(e){if(el)el.textContent="Картата не можа да бъде заредена. Обадете се, за да уточним мястото."}}
+const pinPanels=()=>[1,2].forEach(pinPanel);
+document.addEventListener("change",e=>{const t=e.target.closest&&e.target.closest("[data-pmtown]");if(!t||t.value==="")return;const [,la,lo]=TOWNS[+t.value];
+Object.assign(PM,{lat:la,lon:lo});if(PM.map){PM.map.setView([la,lo],14);PM.mk.setLatLng([la,lo])}});
 let qT;const wantQuote=(ms=900)=>{clearTimeout(qT);qT=setTimeout(()=>loadQuote(),ms)};
 // keep: при повторно изчисляване след отказ на сървъра (изтекла / променена оферта) предупреждението за нова цена остава
 async function loadQuote(keep){clearTimeout(qT);const c=CARS.find(x=>x.id===S.car),q=c&&hasD()?quote(c,S):null;
@@ -1683,7 +1714,7 @@ const key=qKey(S);if(Q.key===key&&(Q.st==="ok"||Q.st==="load"))return;
 const seq=++Q.seq;Q.key=key;Q.st="load";Q.d=null;Q.err="";if(!keep)Q.changed=null;renderPick();
 try{const r=await fetch(QUOTE_ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json",...(CID?{"X-Client-Id":CID}:{})},body:key,cache:"no-store"});const j=await r.json().catch(()=>({}));if(seq!==Q.seq)return;
 if(r.ok&&j.quote&&j.totalCents>=0){Q.st="ok";Q.d=j;[1,2].forEach(n=>{const l=j.legs&&j.legs[n===1?"del":"ret"];KMS[n]=l?l.km:null;KMS.r[n]=l?l.rate:KM_RATE;KMS.st[n]=l?"ok":""})}
-else{Q.st="err";Q.err=r.status===429?"limited":j.error==="route"?(j.leg==="ret"?"ret":"del")+(j.reason==="ambiguous"?"_amb":j.reason==="imprecise"?"_imp":j.reason==="terminal"?"_term":j.reason==="pin"?"_pin":j.reason==="pin_town"?"_pt":j.reason==="pin_far"?"_pf":""):j.error||"server";Q.pin=j.reason==="pin"&&j.pin?{lat:+j.pin.lat,lon:+j.pin.lon,found:j.pin.found,n:j.leg==="ret"?2:1}:null}}
+else{Q.st="err";Q.err=r.status===429?"limited":j.error==="route"?(j.leg==="ret"?"ret":"del")+(j.reason==="ambiguous"?"_amb":j.reason==="imprecise"?"_imp":j.reason==="terminal"?"_term":j.reason==="pin"?"_pin":j.reason==="pin_town"?"_pt":j.reason==="pin_far"?"_pf":j.reason==="pin_abroad"?"_pa":j.reason==="no_route"&&pinRef(S,j.leg==="ret"?2:1)?"_nr":""):j.error||"server";Q.pin=j.reason==="pin"&&j.pin?{lat:+j.pin.lat,lon:+j.pin.lon,found:j.pin.found,n:j.leg==="ret"?2:1}:null}}
 catch(e){if(seq!==Q.seq)return;Q.st="err";Q.err="net"}
 renderPick()}
 // Нова оферта след отказ на сървъра или преди изтичане: "same" – същата сума; "changed" – друга сума (иска се потвърждение); "err"
@@ -1918,7 +1949,7 @@ $("#b-a1").value=S.a1||"";$("#b-a2").value=S.a2||"";$("#b-seat").checked=!!S.sea
 // Пазим позицията на екрана: картите с автомобили над календара сменят височината си при нови дати и иначе избутват страницата
 function keepView(fn){const a=$("#cal"),r=a&&!a.hidden?a.getBoundingClientRect():null,on=r&&r.bottom>0&&r.top<innerHeight;fn();
 if(on){const d=a.getBoundingClientRect().top-r.top;if(d)window.scrollBy({top:d,behavior:"instant"})}}
-function planChanged(n){readPlan();sync();
+function planChanged(n){readPlan();sync();[1,2].forEach(k=>{if(PM.n!==k)pinPanel(k)});
 if(n){KMS[n]=null;KMS.st[n]=""}
 keepView(()=>{renderCars();renderPick()})}
 $("#b-d1").addEventListener("change",()=>{if(!$("#b-d2").value||$("#b-d2").value<$("#b-d1").value)$("#b-d2").value=$("#b-d1").value;$("#b-d2").min=$("#b-d1").value||today});
@@ -1928,7 +1959,7 @@ $$("input[name=seatn]").forEach(e=>e.addEventListener("change",()=>planChanged()
 $("#b-seat-count").addEventListener("change",()=>{const count=+$("#b-seat-count").value;$("#b-seat").checked=count>0;$$("input[name=seatn]").forEach(e=>e.checked=+e.value===(count||1));planChanged()});
 $$("#ctry-grid input").forEach(e=>e.addEventListener("change",()=>planChanged()));
 $$("input[name=m1]").forEach(e=>e.addEventListener("change",()=>planChanged(1)));$$("input[name=m2]").forEach(e=>e.addEventListener("change",()=>planChanged(2)));
-$("#b-a1").addEventListener("input",()=>{S.a1=addr(1);planChanged(1)});$("#b-a2").addEventListener("input",()=>{S.a2=addr(2);planChanged(2)});
+pinPanels();$("#b-a1").addEventListener("input",()=>{S.a1=addr(1);planChanged(1)});$("#b-a2").addEventListener("input",()=>{S.a2=addr(2);planChanged(2)});
 function planErr(){if(!S.d1||!S.t1)return"Моля, изберете дата и час на получаване.";if(!S.d2||!S.t2)return"Моля, изберете дата и час на връщане.";if(span(S.d1,S.t1,S.d2,S.t2)<0)return"Датата на връщане трябва да е след датата на получаване.";{const he=hoursErr();if(he)return he}if(S.m1==="addr"&&(S.a1||"").length<5)return"Моля, въведете адрес за доставка.";if(S.m2==="addr"&&(S.a2||"").length<5)return"Моля, въведете адрес за връщане.";return""}
 function renderCars(){const p=+$("#f-price").value||1e9,t=$("#f-type").value,f=$("#f-fuel").value,g=$("#f-gear").value;
 const l=CARS.filter(c=>c.tiers[0]<=p&&(!t||c.body===t)&&(!f||c.fuel===f)&&(!g||c.gear===g));
@@ -1993,6 +2024,11 @@ if(e.target.closest("[data-unpick]")){S.car="";store.set(S);renderCars();renderP
 if(e.target.closest("[data-sms]")){sendSms();return}
 if(e.target.closest("[data-requote]")){Q.key="";loadQuote(true);return}
 // Потвърден пин: важи за въведения в момента адрес; цената се изчислява до него
+{const t=e.target.closest("[data-pickmap],[data-pmok],[data-pmcancel],[data-pinclear]");if(t){const d=t.dataset,n=+(d.pickmap||d.pmok||d.pmcancel||d.pinclear);
+if(d.pickmap){const P=S["pin"+n],g=Q.pin&&Q.pin.n===n?Q.pin:null;Object.assign(PM,P?{n,lat:P.lat,lon:P.lon,z:17}:g?{n,lat:g.lat,lon:g.lon,z:17}:{n,lat:42.1442,lon:24.7495,z:12});pinPanel(n)}
+else if(d.pmok){const m=$("#pm-msg-"+n);if(!addr(n)){m.textContent="Въведете кратко описание на адреса в полето по-горе (напр. улица, квартал, ориентир).";return}
+S["pin"+n]={lat:PM.lat,lon:PM.lon,a:addr(n),free:true};PM.n=0;store.set(S);pinPanel(n);planChanged(n)}
+else if(d.pmcancel){PM.n=0;pinPanel(n)}else{S["pin"+n]=null;PM.n=0;store.set(S);pinPanel(n);planChanged(n)}return}}
 if(e.target.closest("[data-pinok]")&&Q.pin){const n=Q.pin.n;S["pin"+n]={lat:Q.pin.lat,lon:Q.pin.lon,a:addr(n)};store.set(S);planChanged(n);return}
 {const pc=e.target.closest("[data-pinchg]");if(pc){const n=+pc.dataset.pinchg,p=S["pin"+n];S["pin"+n]=null;planChanged(n);if(p)Q.pin={lat:p.lat,lon:p.lon,found:"street",n};return}}
 // Избор на терминал на Летище София: адресът се попълва с точното име на терминала и цената се изчислява отново

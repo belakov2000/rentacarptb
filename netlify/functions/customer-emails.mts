@@ -8,9 +8,8 @@ import { lifecycleMail, type CustomerMailKind } from "../../mail/customer.js";
 import { OWNER_EMAIL } from "../../mail/index.js";
 import { sendLogged } from "../../server/email.js";
 import { getReminders, recordJob, type Reminders } from "../../server/settings.js";
-import { docsReminders } from "../../server/stage.js";
 
-// На всеки 5 минути праща автоматичните писма до клиентите с потвърдени резервации (само status = confirmed –
+// На всеки 15 минути праща автоматичните писма до клиентите с потвърдени резервации (само status = confirmed –
 // отказаните, отменените и неявилите се не получават нищо):
 //   напомняне преди получаване и инструкции за предаването, напомняне преди връщане (две) – часовете и включването
 //   са в Настройки и автоматизации (server/settings.ts; по подразбиране 24 ч. и 3 ч.), и молба за отзив 2 ч. след края.
@@ -38,12 +37,10 @@ function plan(b: Booking, r: Reminders) {
   const p1 = r.pickup24.hours * HOUR, p2 = r.handover.hours * HOUR, r1 = r.return24.hours * HOUR, r2 = r.returnSoon.hours * HOUR;
   // Кога става време за писмото и до кога има смисъл; skip – писмото се пропуска (напр. резервацията е потвърдена късно)
   const out: Record<Kind, { due: number; until: number; skip?: boolean; off?: boolean }> = {
-    // Договорено: само напомнянията 24 ч преди получаване и връщане; 3-часовите (инструкции за предаването и второто
-    // напомняне за връщане) са премахнати – изключени независимо от настройките
-    pickup24: { due: start - p1, until: start, skip: decided > start - p1 || !!b.handedOverAt, off: !r.pickup24.enabled },
-    handover: { due: start - p2, until: start, skip: true, off: true },
-    return24: { due: end - r1, until: end, skip: end - r1 < start || decided > end - r1 || !!b.returnedAt, off: !r.return24.enabled },
-    returnSoon: { due: end - r2, until: end, skip: true, off: true },
+    pickup24: { due: start - p1, until: start - p2, skip: decided > start - p1 || !!b.handedOverAt, off: !r.pickup24.enabled },
+    handover: { due: start - p2, until: start, skip: !!b.handedOverAt, off: !r.handover.enabled },
+    return24: { due: end - r1, until: end - r2, skip: end - r1 < start || decided > end - r1 || !!b.returnedAt, off: !r.return24.enabled },
+    returnSoon: { due: end - r2, until: end, skip: end - r2 < start || !!b.returnedAt, off: !r.returnSoon.enabled },
     review: { due: end + 2 * HOUR, until: end + 2 * 24 * HOUR },
   };
   return out;
@@ -96,12 +93,9 @@ export default async () => {
       } else if (r.result === "sent") sent++;
     }
   }
-  // Двуетапни заявки: напомняне за документите (15 мин след поканата) и RENTY10 (2 ч, при маркетингово съгласие)
-  const docs = await docsReminders(new Date(now)).catch((e) => (console.error("Docs reminders failed", (e as Error)?.name), 0));
-  await recordJob("customer-emails", { checked: rows.length, sent: sent + docs, failed });
+  await recordJob("customer-emails", { checked: rows.length, sent, failed });
 };
 
 export const config: Config = {
-  // На всеки 5 мин – напомнянето за документите е 15 мин след поканата
-  schedule: "*/5 * * * *",
+  schedule: "*/15 * * * *",
 };
