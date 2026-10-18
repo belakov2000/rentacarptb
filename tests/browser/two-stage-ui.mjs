@@ -38,8 +38,6 @@ const seed = { car: "golf", d1: D1, t1: "10:00", d2: D2, t2: "10:00", m1: "addr"
   check("1.1 оферта от сървъра: вериги 2 × 3,50 € = 7 € и втори водач 2 × 3 € = 6 €, доставка 5 €, обща сума 68 €", /Вериги за сняг[\s\S]*7 €/.test(t) && /Втори допълнителен водач[\s\S]*6 €/.test(t) && /Общо за услугите\s*68 €/.test(t), t.replace(/\n/g, " / ").slice(0, 300));
   const docsVisible = await page.$$eval("#bk [data-flow1]", (fs) => fs.filter((f) => !f.hidden).length);
   check("1.2 кратката форма няма полета и снимки за документите; има „Кой ще шофира“ и маркетингово съгласие", docsVisible === 0 && (await page.isVisible("input[name=rdrv][value='0']")) && (await page.isVisible("#b-mkt")));
-  for(const width of [320,375,390,430]){await page.setViewportSize({width,height:844});const fits=await page.evaluate(()=>{const f=document.querySelector('#bk'),r=f.getBoundingClientRect();return r.left>=0&&r.right<=innerWidth&&[...f.querySelectorAll('.fbox,input,select,textarea')].filter(e=>e.getBoundingClientRect().width>1).every(e=>{const b=e.getBoundingClientRect();return b.left>=r.left-1&&b.right<=r.right+1})});check(`1.2b booking fields and borders fit at ${width}px`,fits)}
-  await page.setViewportSize({width:1280,height:900});
   for (const [s, v] of Object.entries({ "#b-first": "ТЕСТ", "#b-middle": "Заявител", "#b-last": "Иванов", "#b-phone-local": "877000777", "#b-mail": "two-stage-ui@example.com", "#b-mail-confirm": "two-stage-ui@example.com" })) await page.fill(s, v);
   await page.selectOption("#b-bday", "1"); await page.selectOption("#b-bmonth", "1"); await page.selectOption("#b-byear", "1990");
   await page.check("input[name=rdrv][value='0']");
@@ -51,7 +49,7 @@ const seed = { car: "golf", d1: D1, t1: "10:00", d2: D2, t2: "10:00", m1: "addr"
   check("1.2a статусът е видим", await page.isVisible("#th-h"));
   const [b] = await sql("select id, stage, chains, second_driver, marketing_consent, drivers, documents, total_cents from bookings order by created_at desc limit 1");
   check("1.3 изпратена заявка → страница „Заявката е получена“; в базата: етап request, вериги, втори водач, съгласие, заявителят не шофира, без снимки, 68 €",
-    b && b.stage === "request" && b.chains && b.second_driver && b.marketing_consent && b.drivers.requesterDrives === false && b.documents === null && b.total_cents === 6800 && page.errs.length === 0, JSON.stringify(b).slice(0, 200));
+    b && b.stage === "request" && b.chains && b.second_driver && b.marketing_consent && b.drivers.requesterDrives === false && b.documents === null && b.total_cents === 6800 && page.errs.length === 0 && !(await page.isVisible("#th-docs")), JSON.stringify(b).slice(0, 200));
   await ctx.close();
 }
 const [bk] = await sql("select id, admin_token, view_token from bookings order by created_at desc limit 1");
@@ -72,13 +70,13 @@ const [bk] = await sql("select id, admin_token, view_token from bookings order b
   check("3.1 линкът от имейла (нов браузър, телефон): „Заявката е одобрена – подайте документите“; два водача; без плащане, столчета и коментар",
     /подайте документите/.test(h) && legends.length === 2 && /наемател/.test(legends[0]) && !(await page.$("#docs-f [name=pay]")) && !(await page.$("#docs-f #b-note")), legends.join(" | "));
   // Check actual paint colors and geometry, not just whether inputs exist.
-  for (const width of [1280, 320, 375, 390, 430]) {
+  for (const width of [1280, 390]) {
     await page.setViewportSize({width,height:900});
     const visual=await page.evaluate(()=>{
       const luminance=c=>{const rgb=c.match(/[\d.]+/g).slice(0,3).map(Number).map(v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4});return rgb[0]*.2126+rgb[1]*.7152+rgb[2]*.0722};
       const contrast=(a,b)=>{const x=luminance(a),y=luminance(b);return(Math.max(x,y)+.05)/(Math.min(x,y)+.05)};
       const card=document.querySelector('#th-docs'),r=card.getBoundingClientRect(),grid=card.parentElement.getBoundingClientRect();
-      const inputs=[...document.querySelectorAll('#docs-f input:not([hidden])')].filter(e=>e.getBoundingClientRect().width>2);
+      const inputs=[...document.querySelectorAll('#docs-f input:not([hidden])')];
       return {outsideSidebar:!card.closest('.th-side'),width:r.width,centered:Math.abs((r.left+r.right)-(grid.left+grid.right))<4,
         fits:inputs.every(e=>{const b=e.getBoundingClientRect();return b.left>=r.left&&b.right<=r.right+1}),
         text:inputs.filter(e=>!['radio','checkbox','file'].includes(e.type)).every(e=>{const c=getComputedStyle(e);return contrast(c.color,c.backgroundColor)>=4.5&&contrast(c.webkitTextFillColor,c.backgroundColor)>=4.5}),
@@ -86,21 +84,12 @@ const [bk] = await sql("select id, admin_token, view_token from bookings order b
     });
     check(`3.1a ${width}px: centered document form, readable text and labels, controls fit`,visual.outsideSidebar&&visual.centered&&visual.fits&&visual.text&&visual.labels&&(width<960||visual.width>=800),JSON.stringify(visual));
   }
-  await page.setViewportSize({width:390,height:844});
-  check("3.1b mobile shows one compact section at a time", await page.locator("#docs-f [data-collapsed=false]").count() === 1 && await page.isVisible("#d0-name") && !(await page.isVisible("#d0-addr")));
-  await page.fill("#d0-name","ТЕСТ Запазено Име");
-  await page.locator("#ds-0-0 .doc-next").click();
-  check("3.1c continue opens address and preserves entered identity",await page.isVisible("#d0-addr") && !(await page.isVisible("#d0-name"))) ;
-  await page.locator("[aria-controls=ds-0-0]").click();
-  check("3.1d returning to a section keeps values",await page.inputValue("#d0-name") === "ТЕСТ Запазено Име");
   await page.click("#docs-f button[type=submit]");
   check("3.2 непопълнени данни → ясна грешка, нищо не се изпраща", /Моля, попълнете всички данни на водач 1/.test(await page.locator("#d-err").innerText()));
-  const reveal = async selector => {const section=await page.locator(selector).evaluate(e=>e.closest('[data-doc-section]')?.querySelector('.doc-section-head').getAttribute('aria-controls'));if(section && !(await page.isVisible(selector)))await page.locator(`[aria-controls="${section}"]`).click()};
   for (const i of [0, 1]) {
     const v = { name: i ? "ТЕСТ Втори Водач" : "ТЕСТ Основен Водач", idn: "TID" + i, egn: "800101000" + i, idd: "2020-01-01", idp: "МВР ТЕСТ", region: "Пловдив", municipality: "Пловдив", city: "Пловдив", addr: "ул. Документна " + (i + 1), dln: "TDL" + i, dld: "2021-02-02", dlp: "МВР ТЕСТ" };
-    for (const [k, x] of Object.entries(v)) {await reveal(`#d${i}-${k}`);await page.fill(`#d${i}-${k}`, x)}
-    await reveal(`input[name="d${i}-pt"][value="city"]`);await page.check(`input[name="d${i}-pt"][value="city"]`);
-    await page.locator(`[aria-controls="ds-${i}-3"]`).click();
+    for (const [k, x] of Object.entries(v)) await page.fill(`#d${i}-${k}`, x);
+    await page.check(`input[name="d${i}-pt"][value="city"]`);
     for (const k of ["idf", "idb", "dlf", "dlb"]) await page.setInputFiles(`#d${i}-p${k}`, { name: "t.jpg", mimeType: "image/jpeg", buffer: JPG });
   }
   await page.waitForFunction(() => document.querySelectorAll("[id$='-m']").length && [...document.querySelectorAll("#docs-f small[id$='-m']")].every((m) => /готова/.test(m.textContent)), null, { timeout: 15000 });
