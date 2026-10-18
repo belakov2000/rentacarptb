@@ -10,10 +10,11 @@
 ## Locally executed
 
 - Unit tests: 36 passed.
-- DOM/API test on bg/en/de: 66 passed, covering the actual form scripts and server endpoints through both approvals. JPEG buffers are injected after image processing; this does not test camera/canvas or layout.
+- DOM/API test on bg/en/de: 69 passed, covering the actual form scripts and server endpoints through both approvals. JPEG buffers are injected after image processing; this does not test camera/canvas or layout.
 - Two-stage integration: 37 passed; quote binding: 6 passed.
 - Regression sets email, mail-guard, auth, booking-flow, cancel, contracts, stage1, isolation passed using TEST_USE_PGLITE=1.
 - WASM PostgreSQL is optional test-only support. It does not replace native multi-connection concurrency validation. Default test mode remains native PostgreSQL.
+- Native PostgreSQL CI: all 22 integration sets and unit tests passed on the initial feature commit. Native UI checks identified and fixed CSS case-sensitive assertions and fresh-email-session loading.
 - Native Chromium cannot start in this local sandbox; native CI results must be inspected before merge. Camera access, real touch interactions and external map tiles need a real-device Preview check.
 
 No merge or production publication has been performed.

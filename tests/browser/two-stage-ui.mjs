@@ -31,6 +31,7 @@ const seed = { car: "golf", d1: D1, t1: "10:00", d2: D2, t2: "10:00", m1: "addr"
   const { ctx, page } = await open(seed);
   await page.goto(B + "/#avtomobili", { waitUntil: "load" });
   await page.waitForFunction(() => /Общо за услугите/.test(document.querySelector("#pick").innerText), null, { timeout: 15000 });
+  check("0. външните карти не получават адреса с кода на резервацията", await page.$$eval("iframe[src*=\"maps\"]", fs => fs.every(f => f.referrerPolicy === "no-referrer")));
   await page.check("#b-chains"); await page.check("#b-sd");
   await page.waitForFunction(() => /Вериги за сняг[\s\S]*Втори допълнителен водач/.test(document.querySelector("#pick").innerText), null, { timeout: 15000 });
   const t = await pickText(page);

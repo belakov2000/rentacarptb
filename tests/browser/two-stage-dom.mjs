@@ -56,6 +56,11 @@ for(const lang of ['bg','en','de']){
  await fetch(manage);let row=await(await fetch(B+'/api/bookings/'+bk.id+'?t='+bk.view_token)).json();check(lang+': opening owner link does not approve',row.stage==='request');
  await fetch(manage,{method:'POST',body:new URLSearchParams({action:'confirm'})});
  row=await(await fetch(B+'/api/bookings/'+bk.id+'?t='+bk.view_token)).json();check(lang+': first approval invites documents',row.stage==='docs');
+ const fresh=new Window({url:B+(lang==='bg'?'/':'/'+lang+'/')+'?b='+bk.id+'&t='+bk.view_token+'#blagodarim',settings:{enableJavaScriptEvaluation:true,disableJavaScriptFileLoading:true,disableCSSFileLoading:true,disableIframePageLoading:true,suppressInsecureJavaScriptEnvironmentWarning:true}});windows.push(fresh);
+ fresh.HTMLElement.prototype.scrollIntoView=function(){};fresh.scrollTo=()=>{};fresh.fetch=w.fetch;
+ fresh.document.write(html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/g,''));fresh.eval(scripts.join('\n;\n'));
+ await poll(()=>!!fresh.document.querySelector('#docs-f'));check(lang+': email link opens documents in a fresh browser',!!fresh.document.querySelector('#docs-f')&&fresh.__test.S.view.stage==='docs');await fresh.happyDOM.close();
+
  w.__test.S.view=row;w.__test.S.bst=row.status;w.__test.renderThanks();
  check(lang+': documents form present without repeated payment',!!$('#docs-f')&&!$('#docs-f [name=pay]'));
  $('#docs-f').dispatchEvent(new w.Event('submit',{bubbles:true,cancelable:true}));check(lang+': missing documents blocked',!$('#d-err').hidden);
