@@ -77,6 +77,12 @@ export const bookings = pgTable("bookings", {
   customerId: integer("customer_id").references(() => customers.id),
   // Снимки на документите от формата: [{ label, id }] – ключове в хранилището documents. null – по-стари заявки (линковете са само в имейла).
   documents: jsonb(),
+  // Сървърна проверка на цената – етап „наблюдение“ (server/pricing.ts): изчислената от сървъра цена и сравнението ѝ
+  // със сумата от браузъра. НЕ променя total / totalCents и договора. Статус: match | mismatch | incomplete | error.
+  // null – резервации отпреди проверката (не се преизчисляват).
+  priceCheck: jsonb("price_check"),
+  priceCheckStatus: text("price_check_status"),
+  priceCheckedAt: timestamp("price_checked_at"),
 }, (t) => [
   uniqueIndex("bookings_request_key_idx").on(t.requestKey),
   index("bookings_car_dates_idx").on(t.carId, t.startDate, t.endDate),

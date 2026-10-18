@@ -3,6 +3,7 @@
 import { drizzle } from "drizzle-orm/node-postgres";
 import pg from "pg";
 import { createHash } from "node:crypto";
+import jpeg from "jpeg-js";
 import { readdirSync, readFileSync } from "node:fs";
 import * as schema from "../../db/schema.ts";
 import { state } from "./stubs/db.ts";
@@ -136,3 +137,19 @@ http.handler = async (url, init) => {
   if (m[1] === "/logout") { identity.tokens.delete(tok); return new Response(null, { status: 204 }); }
   return Response.json({}, { status: 404 });
 };
+
+// Синтетично JPEG изображение (без реални документи) – за проверките при качване на снимки
+export function syntheticJpeg(width = 640, height = 400, quality = 80) {
+  const data = Buffer.alloc(width * height * 4);
+  for (let i = 0; i < width * height; i++) data.set([(i * 7) % 256, (i * 13) % 256, 128, 255], i * 4);
+  return new Uint8Array(jpeg.encode({ data, width, height }, quality).data);
+}
+// Вписан администратор в отделен „браузър“ (бисквитка nf_jwt, разпознавана от фалшивия Identity)
+export function adminJar(email = "admin@example.com", roles = ["admin"]) {
+  if (!identity.users.has(email)) identity.users.set(email, { id: "u-" + email, email, password: "x-" + Math.random(), roles });
+  const jar = cookieJar();
+  const tok = fakeJwt(email, roles);
+  identity.tokens.set(tok, email);
+  jar.set({ name: "nf_jwt", value: tok });
+  return jar;
+}

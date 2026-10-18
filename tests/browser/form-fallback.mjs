@@ -9,11 +9,13 @@
 // тестът спира веднага след първата заявка, за да не създава следващи писма.
 import { readFileSync } from "node:fs";
 import { chromium } from "playwright-core";
+import jpeg from "jpeg-js";
 
 const B = process.argv[2];
 if (!/^https:\/\/[\w-]+--rentacarptb\.netlify\.app$/.test(B || "")) { console.error("Задайте адреса на Deploy Preview (не production)."); process.exit(1); }
 const LOCAL = process.argv.includes("--local-index") ? readFileSync("index.html", "utf8") : null;
-const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAFklEQVR4nGP8z8DAQAxgYhhVSF+FAMWKAh8Yq0QdAAAAAElFTkSuQmCC", "base64");
+// Синтетична „снимка на документ“ 640×400 (сървърът декодира изображението и отказва по-малки от 200 px – етап 1)
+const PNG = (() => { const w = 640, h = 400, d = Buffer.alloc(w * h * 4); for (let i = 0; i < w * h; i++) d.set([i % 251, (i * 3) % 253, 90, 255], i * 4); return Buffer.from(jpeg.encode({ data: d, width: w, height: h }, 80).data); })();
 const RUN = Date.now().toString(36);
 const SECRET = { egn: "8001019999", idn: "TESTID123456", addr: "ул. Тестова 99", city: "Тестоград", reg: "Тестообласт", mun: "Тестообщина", dln: "TESTDL987654", idp: "МВР-ТЕСТ", a1: "бул. Доставка 5" };
 const results = [];
@@ -44,7 +46,7 @@ async function fill(page, tag, { skip = [] } = {}) {
   const f = { "#b-name": "ТЕСТ Браузър " + tag, "#b-cit": "BG", "#b-phone": "+359000000000", "#b-mail": `browser-${tag}@example.com`, "#b-idn": SECRET.idn, "#b-egn": SECRET.egn,
     "#b-idd": "2020-01-01", "#b-idp": SECRET.idp, "#b-reg": SECRET.reg, "#b-mun": SECRET.mun, "#b-city": SECRET.city, "#b-addr": SECRET.addr, "#b-dln": SECRET.dln, "#b-dlname": "ТЕСТ", "#b-dld": "2020-01-01", "#b-dlp": SECRET.idp };
   for (const [sel, v] of Object.entries(f)) if (!skip.includes(sel) && (await page.$(sel))) await page.fill(sel, v).catch(() => {});
-  for (const id of ["p-idf", "p-idb", "p-dlf", "p-dlb"]) await page.setInputFiles("#" + id, { name: "test.png", mimeType: "image/png", buffer: PNG });
+  for (const id of ["p-idf", "p-idb", "p-dlf", "p-dlb"]) await page.setInputFiles("#" + id, { name: "test.jpg", mimeType: "image/jpeg", buffer: PNG });
   await page.check('input[name="ptype"][value="village"]').catch(() => {});
   await page.check("#b-ok").catch(() => {});
   const pay = await page.$('input[name="pay"][value="cash"]'); if (pay) await pay.check();
