@@ -112,7 +112,8 @@ await customerEmailsFn();
 reset();
 await t.q("update bookings set pickup_reminder_at = null where id=$1", [b2.id]); // дори колоната да се нулира
 await customerEmailsFn();
-const reminders = mail.sent.filter((m) => m.to === "test-lost@example.com" && /Утре/.test(m.subject)).length;
+// +20 hours can fall on today or tomorrow depending on the Sofia clock.
+const reminders = mail.sent.filter((m) => m.to === "test-lost@example.com" && /Утре получавате автомобила|Наближава получаването на автомобила/.test(m.subject)).length;
 check("Напомняне с изгубен отговор не се праща второ копие", reminders === 1 && (await log(`pickup24:${b2.id}`)).status === "unknown", `напомняния: ${reminders}`);
 
 // 10. Всички грешки и опити са в лога

@@ -1,11 +1,12 @@
 // Договори: генериране, последователни версии, запазване на старите версии и проверка на съдържанието.
 import { eq } from "drizzle-orm";
 import { strFromU8, unzipSync } from "fflate";
-import { bookingBody, check, contractData, finish, freshDb, O, setContext, schema, sha, withQuote } from "./harness.ts";
+import { adminJar, bookingBody, check, contractData, finish, freshDb, O, setContext, schema, sha, withQuote } from "./harness.ts";
 import { getStore, stores } from "./stubs/blobs.ts";
 import { listContractVersions, saveContract } from "../../server/contracts.ts";
-import { parseContract } from "../../contract/index.ts";
+import { buildContract, parseContract } from "../../contract/index.ts";
 import bookingsFn from "../../netlify/functions/bookings.mts";
+import adminContractsFn from "../../netlify/functions/admin-contracts.mts";
 
 setContext("deploy-preview");
 const t = await freshDb("contracts");
@@ -58,4 +59,32 @@ await Promise.all([1, 2, 3, 4, 5].map((k) => saveContract(id2, { ...old, name: "
 const v3 = await listContractVersions(id2);
 check("5 едновременни промени → версии 3–7 без пропуски и дубликати", v3.map((x) => x.version).join() === "1,2,3,4,5,6,7" && new Set(v3.map((x) => x.blobKey)).size === 7, v3.map((x) => x.version).join());
 check("Нито един файл на версия не е презаписан", v3.every((x) => S().has(x.blobKey)) && sha(S().get(v2[0].blobKey)!.data) === sha(legacy), "");
+// Variable-length appendices must never claim a fixed total page count.
+const clause="Документите, включително приложенията към тях, са последователно номерирани.";
+check("Заключителната разпоредба няма фиксирани 14 страници",xml(cur1).includes(clause)&&!xml(cur1).includes("14 (четиринадесет)"));
+const appendix=["Приложение – допълнителни условия по заявката","Вериги за сняг: 3 дни","Обща сума: 100 €"];
+const one=xml(buildContract({...old,appendix,appendixSecondDriver:false}));
+const two=xml(buildContract({...old,appendix,appendixSecondDriver:true}));
+const signPart=(s:string)=>s.slice(s.indexOf("Подписи по приложението"));
+check("Приложение с един водач: подписи за наемодател и наемател, без втори водач",signPart(one).includes("Наемодател:")&&signPart(one).includes("Наемател:")&&!signPart(one).includes("Втори водач:"));
+check("Приложение с двама водачи: трите подписа са в края и остават заедно",signPart(two).includes("Наемодател:")&&signPart(two).includes("Наемател:")&&signPart(two).includes("Втори водач:")&&signPart(two).includes("<w:keepNext/>")&&two.includes("<w:pageBreakBefore/>"));
+const legacyAppendix=xml(buildContract({...old,appendix:[...appendix,"Втори (допълнителен) водач: ТЕСТ Втори Водач"]}));
+check("Запазено старо приложение с втори водач получава третия подпис при ново генериране",signPart(legacyAppendix).includes("Втори водач:"));
+check("Без приложение не се добавя празна страница с подписи",!xml(buildContract(old)).includes("Подписи по приложението"));
+// Regeneration uses saved data and preserves the original versions and booking state.
+const regen = (origin = O) => adminContractsFn(new Request(`${O}/api/admin/contracts/${id}`, { method: "POST", headers: { Origin: origin, "Content-Type": "application/json" }, body: JSON.stringify({ action: "regenerate" }) }), {} as any);
+setContext("deploy-preview");
+check("Нова версия без администратор е забранена", (await regen()).status === 401);
+setContext("deploy-preview", { cookies: adminJar() });
+check("Нова версия от чужд сайт е забранена", (await regen("https://other.example")).status === 403);
+await saveContract(id, { ...old, appendix, appendixSecondDriver: true }, "test", "Двама водачи");
+const before = await listContractVersions(id);
+const beforeHashes = before.map(x => sha(S().get(x.blobKey)!.data));
+const regenResponse = await regen();
+const after = await listContractVersions(id);
+const [unchanged] = await t.db.select().from(schema.bookings).where(eq(schema.bookings.id,id));
+check("Администраторът създава нова версия със запазени данни и трите подписа", regenResponse.status === 200 && after.length === before.length + 1 && xml(S().get(id)!.data).includes(clause) && signPart(xml(S().get(id)!.data)).includes("Втори водач:") && after.at(-1)!.signStatus === "awaiting");
+check("Обновяването запазва старите файлове и статуса на резервацията", before.every((x,i) => sha(S().get(x.blobKey)!.data) === beforeHashes[i]) && unchanged.status === b.status);
+await getStore("deploypreview-contracts").delete(`${id}.json`);
+check("Без записани данни не се създава празен договор", (await regen()).status === 409 && (await listContractVersions(id)).length === after.length);
 await finish();
