@@ -99,9 +99,24 @@ const [bk] = await sql("select id, admin_token, view_token from bookings order b
     for (const [k, x] of Object.entries(v)) {await reveal(`#d${i}-${k}`);await page.fill(`#d${i}-${k}`, x)}
     await reveal(`input[name="d${i}-pt"][value="city"]`);await page.check(`input[name="d${i}-pt"][value="city"]`);
     await page.locator(`[aria-controls="ds-${i}-3"]`).click();
+    if(i===0){
+      await page.evaluate(()=>{window.__realMedia=navigator.mediaDevices.getUserMedia;navigator.mediaDevices.getUserMedia=async()=>{throw new DOMException('Test denial','NotAllowedError')}});
+      await page.click('[data-doc-camera="0-idf"]');await page.waitForSelector('#cam-file',{state:'visible'});
+      check('3.2a denied camera shows guidance and gallery fallback, not a black live frame',await page.isVisible('#cam-msg')&&!(await page.isVisible('#cam-live')));
+      await page.click('#cam-close');
+      await page.evaluate(()=>{navigator.mediaDevices.getUserMedia=async()=>{const c=document.createElement('canvas');c.width=640;c.height=400;const g=c.getContext('2d');for(let x=0;x<640;x+=8){g.fillStyle=`rgb(${x%255},${(x*3)%255},120)`;g.fillRect(x,0,8,400)}window.__cameraCanvas=c;window.__docCameraStream=c.captureStream(10);return window.__docCameraStream}});
+      await page.click('[data-doc-camera="0-idf"]');await page.waitForSelector('#cam-shot',{state:'visible'});
+      check('3.2b live camera has decoded video before showing capture',await page.evaluate(()=>document.querySelector('#cam-v').videoWidth===640&&document.querySelector('#cam-v').readyState>=2));
+      await page.click('#cam-shot');await page.waitForSelector('#cam-use',{state:'visible'});await page.click('#cam-use');
+      await page.waitForFunction(()=>document.querySelector('#d0-pidf-v').naturalWidth>0&&!document.querySelector('#d0-pidf-view').hidden);
+      check('3.2c accepted camera shot appears in the form and stops all tracks',await page.evaluate(()=>window.__docCameraStream.getTracks().every(t=>t.readyState==='ended')));
+      await page.click('[data-doc-preview="d0-pidf"]');check('3.2d photo opens full size for inspection',await page.locator('#photo-review').isVisible());await page.click('[data-photo-close]');
+    }
     for (const k of ["idf", "idb", "dlf", "dlb"]) await page.setInputFiles(`#d${i}-p${k}`, { name: "t.jpg", mimeType: "image/jpeg", buffer: JPG });
   }
   await page.waitForFunction(() => document.querySelectorAll("[id$='-m']").length && [...document.querySelectorAll("#docs-f small[id$='-m']")].every((m) => /готова/.test(m.textContent)), null, { timeout: 15000 });
+  await page.waitForFunction(()=>[...document.querySelectorAll('#docs-f .doc-preview-button img')].length===8&&[...document.querySelectorAll('#docs-f .doc-preview-button img')].every(i=>i.naturalWidth>0));
+  check('3.2e all eight gallery images have visible preview controls and whole-document guidance',await page.locator('#docs-f .doc-preview-button:not([hidden])').count()===8 && /четири края/.test(await page.locator('.doc-photo-tip').first().textContent()));
   await page.check("#d-consent"); await page.tap("#docs-f button[type=submit]");
   await page.waitForFunction(() => /Получени документи — очакват проверка/.test(document.querySelector("#th-h").textContent), null, { timeout: 20000 });
   const [s] = await sql(`select stage, jsonb_array_length(documents) docs, drivers from bookings where id='${bk.id}'`);
