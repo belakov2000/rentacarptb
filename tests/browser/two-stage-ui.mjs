@@ -103,7 +103,12 @@ const [bk] = await sql("select id, admin_token, view_token from bookings order b
       await page.evaluate(()=>{window.__realMedia=navigator.mediaDevices.getUserMedia;navigator.mediaDevices.getUserMedia=async()=>{throw new DOMException('Test denial','NotAllowedError')}});
       await page.click('[data-doc-camera="0-idf"]');await page.waitForSelector('#cam-file',{state:'visible'});
       check('3.2a denied camera shows guidance and gallery fallback, not a black live frame',await page.isVisible('#cam-msg')&&!(await page.isVisible('#cam-live')));
-      await page.click('#cam-close');
+      check('3.2a1 camera refusal offers a neutral phone-camera recovery',await page.isVisible('#cam-native')&&!(await page.locator('#cam-msg').getAttribute('class')).includes('err'));
+      const chooserPromise=page.waitForEvent('filechooser');await page.click('#cam-native');const chooser=await chooserPromise;
+      await chooser.setFiles({name:'native-camera.jpg',mimeType:'image/jpeg',buffer:JPG});
+      await page.waitForFunction(()=>document.querySelector('#d0-pidf-v').naturalWidth>0&&!document.querySelector('#d0-pidf-view').hidden);
+      check('3.2a2 system camera capture reaches the same document preview',await page.locator('#cam-native-input').getAttribute('capture')==='environment'&&!(await page.locator('#cam').isVisible()));
+      await page.evaluate(()=>{CAM.nativePreferred=false});
       await page.evaluate(()=>{navigator.mediaDevices.getUserMedia=async()=>{const c=document.createElement('canvas');c.width=640;c.height=400;const g=c.getContext('2d');for(let x=0;x<640;x+=8){g.fillStyle=`rgb(${x%255},${(x*3)%255},120)`;g.fillRect(x,0,8,400)}window.__cameraCanvas=c;window.__docCameraStream=c.captureStream(10);return window.__docCameraStream}});
       await page.click('[data-doc-camera="0-idf"]');await page.waitForSelector('#cam-shot',{state:'visible'});
       check('3.2b live camera has decoded video before showing capture',await page.evaluate(()=>document.querySelector('#cam-v').videoWidth===640&&document.querySelector('#cam-v').readyState>=2));
