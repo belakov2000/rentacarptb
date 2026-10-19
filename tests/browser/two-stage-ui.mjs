@@ -70,13 +70,13 @@ const [bk] = await sql("select id, admin_token, view_token from bookings order b
   check("3.1 линкът от имейла (нов браузър, телефон): „Заявката е одобрена – подайте документите“; два водача; без плащане, столчета и коментар",
     /подайте документите/.test(h) && legends.length === 2 && /наемател/.test(legends[0]) && !(await page.$("#docs-f [name=pay]")) && !(await page.$("#docs-f #b-note")), legends.join(" | "));
   // Check actual paint colors and geometry, not just whether inputs exist.
-  for (const width of [1280, 390]) {
+  for (const width of [1280, 320, 375, 390, 430]) {
     await page.setViewportSize({width,height:900});
     const visual=await page.evaluate(()=>{
       const luminance=c=>{const rgb=c.match(/[\d.]+/g).slice(0,3).map(Number).map(v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4});return rgb[0]*.2126+rgb[1]*.7152+rgb[2]*.0722};
       const contrast=(a,b)=>{const x=luminance(a),y=luminance(b);return(Math.max(x,y)+.05)/(Math.min(x,y)+.05)};
       const card=document.querySelector('#th-docs'),r=card.getBoundingClientRect(),grid=card.parentElement.getBoundingClientRect();
-      const inputs=[...document.querySelectorAll('#docs-f input:not([hidden])')];
+      const inputs=[...document.querySelectorAll('#docs-f input:not([hidden])')].filter(e=>e.getBoundingClientRect().width>2);
       return {outsideSidebar:!card.closest('.th-side'),width:r.width,centered:Math.abs((r.left+r.right)-(grid.left+grid.right))<4,
         fits:inputs.every(e=>{const b=e.getBoundingClientRect();return b.left>=r.left&&b.right<=r.right+1}),
         text:inputs.filter(e=>!['radio','checkbox','file'].includes(e.type)).every(e=>{const c=getComputedStyle(e);return contrast(c.color,c.backgroundColor)>=4.5&&contrast(c.webkitTextFillColor,c.backgroundColor)>=4.5}),
@@ -84,12 +84,21 @@ const [bk] = await sql("select id, admin_token, view_token from bookings order b
     });
     check(`3.1a ${width}px: centered document form, readable text and labels, controls fit`,visual.outsideSidebar&&visual.centered&&visual.fits&&visual.text&&visual.labels&&(width<960||visual.width>=800),JSON.stringify(visual));
   }
+  await page.setViewportSize({width:390,height:844});
+  check("3.1b mobile shows one compact section at a time", await page.locator("#docs-f [data-collapsed=false]").count() === 1 && (await page.locator("#docs-f [data-collapsed=true]").first().boundingBox()).height < 75 && await page.isVisible("#d0-name") && !(await page.isVisible("#d0-addr")));
+  await page.fill("#d0-name","ТЕСТ Запазено Име");
+  await page.locator("#ds-0-0 .doc-next").click();
+  check("3.1c continue opens address and preserves entered identity",await page.isVisible("#d0-addr") && !(await page.isVisible("#d0-name"))) ;
+  await page.locator("[aria-controls=ds-0-0]").click();
+  check("3.1d returning to a section keeps values",await page.inputValue("#d0-name") === "ТЕСТ Запазено Име");
   await page.click("#docs-f button[type=submit]");
   check("3.2 непопълнени данни → ясна грешка, нищо не се изпраща", /Моля, попълнете всички данни на водач 1/.test(await page.locator("#d-err").innerText()));
+  const reveal = async selector => {const section=await page.locator(selector).evaluate(e=>e.closest('[data-doc-section]')?.querySelector('.doc-section-head').getAttribute('aria-controls'));if(section && !(await page.isVisible(selector)))await page.locator(`[aria-controls="${section}"]`).click()};
   for (const i of [0, 1]) {
     const v = { name: i ? "ТЕСТ Втори Водач" : "ТЕСТ Основен Водач", idn: "TID" + i, egn: "800101000" + i, idd: "2020-01-01", idp: "МВР ТЕСТ", region: "Пловдив", municipality: "Пловдив", city: "Пловдив", addr: "ул. Документна " + (i + 1), dln: "TDL" + i, dld: "2021-02-02", dlp: "МВР ТЕСТ" };
-    for (const [k, x] of Object.entries(v)) await page.fill(`#d${i}-${k}`, x);
-    await page.check(`input[name="d${i}-pt"][value="city"]`);
+    for (const [k, x] of Object.entries(v)) {await reveal(`#d${i}-${k}`);await page.fill(`#d${i}-${k}`, x)}
+    await reveal(`input[name="d${i}-pt"][value="city"]`);await page.check(`input[name="d${i}-pt"][value="city"]`);
+    await page.locator(`[aria-controls="ds-${i}-3"]`).click();
     for (const k of ["idf", "idb", "dlf", "dlb"]) await page.setInputFiles(`#d${i}-p${k}`, { name: "t.jpg", mimeType: "image/jpeg", buffer: JPG });
   }
   await page.waitForFunction(() => document.querySelectorAll("[id$='-m']").length && [...document.querySelectorAll("#docs-f small[id$='-m']")].every((m) => /готова/.test(m.textContent)), null, { timeout: 15000 });
