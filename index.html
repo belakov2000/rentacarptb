@@ -1081,11 +1081,13 @@ button.btn-ghost{background:transparent}
 <p class="cam-note">Рамката е само за ориентир. Проверете сами дали всички данни се четат ясно.</p>
 </div>
 <p class="cam-msg" id="cam-msg" role="status" aria-live="polite"></p>
-<p class="cam-code" id="cam-code" hidden><span>Технически код:</span> <code id="cam-code-v"></code></p>
+<details class="cam-code" id="cam-code" hidden><summary>Помощ за камерата</summary><p>Можете да разрешите камерата от настройките на браузъра за този сайт и да опитате отново.</p><span>Технически код:</span> <code id="cam-code-v"></code></details>
 <div class="cam-act">
 <button class="btn btn-acc" type="button" id="cam-shot">Снимай</button>
 <button class="btn btn-ghost" type="button" id="cam-again" hidden>Снимай отново</button>
 <button class="btn btn-acc" type="button" id="cam-use" hidden>Използвай снимката</button>
+<button class="btn btn-acc" type="button" id="cam-native" hidden>Снимай с камерата на телефона</button>
+<input id="cam-native-input" type="file" accept="image/*" capture="environment" hidden>
 <button class="btn btn-acc" type="button" id="cam-file" hidden>Качи снимка/файл</button>
 <button class="btn btn-ghost" type="button" id="cam-retry" hidden>Опитай отново</button>
 <a class="btn btn-ghost" id="cam-tab" href="/" target="_blank" rel="noopener" hidden>Отвори сайта в нов раздел</a>
@@ -1657,6 +1659,10 @@ const I18N={
 "Отвори снимката за проверка":["Open photo to check", "Foto zur Prüfung öffnen"],
 "Подготвяме снимката…":["Preparing the photo…", "Foto wird vorbereitet…"],
 "Преглед на качения документ":["Preview of uploaded document", "Vorschau des hochgeladenen Dokuments"],
+"Снимай с камерата на телефона":["Use phone camera", "Handykamera verwenden"],
+"Можете да снимате с камерата на телефона или да изберете готова снимка от галерията.":["You can use your phone camera or select a photo from your gallery.", "Sie können die Handykamera verwenden oder ein Foto aus Ihrer Galerie auswählen."],
+"Помощ за камерата":["Camera help", "Kamerahilfe"],
+"Можете да разрешите камерата от настройките на браузъра за този сайт и да опитате отново.":["You can allow camera access in this website's browser settings and try again.", "Sie können den Kamerazugriff in den Browser-Einstellungen für diese Website erlauben und es erneut versuchen."],
 "Код за отстъпка (по избор)":["Discount code (optional)", "Rabattcode (optional)"],
 "Изпрати документите":["Submit the documents", "Dokumente einreichen"],
 "Изпращаме документите…":["Sending the documents…", "Dokumente werden gesendet…"],
@@ -2082,7 +2088,7 @@ Object.keys(PHOTOS).forEach(id=>$("#"+id).addEventListener("change",e=>setPhoto(
 // и същото качване (/api/documents) като избран файл; не се праща другаде. Рамката е само ориентир – не проверява четливостта.
 // Заснема се целият кадър, който се вижда: сцената има пропорциите на видеото, видеото не се изрязва, рамката е в % от кадъра.
 // Пропорции на рамката: лична карта и шофьорска книжка – ID-1 (85,6 × 54 мм), паспорт – страница с данни (125 × 88 мм).
-const CAM={id:"",stream:null,blob:null,url:"",generation:0};
+const CAM={id:"",stream:null,blob:null,url:"",generation:0,nativePreferred:false};
 const camOk=()=>!!(window.isSecureContext&&navigator.mediaDevices&&navigator.mediaDevices.getUserMedia&&window.HTMLDialogElement&&$("#cam").showModal);
 const camAr=id=>{const m=/^d(\d+)-pid[fb]$/.exec(id),pass=m?document.querySelector(`input[name="d${m[1]}-idt"]:checked`)?.value==="pass":/^p-id/.test(id)&&idt()==="pass";return pass?125/88:85.6/54};
 // Видове грешки: denied – посетителят (или настройката на браузъра) е отказал достъп; framed – страницата, в която е
@@ -2101,9 +2107,9 @@ function camClear(){if(CAM.url)URL.revokeObjectURL(CAM.url);CAM.url="";CAM.blob=
 // st: load – включване, live – изглед от камерата, shot – преглед на снимката, err – грешка
 // При грешка изгледът (черният кадър, рамката и инструкцията) се скрива – остават съобщението и алтернативите
 function camView(st,kind){const shot=st==="shot",err=st==="err";$("#cam-live").hidden=err;$("#cam-stage").style.visibility=st==="load"?"hidden":"visible";$("#cam-tip").hidden=st!=="live";$("#cam-v").hidden=shot;$("#cam-img").hidden=!shot;$("#cam-f").hidden=st!=="live";
-$("#cam-shot").hidden=st!=="live";$("#cam-again").hidden=!shot;$("#cam-use").hidden=!shot;$("#cam-file").hidden=!err;$("#cam-retry").hidden=!err||kind==="framed"||kind==="none";
+$("#cam-shot").hidden=st!=="live";$("#cam-again").hidden=!shot;$("#cam-use").hidden=!shot;$("#cam-file").hidden=!err;$("#cam-native").hidden=!err;$("#cam-retry").hidden=!err||kind==="framed"||kind==="none";
 const tab=$("#cam-tab");tab.hidden=!(err&&framed);tab.href=location.href;if(!err)$("#cam-code").hidden=true}
-function camFail(kind,code){camStop();camMsg(CAM_ERR[kind],1);$("#cam-code-v").textContent=code||"—";$("#cam-code").hidden=false;camView("err",kind);(framed&&kind==="framed"?$("#cam-tab"):$("#cam-file")).focus()}
+function camFail(kind,code){camStop();camMsg(tr("Можете да снимате с камерата на телефона или да изберете готова снимка от галерията."));$("#cam-code-v").textContent=code||"—";camView("err",kind);$("#cam-code").hidden=false;$("#cam-code").open=false;$("#cam-native").focus()}
 const camMsg=(t,err)=>{const m=$("#cam-msg");m.className="cam-msg"+(err?" err":"");m.textContent=t};
 function camFit(w,h){const ar=camAr(CAM.id),f=$("#cam-f");$("#cam-stage").style.setProperty("--ar",String(w/h));
 let fw=.88*w,fh=fw/ar;if(fh>.88*h){fh=.88*h;fw=fh*ar}f.style.width=fw/w*100+"%";f.style.height=fh/h*100+"%"}
@@ -2116,7 +2122,7 @@ await new Promise((ok,no)=>{const timer=setTimeout(()=>done(new Error("video-not
 if(!$("#cam").open||generation!==CAM.generation)return;
 camFit(v.videoWidth,v.videoHeight);camMsg("");camView("live");$("#cam-shot").focus()}
 catch(e){if(generation!==CAM.generation)return;const n=(e&&e.name)||"video-not-started";console.warn("camera:",n);if($("#cam").open)camFail(camKind(n),n)}}
-function camOpen(id){$("#"+id+"-m").textContent="";if(!camOk()){$("#"+id+"-m").textContent=CAM_ERR.unsup;return}
+function camOpen(id){$("#"+id+"-m").textContent="";if(CAM.nativePreferred||!camOk()){openNativeCamera(id);return}
 CAM.id=id;camClear();$("#cam-h").textContent=PHOTOS[id]||document.querySelector(`label[for="${id}"]`)?.textContent||tr("Снимка на документа");$("#cam").showModal();camStart()}
 const camClose=()=>{CAM.generation++;camStop();camClear();if($("#cam").open)$("#cam").close()};
 $$("[data-cam]").forEach(b=>b.addEventListener("click",()=>camOpen(b.dataset.cam)));
@@ -2124,6 +2130,10 @@ $("#cam-shot").addEventListener("click",()=>{const v=$("#cam-v"),w=v.videoWidth,
 c.toBlob(b=>{if(!b){camMsg(CAM_ERR.fail,1);return}camStop();CAM.blob=b;CAM.url=URL.createObjectURL(b);$("#cam-img").src=CAM.url;camView("shot");camMsg("Проверете дали целият документ и всички данни се четат ясно.");$("#cam-use").focus()},"image/jpeg",.92)});
 $("#cam-again").addEventListener("click",()=>{camClear();camStart()});
 $("#cam-use").addEventListener("click",()=>{const id=CAM.id,b=CAM.blob;if(!b)return;$("#"+id).value="";camClose();setPhoto(id,b)});
+let nativeCameraTarget="";
+function openNativeCamera(id){nativeCameraTarget=id;CAM.nativePreferred=true;camClose();const input=$("#cam-native-input");input.value="";input.click()}
+$("#cam-native").addEventListener("click",()=>openNativeCamera(CAM.id));
+$("#cam-native-input").addEventListener("change",e=>{const target=nativeCameraTarget,file=e.target.files[0];if(target&&file)setPhoto(target,file,e.target)});
 $("#cam-file").addEventListener("click",()=>{const id=CAM.id;camClose();$("#"+id).click()});
 $("#cam-close").addEventListener("click",camClose);
 $("#cam-retry").addEventListener("click",()=>{camClear();camStart()});
