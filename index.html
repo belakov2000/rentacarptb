@@ -560,6 +560,12 @@ button.btn-ghost{background:transparent}
  #docs-f .fmsg:empty{display:none}
 }
 
+.doc-photo-tip{font-size:.85rem;line-height:1.6;margin:0;padding:12px 14px;background:#edf2f7;border-radius:12px;color:var(--ink)!important}
+.doc-preview-button{display:grid;gap:8px;width:100%;margin-top:12px;padding:8px;border:1px solid var(--line);border-radius:12px;background:#fff;color:var(--navy);font:inherit;font-size:.8rem;text-align:center;cursor:zoom-in}
+.doc-preview-button img{display:block;width:100%;height:170px;object-fit:contain;border-radius:8px;background:#f1f4f8}.doc-preview-button span{padding:4px}
+.photo-review{width:min(96vw,1000px);max-height:94dvh;padding:14px;border:0;border-radius:18px;background:#fff}.photo-review::backdrop{background:rgba(4,13,27,.85)}
+.photo-review img{display:block;width:100%;max-height:80dvh;object-fit:contain}.photo-review button{display:block;margin:0 0 10px auto;padding:10px 18px;min-height:44px;border:0;border-radius:10px;background:var(--navy);color:#fff;font:inherit;cursor:pointer}
+
 </style>
 <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"AutoRental","@id":"https://rentacar-ptb.com/#business","name":"Рента ПТБ Строй ЕООД","legalName":"РЕНТА ПТБ СТРОЙ ЕООД","description":"Коли под наем в Пловдив с доставка до Летище Пловдив и до адрес в цяла България.","url":"https://rentacar-ptb.com/","logo":"https://rentacar-ptb.com/images/logo.png","image":"https://rentacar-ptb.com/images/og-image.jpg","telephone":"+359877748693","email":"rentaptb_stroi@abv.bg","identifier":{"@type":"PropertyValue","propertyID":"ЕИК","value":"208817102"},"address":{"@type":"PostalAddress","streetAddress":"бул. Дунав 10","addressLocality":"Пловдив","postalCode":"4027","addressCountry":"BG"},"hasMap":"https://maps.app.goo.gl/3Z6hxjwnggn99cNu7","areaServed":[{"@type":"City","name":"Пловдив"},{"@type":"Country","name":"България"},{"@type":"Airport","name":"Летище Пловдив","iataCode":"PDV"}],"priceRange":"15–25 € на ден","currenciesAccepted":"EUR","paymentAccepted":"В брой, банков превод","knowsLanguage":["bg","en","de"]},{"@type":"WebSite","@id":"https://rentacar-ptb.com/#website","url":"https://rentacar-ptb.com/","name":"Рента ПТБ Строй – коли под наем в Пловдив","inLanguage":["bg","en","de"],"publisher":{"@id":"https://rentacar-ptb.com/#business"}}]}</script>
 </head>
@@ -1065,6 +1071,7 @@ button.btn-ghost{background:transparent}
 </div>
 </section>
 </div>
+<dialog class="photo-review" id="photo-review" aria-label="Преглед на снимката"><button type="button" data-photo-close>Затвори</button><img id="photo-review-img" alt="Преглед на качения документ"></dialog>
 <dialog class="cam" id="cam" aria-labelledby="cam-h">
 <div class="cam-box">
 <h3 id="cam-h">Снимка на документа</h3>
@@ -1646,6 +1653,10 @@ const I18N={
 "Продължи":["Continue", "Weiter"],
 "Към изпращане":["Review and submit", "Prüfen und absenden"],
 "Попълнете кратките секции една по една. Можете да се връщате, без да губите въведеното.":["Complete the short sections one at a time. You can go back without losing your entries.", "Füllen Sie die kurzen Abschnitte nacheinander aus. Ihre Eingaben bleiben beim Zurückgehen erhalten."],
+"Снимайте цялата лична карта / паспорт и шофьорска книжка – лице и гръб, с видими четири края. Поставете документа на равна повърхност при добра светлина, без отблясъци и размазване. Проверете дали всички данни се четат ясно.":["Photograph the entire ID card / passport and driving licence, front and back, with all four edges visible. Use a flat surface and good light, without glare or blur. Check that every detail is readable.", "Fotografieren Sie den gesamten Ausweis / Reisepass und Führerschein, Vorder- und Rückseite, mit allen vier Rändern. Nutzen Sie eine ebene Fläche und gutes Licht, ohne Spiegelungen oder Unschärfe. Prüfen Sie die Lesbarkeit aller Angaben."],
+"Отвори снимката за проверка":["Open photo to check", "Foto zur Prüfung öffnen"],
+"Подготвяме снимката…":["Preparing the photo…", "Foto wird vorbereitet…"],
+"Преглед на качения документ":["Preview of uploaded document", "Vorschau des hochgeladenen Dokuments"],
 "Код за отстъпка (по избор)":["Discount code (optional)", "Rabattcode (optional)"],
 "Изпрати документите":["Submit the documents", "Dokumente einreichen"],
 "Изпращаме документите…":["Sending the documents…", "Dokumente werden gesendet…"],
@@ -2062,7 +2073,7 @@ function shrink(f){return new Promise((ok,no)=>{const u=URL.createObjectURL(f),i
 i.onload=()=>{const k=Math.min(1,1800/Math.max(i.naturalWidth,i.naturalHeight)),c=document.createElement("canvas");c.width=Math.round(i.naturalWidth*k);c.height=Math.round(i.naturalHeight*k);c.getContext("2d").drawImage(i,0,0,c.width,c.height);URL.revokeObjectURL(u);c.toBlob(b=>b?ok(b):no(),"image/jpeg",.82)};
 i.onerror=()=>{URL.revokeObjectURL(u);no()};i.src=u})}
 // Избран файл или снимка от камерата в сайта – еднакво смаляване, преглед и качване
-async function setPhoto(id,f,inp){const pv=$("#"+id+"-v");delete PH[id];pv.hidden=true;$("#"+id+"-m").textContent="";syncSubmit();if(!f)return;
+async function setPhoto(id,f,inp){if(/^d\d+-p(idf|idb|dlf|dlb)$/.test(id))return setDocPhoto(id,f,inp);const pv=$("#"+id+"-v");delete PH[id];pv.hidden=true;$("#"+id+"-m").textContent="";syncSubmit();if(!f)return;
 try{const b=await shrink(f);PH[id]=b;pv.src=URL.createObjectURL(b);pv.hidden=false;syncSubmit()}catch(x){if(inp)inp.value="";syncSubmit();fail("Снимката не може да бъде прочетена. Моля, изберете снимка във формат JPG или PNG.")}}
 Object.keys(PHOTOS).forEach(id=>$("#"+id).addEventListener("change",e=>setPhoto(id,e.target.files[0],e.target)));
 // ===== Камера в сайта с насочваща рамка =====
@@ -2071,9 +2082,9 @@ Object.keys(PHOTOS).forEach(id=>$("#"+id).addEventListener("change",e=>setPhoto(
 // и същото качване (/api/documents) като избран файл; не се праща другаде. Рамката е само ориентир – не проверява четливостта.
 // Заснема се целият кадър, който се вижда: сцената има пропорциите на видеото, видеото не се изрязва, рамката е в % от кадъра.
 // Пропорции на рамката: лична карта и шофьорска книжка – ID-1 (85,6 × 54 мм), паспорт – страница с данни (125 × 88 мм).
-const CAM={id:"",stream:null,blob:null,url:""};
+const CAM={id:"",stream:null,blob:null,url:"",generation:0};
 const camOk=()=>!!(window.isSecureContext&&navigator.mediaDevices&&navigator.mediaDevices.getUserMedia&&window.HTMLDialogElement&&$("#cam").showModal);
-const camAr=id=>/^p-id/.test(id)&&idt()==="pass"?125/88:85.6/54;
+const camAr=id=>{const m=/^d(\d+)-pid[fb]$/.exec(id),pass=m?document.querySelector(`input[name="d${m[1]}-idt"]:checked`)?.value==="pass":/^p-id/.test(id)&&idt()==="pass";return pass?125/88:85.6/54};
 // Видове грешки: denied – посетителят (или настройката на браузъра) е отказал достъп; framed – страницата, в която е
 // вграден сайтът (напр. прегледът в app.netlify.com), не разрешава камера на вградената рамка – това не е отказ на
 // посетителя; busy – камерата е заета; none – няма камера; fail – друго (вкл. видеото не стартира); unsup – няма поддръжка.
@@ -2089,24 +2100,25 @@ function camStop(){if(CAM.stream){CAM.stream.getTracks().forEach(t=>t.stop());CA
 function camClear(){if(CAM.url)URL.revokeObjectURL(CAM.url);CAM.url="";CAM.blob=null;$("#cam-img").removeAttribute("src")}
 // st: load – включване, live – изглед от камерата, shot – преглед на снимката, err – грешка
 // При грешка изгледът (черният кадър, рамката и инструкцията) се скрива – остават съобщението и алтернативите
-function camView(st,kind){const shot=st==="shot",err=st==="err";$("#cam-live").hidden=err;$("#cam-tip").hidden=st!=="live";$("#cam-v").hidden=shot;$("#cam-img").hidden=!shot;$("#cam-f").hidden=st!=="live";
+function camView(st,kind){const shot=st==="shot",err=st==="err";$("#cam-live").hidden=err;$("#cam-stage").style.visibility=st==="load"?"hidden":"visible";$("#cam-tip").hidden=st!=="live";$("#cam-v").hidden=shot;$("#cam-img").hidden=!shot;$("#cam-f").hidden=st!=="live";
 $("#cam-shot").hidden=st!=="live";$("#cam-again").hidden=!shot;$("#cam-use").hidden=!shot;$("#cam-file").hidden=!err;$("#cam-retry").hidden=!err||kind==="framed"||kind==="none";
 const tab=$("#cam-tab");tab.hidden=!(err&&framed);tab.href=location.href;if(!err)$("#cam-code").hidden=true}
 function camFail(kind,code){camStop();camMsg(CAM_ERR[kind],1);$("#cam-code-v").textContent=code||"—";$("#cam-code").hidden=false;camView("err",kind);(framed&&kind==="framed"?$("#cam-tab"):$("#cam-file")).focus()}
 const camMsg=(t,err)=>{const m=$("#cam-msg");m.className="cam-msg"+(err?" err":"");m.textContent=t};
 function camFit(w,h){const ar=camAr(CAM.id),f=$("#cam-f");$("#cam-stage").style.setProperty("--ar",String(w/h));
 let fw=.88*w,fh=fw/ar;if(fh>.88*h){fh=.88*h;fw=fh*ar}f.style.width=fw/w*100+"%";f.style.height=fh/h*100+"%"}
-async function camStart(){camMsg("Включваме камерата…");camView("load");
+async function camStart(){const generation=++CAM.generation;camStop();camMsg("Включваме камерата…");camView("load");
 if(framed&&camPolicyOff())return camFail("framed","permissions-policy: camera");
 try{const st=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:"environment"},width:{ideal:1920},height:{ideal:1080}}});
-if(!$("#cam").open){st.getTracks().forEach(t=>t.stop());return}
-CAM.stream=st;const v=$("#cam-v");v.muted=true;v.setAttribute("playsinline","");v.srcObject=st;await v.play().catch(()=>{});
-if(!v.videoWidth)await new Promise((ok,no)=>{v.addEventListener("loadedmetadata",ok,{once:true});setTimeout(no,5000)});
-if(!v.videoWidth)throw{name:"video-not-started"};camFit(v.videoWidth,v.videoHeight);camMsg("");camView("live");$("#cam-shot").focus()}
-catch(e){const n=(e&&e.name)||"video-not-started";console.warn("camera:",n,e&&e.message);if($("#cam").open)camFail(camKind(n),n)}}
+if(!$("#cam").open||generation!==CAM.generation){st.getTracks().forEach(t=>t.stop());return}
+CAM.stream=st;const v=$("#cam-v");v.muted=true;v.setAttribute("playsinline","");v.srcObject=st;
+await new Promise((ok,no)=>{const timer=setTimeout(()=>done(new Error("video-not-started")),8000);const done=e=>{clearTimeout(timer);v.removeEventListener("loadeddata",ready);v.removeEventListener("canplay",ready);e?no(e):ok()};const ready=()=>{if(v.readyState>=2&&v.videoWidth&&v.videoHeight)done()};v.addEventListener("loadeddata",ready);v.addEventListener("canplay",ready);v.play().then(ready).catch(done);ready()});
+if(!$("#cam").open||generation!==CAM.generation)return;
+camFit(v.videoWidth,v.videoHeight);camMsg("");camView("live");$("#cam-shot").focus()}
+catch(e){if(generation!==CAM.generation)return;const n=(e&&e.name)||"video-not-started";console.warn("camera:",n);if($("#cam").open)camFail(camKind(n),n)}}
 function camOpen(id){$("#"+id+"-m").textContent="";if(!camOk()){$("#"+id+"-m").textContent=CAM_ERR.unsup;return}
-CAM.id=id;camClear();$("#cam-h").textContent=PHOTOS[id];$("#cam").showModal();camStart()}
-const camClose=()=>{camStop();camClear();if($("#cam").open)$("#cam").close()};
+CAM.id=id;camClear();$("#cam-h").textContent=PHOTOS[id]||document.querySelector(`label[for="${id}"]`)?.textContent||tr("Снимка на документа");$("#cam").showModal();camStart()}
+const camClose=()=>{CAM.generation++;camStop();camClear();if($("#cam").open)$("#cam").close()};
 $$("[data-cam]").forEach(b=>b.addEventListener("click",()=>camOpen(b.dataset.cam)));
 $("#cam-shot").addEventListener("click",()=>{const v=$("#cam-v"),w=v.videoWidth,h=v.videoHeight;if(!w||!h)return;const c=document.createElement("canvas");c.width=w;c.height=h;c.getContext("2d").drawImage(v,0,0,w,h);
 c.toBlob(b=>{if(!b){camMsg(CAM_ERR.fail,1);return}camStop();CAM.blob=b;CAM.url=URL.createObjectURL(b);$("#cam-img").src=CAM.url;camView("shot");camMsg("Проверете дали целият документ и всички данни се четат ясно.");$("#cam-use").focus()},"image/jpeg",.92)});
@@ -2264,10 +2276,10 @@ const c=CARS.find(x=>x.id===V.carId),row=(k,v)=>v?`<div><span>${esc(k)}</span><b
 $("#th-sum").innerHTML=`<h2>Вашата резервация</h2><div class="kv">${row("Заявител",V.name)}${row("Телефон",V.phone)}${row("Автомобил",c?c.name:V.car)}${row("Получаване",V.pickup)}${row("Връщане",V.dropoff)}${row("Общо за услугите",V.total)}${PAY[V.payment]?row("Плащане",PAY[V.payment]):""}${V.drivers?row("Водачи",V.drivers.count===2?"2 (основен и допълнителен)":"1"):""}</div>`}
 // ===== Документи на водачите (етап „docs“): данни, снимки, RENTY10 → POST /api/bookings/:id/documents =====
 // Плащането, столчетата и коментарът не се попълват отново – те са от заявката.
-const DOCS={busy:false,ph:{},n:0};
+const DOCS={busy:false,ph:{},urls:{},seq:{},n:0};
 const DPH={idf:"Лична карта / паспорт – лицева страна",idb:"Лична карта / паспорт – гръб",dlf:"Шофьорска книжка – лицева страна",dlb:"Шофьорска книжка – гръб"};
 function couponMarkup(V){return V.coupon?.available?`<div><label for="d-coupon">Код за отстъпка (по избор)</label><input id="d-coupon" autocomplete="off" placeholder="RENTY10"><button type="button" data-apply-coupon>Въведи кода</button><small class="hint" id="coupon-message">${tr("Кодът намалява само наема с 10% и важи до")} ${esc(new Date(V.coupon.until).toLocaleString(LANG,{timeZone:"Europe/Sofia",dateStyle:"short",timeStyle:"short"}))}.</small></div>`:""}
-function renderDocs(V){const box=$("#th-docs"),n=V.drivers?V.drivers.count:1;if(V.stage!=="docs"||V.status!=="pending"){box.hidden=true;return}box.hidden=false;if(DOCS.n===n&&box.querySelector("form")){const cp=box.querySelector("#docs-coupon-box"),key=JSON.stringify(V.coupon);if(cp&&cp.dataset.key!==key){cp.innerHTML=couponMarkup(V);cp.dataset.key=key}return}DOCS.n=n;DOCS.ph={};
+function renderDocs(V){const box=$("#th-docs"),n=V.drivers?V.drivers.count:1;if(V.stage!=="docs"||V.status!=="pending"){box.hidden=true;return}box.hidden=false;if(DOCS.n===n&&box.querySelector("form")){const cp=box.querySelector("#docs-coupon-box"),key=JSON.stringify(V.coupon);if(cp&&cp.dataset.key!==key){cp.innerHTML=couponMarkup(V);cp.dataset.key=key}return}Object.values(DOCS.urls).forEach(URL.revokeObjectURL);DOCS.n=n;DOCS.ph={};DOCS.urls={};DOCS.seq={};
 const f=(i,k,l,o="")=>`<div><label for="d${i}-${k}">${l}</label><input id="d${i}-${k}" ${o}></div>`;
 const step=(i,k,title,body)=>`<section class="doc-section" data-doc-section data-collapsed="${i!==0||k!==0}"><button type="button" class="doc-section-head" aria-expanded="${i===0&&k===0}" aria-controls="ds-${i}-${k}"><span class="step-num">${k+1}</span><span>${tr(title)}</span><span class="step-arrow" aria-hidden="true">⌄</span></button><div class="doc-section-body" id="ds-${i}-${k}">${body}<button type="button" class="doc-next">${tr(i===n-1&&k===3?"Към изпращане":"Продължи")}</button></div></section>`;
 const drv=i=>`<fieldset class="fbox"><legend>${i?"Водач 2 – допълнителен водач":"Водач 1 – основен водач (наемател)"}</legend>
@@ -2282,7 +2294,7 @@ ${step(i,1,"Адрес по документа",`<div class="row">${f(i,"region"
 `)}
 ${step(i,2,"Шофьорска книжка",`<div class="row">${f(i,"dln","Номер на шофьорската книжка")}${f(i,"dld","Дата на издаване на книжката",'type="date"')}</div>${f(i,"dlp","Книжката е издадена от")}
 `)}
-${step(i,3,"Снимки на документите",`<div class="row doc-photos">${Object.entries(DPH).map(([k,l])=>`<div class="doc-photo"><label for="d${i}-p${k}">${l}</label><input id="d${i}-p${k}" class="doc-file" type="file" accept="image/*" data-dph="${i}-${k}"><div class="doc-actions"><label class="doc-upload" for="d${i}-p${k}">${tr("Качи снимка/файл")}</label><button class="btn btn-dark" type="button" data-doc-camera="${i}-${k}">Снимай с камерата</button></div><input id="d${i}-c${k}" type="file" accept="image/*" capture="environment" hidden data-dph="${i}-${k}"><small class="hint" id="d${i}-p${k}-m"></small></div>`).join("")}</div>`)}
+${step(i,3,"Снимки на документите",`<p class="doc-photo-tip">${tr("Снимайте цялата лична карта / паспорт и шофьорска книжка – лице и гръб, с видими четири края. Поставете документа на равна повърхност при добра светлина, без отблясъци и размазване. Проверете дали всички данни се четат ясно.")}</p><div class="row doc-photos">${Object.entries(DPH).map(([k,l])=>`<div class="doc-photo"><label for="d${i}-p${k}">${l}</label><input id="d${i}-p${k}" class="doc-file" type="file" accept="image/*" data-dph="${i}-${k}"><div class="doc-actions"><label class="doc-upload" for="d${i}-p${k}">${tr("Качи снимка/файл")}</label><button class="btn btn-dark" type="button" data-doc-camera="${i}-${k}">Снимай с камерата</button></div><small class="hint" id="d${i}-p${k}-m" role="status"></small><button type="button" class="doc-preview-button" id="d${i}-p${k}-view" data-doc-preview="d${i}-p${k}" hidden><img id="d${i}-p${k}-v" alt="${esc(l)}"><span>${tr("Отвори снимката за проверка")}</span></button></div>`).join("")}</div>`)}
 </fieldset>`;
 const cp=`<div id="docs-coupon-box" data-key="${esc(JSON.stringify(V.coupon))}">${couponMarkup(V)}</div>`;
 box.innerHTML=`<div class="doc-welcome"><span class="docs-approved">✓ ${tr("Заявката е одобрена")}</span><h2>Документи на ${n===2?"водачите":"водача"}</h2><p class="docs-intro">${tr("Попълнете кратките секции една по една. Можете да се връщате, без да губите въведеното.")}</p></div><form id="docs-f" novalidate>${Array.from({length:n},(_,i)=>drv(i)).join("")}${cp}<p class="hint">Поставете документа върху равна повърхност при добро осветление. Снимайте го целия, без отблясъци, размазване и закрити краища.</p><label class="opt"><input id="d-consent" type="checkbox"><span>Запознат съм с <a href="#t-terms" data-open="t-terms">Общите условия</a> и <a href="#t-privacy" data-open="t-privacy">информацията за защита на личните данни</a> за обработването на документите за договора.</span></label>
@@ -2290,9 +2302,10 @@ box.innerHTML=`<div class="doc-welcome"><span class="docs-approved">✓ ${tr("З
 function openDocSection(section,scroll=false){if(!section)return;document.querySelectorAll("[data-doc-section]").forEach(s=>{const open=s===section;s.dataset.collapsed=String(!open);s.querySelector(".doc-section-head").setAttribute("aria-expanded",String(open))});if(scroll&&matchMedia("(max-width:639px)").matches)section.scrollIntoView({behavior:matchMedia("(prefers-reduced-motion:reduce)").matches?"instant":"smooth",block:"start"})}
 document.addEventListener("click",e=>{const head=e.target.closest(".doc-section-head"),next=e.target.closest(".doc-next");if(head){const s=head.closest("[data-doc-section]");if(s.dataset.collapsed==="true")openDocSection(s);else{s.dataset.collapsed="true";head.setAttribute("aria-expanded","false")}}if(next){const all=[...document.querySelectorAll("[data-doc-section]")],s=next.closest("[data-doc-section]"),following=all[all.indexOf(s)+1];if(following)openDocSection(following,true);else document.querySelector("#d-consent").closest("label").scrollIntoView({behavior:"smooth",block:"center"})}});
 document.addEventListener("click",async e=>{const b=e.target.closest("[data-apply-coupon]");if(!b)return;const m=$("#coupon-message");try{const r=await fetch(`${BOOKINGS_ENDPOINT}/${S.bid}?t=${S.btok}`,{cache:"no-store"}),j=await r.json();const ok=r.ok&&j.coupon?.available&&$("#d-coupon").value.trim().toUpperCase()==="RENTY10";m.textContent=tr(ok?"Кодът е проверен. Отстъпката ще се приложи при изпращане на документите.":"Кодът не е валиден за тази резервация или срокът е изтекъл.");$("#d-coupon").setAttribute("aria-invalid",String(!ok))}catch{m.textContent=tr("Няма връзка със сървъра. Опитайте отново.")}});
-document.addEventListener("click",e=>{const b=e.target.closest("[data-doc-camera]");if(b)$("#d"+b.dataset.docCamera.replace("-","-c")).click()});
-document.addEventListener("change",async e=>{const t=e.target.closest&&e.target.closest("[data-dph]");if(!t)return;const k=t.dataset.dph,m=$("#d"+k.replace("-","-p")+"-m");delete DOCS.ph[k];m.textContent="";
-const fl=t.files[0];if(!fl)return;try{DOCS.ph[k]=await shrink(fl);m.textContent="✓ Снимката е готова"}catch(x){t.value="";m.textContent="Снимката не може да бъде прочетена. Изберете JPG или PNG."}});
+document.addEventListener("click",e=>{const b=e.target.closest("[data-doc-camera]");if(b)camOpen("d"+b.dataset.docCamera.replace("-","-p"));const preview=e.target.closest("[data-doc-preview]");if(preview){$("#photo-review-img").src=$("#"+preview.dataset.docPreview+"-v").src;$("#photo-review").showModal()}if(e.target.closest("[data-photo-close]"))$("#photo-review").close()});
+async function setDocPhoto(id,file,input){if(!file)return;const k=id.replace(/^d/,"").replace("-p","-"),m=$("#"+id+"-m"),preview=$("#"+id+"-view"),img=$("#"+id+"-v"),seq=(DOCS.seq[k]||0)+1;DOCS.seq[k]=seq;delete DOCS.ph[k];preview.hidden=true;m.textContent=tr("Подготвяме снимката…");
+try{const blob=await shrink(file);if(DOCS.seq[k]!==seq)return;if(DOCS.urls[k])URL.revokeObjectURL(DOCS.urls[k]);DOCS.ph[k]=blob;DOCS.urls[k]=URL.createObjectURL(blob);img.src=DOCS.urls[k];preview.hidden=false;m.textContent=tr("✓ Снимката е готова")}catch(e){if(DOCS.seq[k]!==seq)return;if(input)input.value="";m.textContent=tr("Снимката не може да бъде прочетена. Изберете JPG или PNG.")}}
+document.addEventListener("change",e=>{const t=e.target.closest&&e.target.closest("[data-dph]");if(t)setDocPhoto(t.id,t.files[0],t)});
 document.addEventListener("submit",async e=>{if(e.target.id!=="docs-f")return;e.preventDefault();const err=$("#d-err"),msg=$("#d-msg"),b=e.target.querySelector("button[type=submit]");err.hidden=true;
 const V=S.view,n=DOCS.n,val=id=>($("#"+id)||{}).value?.trim()||"",rad=nm=>(document.querySelector(`input[name="${nm}"]:checked`)||{}).value||"";
 const fail=(t,target)=>{err.textContent=tr(t);err.hidden=false;if(target){openDocSection(target.closest("[data-doc-section]"),true);setTimeout(()=>target.focus({preventScroll:true}),0)}else err.scrollIntoView({block:"center",behavior:"smooth"})};
