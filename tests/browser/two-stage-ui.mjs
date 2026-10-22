@@ -26,6 +26,13 @@ async function open(seed, o = {}) {
 const pickText = (page) => page.locator("#pick").innerText();
 const seed = { car: "golf", d1: D1, t1: "10:00", d2: D2, t2: "10:00", m1: "addr", a1: "ул. Тестова 1", m2: "office", open: true };
 
+
+async function checkSocialFooter(page,label){const result=await page.evaluate(()=>{const f=document.querySelector("footer").getBoundingClientRect(),group=document.querySelector("footer .footer-social"),r=group.getBoundingClientRect();return{inside:r.top>=f.top&&r.bottom<=f.bottom,static:getComputedStyle(group).position==="static",count:group.querySelectorAll("a.social-link").length}});check(label,result.inside&&result.static&&result.count===2,JSON.stringify(result))}
+{
+ const {ctx,page}=await open(null);await page.goto(B+"/#home",{waitUntil:"load"});
+ for(const width of [320,390,430,1280]){await page.setViewportSize({width,height:900});await checkSocialFooter(page,"Social icons stay inside footer at "+width+"px")}
+ await ctx.close();
+}
 // 1. Кратка форма: вериги и втори водач в офертата, без полета и снимки на документите
 {
   const { ctx, page } = await open(seed);
@@ -47,6 +54,7 @@ const seed = { car: "golf", d1: D1, t1: "10:00", d2: D2, t2: "10:00", m1: "addr"
   await page.click("#bk button[type=submit]");
   await page.waitForFunction(() => location.hash === "#blagodarim" && /Заявката е получена/.test(document.querySelector("#th-h").textContent), null, { timeout: 20000 }).catch(async e => { console.error("SUBMIT STATE", await page.evaluate(() => ({ hash: location.hash, heading: document.querySelector("#th-h")?.textContent, error: document.querySelector("#b-err")?.textContent, progress: document.querySelector("#b-msg")?.textContent, hidden: document.hidden }))); throw e; });
   check("1.2a статусът е видим", await page.isVisible("#th-h"));
+  await checkSocialFooter(page,"Social icons remain in footer on request confirmation page");
   const [b] = await sql("select id, stage, chains, second_driver, marketing_consent, drivers, documents, total_cents from bookings order by created_at desc limit 1");
   check("1.3 изпратена заявка → страница „Заявката е получена“; в базата: етап request, вериги, втори водач, съгласие, заявителят не шофира, без снимки, 68 €",
     b && b.stage === "request" && b.chains && b.second_driver && b.marketing_consent && b.drivers.requesterDrives === false && b.documents === null && b.total_cents === 6800 && page.errs.length === 0 && !(await page.isVisible("#th-docs")), JSON.stringify(b).slice(0, 200));
