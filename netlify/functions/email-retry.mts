@@ -3,7 +3,7 @@ import { dueEmails } from "../../server/email.js";
 import { retry, RETRY_KINDS, UNCERTAIN_RETRY_KINDS } from "../../server/notify.js";
 import { recordJob } from "../../server/settings.js";
 
-// На всеки 5 минути: повторен опит за неизпратените писма (до фирмата за нова заявка, до клиента за получена заявка,
+// На всеки 15 минути (:00, :15, :30, :45, заедно с customer-emails): повторен опит за неизпратените писма (до фирмата за нова заявка, до клиента за получена заявка,
 // за решението, отмяната и удължаването). Писмо със статус sent не се изпраща повторно – защитата е в server/email.ts (dedupe_key).
 // Писмата до клиенти с несигурен резултат (unknown) не се повтарят автоматично – остават в лога за проверка.
 export default async () => {
@@ -17,5 +17,5 @@ export default async () => {
 };
 
 export const config: Config = {
-  schedule: "*/5 * * * *",
+  schedule: "*/15 * * * *",
 };
