@@ -511,6 +511,50 @@ button.btn-ghost{background:transparent}
 .cam-act .btn{flex:1 1 140px}
 .cam-act .btn[hidden]{display:none}
 #details{padding:0 0 72px}
+/* Short booking form (contact details): same soft card look as "Данни за резервацията". */
+.bk-grid.one:has(#bk.short){grid-template-columns:minmax(0,1fr)}
+#bk.short{background:var(--soft);border-radius:26px;padding:22px 18px;display:grid;gap:26px}
+#bk.short .fbox{border:0;background:transparent;padding:0;margin:0;gap:12px;align-content:start}
+#bk.short .fbox legend{float:none;gap:6px;margin-bottom:10px;font-size:1.08rem}
+#bk.short .fn{width:auto;height:auto;background:none;color:inherit;font-size:inherit;display:inline}
+#bk.short .fn::after{content:"."}
+#bk.short .opt{background:#fff}#bk.short .opt:has(input:checked){border-color:var(--navy);background:#fff}
+#bk.short .pd-wrap{display:contents}
+#bk.short label:not(.opt),#bk.short .phl{font-size:.88rem;font-weight:500;margin-bottom:6px}
+#bk.short .pd-date{grid-template-columns:.8fr 1.5fr 1fr;gap:8px}
+#bk.short .pd-date select{padding-left:10px;padding-right:6px}
+#bk.short .pd-names{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+#bk.short .pd-names input{padding-left:12px;padding-right:8px}
+#bk.short .pd-names{order:1}#bk.short .pd-mail{order:2}#bk.short .pd-mail2{order:3}#bk.short .pd-phone{order:4}#bk.short .pd-bday{order:5}#bk.short .pd-cit{order:6}#bk.short .pd-drv{order:7}#bk.short .pd-dn{order:8}
+#bk.short .pd-drv .opt{font-size:.9rem;padding:10px 12px}
+#bk.short .pd-phone{grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:8px}
+#bk.short .pd-drv .opt{align-items:center;min-height:48px}#bk.short .pd-drv .opt input{margin-top:0}
+#bk.short .payopts{grid-template-columns:1fr}
+#bk.short .payopts .opt{padding:12px 14px}
+#bk.short .invbox{background:#fff;border:1.5px solid var(--line)}
+#bk.short textarea{min-height:96px}
+#bk.short .fb-ok{gap:10px}#bk.short .fb-ok .opt{font-weight:500;font-size:.9rem;line-height:1.45}
+#bk.short .fb-ok a{font-weight:700;text-decoration:underline}
+#bk.short .bk-send{display:grid;gap:10px;justify-items:stretch}
+#bk.short .bk-send .btn{width:100%;justify-content:center}
+#bk.short .bk-send>p{margin:0;text-align:center}
+@media(min-width:720px){
+#bk.short{padding:30px}
+#bk.short .fbox:first-of-type{grid-template-columns:repeat(2,minmax(0,1fr));column-gap:20px}
+#bk.short .pd-names{grid-column:1/-1;gap:12px}
+#bk.short .pd-drv{align-self:end}
+#bk.short .payopts{grid-template-columns:1fr 1fr}
+#bk.short .payopts #company-choice{grid-column:1/-1}
+}
+@media(min-width:900px){
+#bk.short{grid-template-columns:1fr 1fr;gap:30px 36px;padding:32px}
+#bk.short>.fbox:first-of-type,#bk.short>.fb-ok,#bk.short>.bk-send{grid-column:1/-1}
+#bk.short .payopts{grid-template-columns:1fr}
+#bk.short .bk-send{justify-items:center}
+#bk.short .bk-send .btn{width:auto;min-width:320px}
+#bk.short .fb-ok{grid-template-columns:1fr 1fr;column-gap:20px}
+#bk.short .fb-ok .opt:only-of-type{grid-column:1/-1}
+}
 /* Document stage: a full-width light form below the status and summary. */
 #th-docs{grid-column:1/-1;justify-self:center;width:100%;max-width:960px;min-width:0;background:#fff;color:var(--ink);border:1px solid var(--line);padding:clamp(16px,3vw,32px)}
 #th-docs h2{color:var(--navy);margin:0 0 24px}
@@ -1002,19 +1046,19 @@ button.btn-ghost{background:transparent}
 <form id="bk" novalidate>
 <fieldset class="fbox"><legend><span class="fn">1</span>Лични данни</legend>
 <div data-flow1><label for="b-name">Имена (както са в личната карта)</label><input id="b-name" autocomplete="name" placeholder="Име, презиме, фамилия" required></div>
-<div><label for="b-mail">Имейл</label><input id="b-mail" type="email" autocomplete="email" placeholder="ivan@example.com" required></div>
-<div data-flow2>
-<div><label for="b-mail-confirm">Потвърди имейл</label><input id="b-mail-confirm" type="email" autocomplete="off" placeholder="ivan@example.com" aria-describedby="email-match" required><small id="email-match" class="hint" role="status"></small></div>
-<div class="row"><div><label for="b-first">Име</label><input id="b-first" autocomplete="given-name" placeholder="Иван" required></div><div><label for="b-middle">Презиме</label><input id="b-middle" autocomplete="additional-name" placeholder="Петров" required></div><div><label for="b-last">Фамилия</label><input id="b-last" autocomplete="family-name" placeholder="Иванов" required></div></div>
-<div><span>Дата на раждане</span><div class="row"><select id="b-bday" aria-label="Ден" required></select><select id="b-bmonth" aria-label="Месец" required></select><select id="b-byear" aria-label="Година" required></select></div></div>
-<div class="row"><div><label for="b-phone-country">Телефонен код</label><select id="b-phone-country" autocomplete="tel-country-code"></select></div><div><label for="b-phone-local">Телефон</label><input id="b-phone-local" type="tel" autocomplete="tel-national" placeholder="877 123 456" required></div></div>
+<div class="pd-mail"><label for="b-mail">Имейл</label><input id="b-mail" type="email" autocomplete="email" placeholder="ivan@example.com" required></div>
+<div class="pd-wrap" data-flow2>
+<div class="pd-mail2"><label for="b-mail-confirm">Потвърди имейл</label><input id="b-mail-confirm" type="email" autocomplete="off" placeholder="ivan@example.com" aria-describedby="email-match" required><small id="email-match" class="hint" role="status"></small></div>
+<div class="row pd-names"><div><label for="b-first">Име</label><input id="b-first" autocomplete="given-name" placeholder="Иван" required></div><div><label for="b-middle">Презиме</label><input id="b-middle" autocomplete="additional-name" placeholder="Петров" required></div><div><label for="b-last">Фамилия</label><input id="b-last" autocomplete="family-name" placeholder="Иванов" required></div></div>
+<div class="pd-bday"><span class="phl">Дата на раждане</span><div class="row pd-date"><select id="b-bday" aria-label="Ден" required></select><select id="b-bmonth" aria-label="Месец" required></select><select id="b-byear" aria-label="Година" required></select></div></div>
+<div class="row pd-phone"><div><label for="b-phone-country">Телефонен код</label><select id="b-phone-country" autocomplete="tel-country-code"></select></div><div><label for="b-phone-local">Телефон</label><input id="b-phone-local" type="tel" autocomplete="tel-national" placeholder="877 123 456" required></div></div>
 </div>
-<div><label for="b-cit">Гражданство</label><input id="b-cit" autocomplete="country-name" value="България" placeholder="напр. България" required></div>
+<div class="pd-cit"><label for="b-cit">Гражданство</label><input id="b-cit" autocomplete="country-name" value="България" placeholder="напр. България" required></div>
 <div class="row" data-flow1><div><label for="b-phone">Телефон</label><input id="b-phone" type="tel" autocomplete="tel" required></div></div>
 <div data-flow1><label for="b-seat-count">Брой столчета</label><select id="b-seat-count" aria-describedby="b-seat-hint"><option value="0">Без детско столче</option><option value="1">1 столче</option><option value="2">2 столчета</option></select><small class="hint" id="b-seat-hint">Брой столчета (3 € / ден за всяко)</small></div>
-<div class="seg" role="radiogroup" aria-label="Кой ще шофира" data-flow2><label class="opt"><input type="radio" name="rdrv" value="1" checked><span>Аз ще шофирам</span></label><label class="opt"><input type="radio" name="rdrv" value="0"><span>Ще шофира друг човек</span></label></div>
-<div id="main-driver-names" class="row" data-flow2 hidden><div><label for="b-dfirst">Име на водача</label><input id="b-dfirst" placeholder="Георги"></div><div><label for="b-dmiddle">Презиме на водача</label><input id="b-dmiddle" placeholder="Петров"></div><div><label for="b-dlast">Фамилия на водача</label><input id="b-dlast" placeholder="Иванов"></div></div>
-<div id="second-driver-names" class="row" data-flow2 hidden><div><label for="b-sfirst">Име на втория водач</label><input id="b-sfirst" placeholder="Петър"></div><div><label for="b-smiddle">Презиме на втория водач</label><input id="b-smiddle" placeholder="Иванов"></div><div><label for="b-slast">Фамилия на втория водач</label><input id="b-slast" placeholder="Петров"></div></div>
+<div class="seg pd-drv" role="radiogroup" aria-label="Кой ще шофира" data-flow2><label class="opt"><input type="radio" name="rdrv" value="1" checked><span>Аз ще шофирам</span></label><label class="opt"><input type="radio" name="rdrv" value="0"><span>Ще шофира друг човек</span></label></div>
+<div id="main-driver-names" class="row pd-names pd-dn" data-flow2 hidden><div><label for="b-dfirst">Име на водача</label><input id="b-dfirst" placeholder="Георги"></div><div><label for="b-dmiddle">Презиме на водача</label><input id="b-dmiddle" placeholder="Петров"></div><div><label for="b-dlast">Фамилия на водача</label><input id="b-dlast" placeholder="Иванов"></div></div>
+<div id="second-driver-names" class="row pd-names pd-dn" data-flow2 hidden><div><label for="b-sfirst">Име на втория водач</label><input id="b-sfirst" placeholder="Петър"></div><div><label for="b-smiddle">Презиме на втория водач</label><input id="b-smiddle" placeholder="Иванов"></div><div><label for="b-slast">Фамилия на втория водач</label><input id="b-slast" placeholder="Петров"></div></div>
 </fieldset>
 <fieldset class="fbox" data-flow1><legend><span class="fn">2</span>Лична карта / паспорт</legend>
 <div class="seg" role="radiogroup" aria-label="Вид документ"><label class="opt"><input type="radio" name="idt" value="id" checked><span>Лична карта</span></label><label class="opt"><input type="radio" name="idt" value="pass"><span>Паспорт</span></label></div>
@@ -1035,7 +1079,7 @@ button.btn-ghost{background:transparent}
 <p class="doc-tip">Поставете документа върху равна повърхност при добро осветление. Снимайте го целия, така че всички краища и данни да се виждат ясно. Избягвайте размазване, отблясъци и закриване с пръсти. Проверете четливостта преди изпращане.</p>
 <div class="row"><div><span class="phl" id="p-dlf-t">Снимка – лицева страна</span><div class="phbtn"><button type="button" class="upb camb" data-cam="p-dlf" aria-describedby="p-dlf-t">Снимай с камерата</button><input id="p-dlf" class="phin" type="file" accept="image/*" required aria-labelledby="p-dlf-t p-dlf-u"><label class="upb" id="p-dlf-u" for="p-dlf">Качи снимка/файл</label></div><p class="phmsg" id="p-dlf-m" role="status"></p><img class="phprev" id="p-dlf-v" alt="" hidden></div><div><span class="phl" id="p-dlb-t">Снимка – гръб</span><div class="phbtn"><button type="button" class="upb camb" data-cam="p-dlb" aria-describedby="p-dlb-t">Снимай с камерата</button><input id="p-dlb" class="phin" type="file" accept="image/*" required aria-labelledby="p-dlb-t p-dlb-u"><label class="upb" id="p-dlb-u" for="p-dlb">Качи снимка/файл</label></div><p class="phmsg" id="p-dlb-m" role="status"></p><img class="phprev" id="p-dlb-v" alt="" hidden></div></div>
 </fieldset>
-<fieldset class="fbox"><legend><span class="fn">4</span>Начин на плащане</legend>
+<fieldset class="fbox fb-pay"><legend><span class="fn">4</span>Начин на плащане</legend>
 <div class="paybox">
 <div class="payopts" data-flow1 role="radiogroup" aria-label="Начин на плащане">
 <label class="opt"><input type="radio" name="pay" value="bankp"><span class="pt"><b>По банков път – физическо лице</b><small>Получавате фактура на ваше име с банковите ни данни.</small></span></label>
@@ -1063,15 +1107,19 @@ button.btn-ghost{background:transparent}
 </div>
 </div>
 </fieldset>
-<fieldset class="fbox"><legend><span class="fn">5</span>Допълнително</legend>
+<fieldset class="fbox fb-note"><legend><span class="fn">5</span>Допълнително</legend>
 <div><label for="b-note">Допълнителна информация <span class="lbl-opt">(по избор)</span></label><textarea id="b-note" placeholder="Например: номер на полет, специални изисквания или въпроси към нас"></textarea><small class="hint">Попълването на това поле не е задължително.</small></div>
 </fieldset>
+<fieldset class="fbox fb-ok"><legend><span class="fn">6</span>Потвърждение</legend>
 <label class="opt" data-flow2><input type="checkbox" id="b-mkt"><span>Съгласен съм да получавам по имейл предложения и отстъпки от Rent a Car PTB (по избор).</span></label>
 <label class="opt"><input type="checkbox" id="b-ok"><span>Запознат съм с <a href="#t-terms" data-open="t-terms">Общите условия</a> и <a href="#t-privacy" data-open="t-privacy">информацията за защита на личните данни</a> и съм съгласен данните ми да се обработват за целите на заявката.</span></label>
+</fieldset>
+<div class="bk-send">
 <div id="b-err" class="alert" role="alert" hidden></div>
 <button class="btn btn-dark" type="submit" disabled>Изпрати резервацията</button>
 <p class="hint" id="b-need" aria-live="polite"></p>
 <p class="fmsg" id="b-msg" role="status"></p>
+</div>
 </form>
 </div>
 </div>
@@ -1241,6 +1289,7 @@ const I18N={
 "Заяви резервация":["Request a booking","Buchung anfragen"],
 "Оставете данните си. На следващата страница избирате период, място и автомобил и виждате цената за вашите дати.":["Leave your details. On the next page you choose the period, place and car and see the price for your dates.","Geben Sie Ihre Daten ein. Auf der nächsten Seite wählen Sie Zeitraum, Ort und Fahrzeug und sehen den Preis für Ihre Daten."],
 "Лични данни":["Personal details","Persönliche Daten"],
+"Потвърждение":["Confirmation","Bestätigung"],
 "Снимка – лицева страна":["Photo – front side","Foto – Vorderseite"],
 "Снимка – гръб":["Photo – back side","Foto – Rückseite"],
 "Поставете документа върху равна повърхност при добро осветление. Снимайте го целия, така че всички краища и данни да се виждат ясно. Избягвайте размазване, отблясъци и закриване с пръсти. Проверете четливостта преди изпращане.":["Place the document on a flat surface in good light. Photograph the whole document so that all edges and details are clearly visible. Avoid blur, glare and covering it with your fingers. Check that it is legible before sending.","Legen Sie das Dokument auf eine ebene Fläche bei guter Beleuchtung. Fotografieren Sie es vollständig, sodass alle Ränder und Angaben deutlich sichtbar sind. Vermeiden Sie Unschärfe, Spiegelungen und das Verdecken mit den Fingern. Prüfen Sie vor dem Senden, ob alles lesbar ist."],
@@ -1891,6 +1940,7 @@ const qErrText=()=>(/_pin$/.test(Q.err)&&Q.pin?`Намерихме само ${Q.
 // window.__LEGACY_FORM – само за тестовете на старата дълга форма (документите във формата).
 const FLOW2=!window.__LEGACY_FORM;
 $$(FLOW2?"[data-flow1]":"[data-flow2]").forEach(e=>{e.hidden=true;e.querySelectorAll("[required]").forEach(i=>i.removeAttribute("required"))});
+if(FLOW2){$("#bk").classList.add("short");$$("#bk .fbox:not([hidden]) .fn").forEach((e,i)=>e.textContent=i+1)}
 if(FLOW2)$("#details .sec-head p").textContent=tr("Попълнете данните за контакт. Документите се подават след одобрение на заявката.");
 if(!FLOW2)["#b-chains","#b-sd"].forEach(x=>{const e=$(x);if(e)e.closest("label").hidden=true});
 function pinRef(R,n){const p=R["pin"+n];return R["m"+n]==="addr"&&p&&p.a===(R["a"+n]||"").trim()?{lat:p.lat,lon:p.lon,...(p.free?{free:true}:{})}:null}
