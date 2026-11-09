@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="bg">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Тест HighLevel – Rent a Car PTB</title>
+<link rel="icon" href="/images/favicon.png">
+<style>
+:root{--acc:#ffb703;--ink:#1b2433;--line:#dde2ea;--muted:#5b6678;--navy:#0f1b2d;--soft:#eef1f5}
+*{box-sizing:border-box}body{margin:0;font-family:Manrope,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:var(--ink);background:var(--soft);display:grid;place-items:center;min-height:100vh;padding:20px}
+.card{background:#fff;border-radius:22px;padding:26px;box-shadow:0 10px 30px rgba(15,27,45,.08);width:100%;max-width:520px}
+h1{margin:0 0 6px;font-size:1.4rem}p,li{color:var(--muted)}code{background:var(--soft);padding:1px 6px;border-radius:6px}
+.btn{display:inline-block;border:0;border-radius:999px;padding:12px 22px;font:inherit;font-weight:800;cursor:pointer;background:var(--navy);color:#fff;text-decoration:none}
+.btn.acc{background:var(--acc);color:var(--navy)}.btn:disabled{opacity:.5;cursor:not-allowed}
+.msg{margin-top:14px;padding:10px 14px;border-radius:12px;font-size:.92rem;white-space:pre-wrap}.msg.err{background:#fde2e0;color:#8a1f17}.msg.ok{background:#d9f5e3;color:#11643a}.msg.info{background:var(--soft)}
+</style>
+</head>
+<body>
+<div class="card">
+<section>
+<h1>Тест на връзката с HighLevel</h1>
+<p>Създава или обновява само един синтетичен контакт с изключени изходящи съобщения (Do Not Disturb) по всички канали:</p>
+<ul><li>Име: <code>PTB TEST CONTACT</code></li><li>Имейл: <code>ptb-ghl-connectivity-test@example.com</code></li><li>Без телефон, адрес, документи и етикети</li></ul>
+<p>Тестът на контакта не създава сделки. Нито един от тестовете не чете резервации или клиенти от сайта, не изпраща съобщения и не стартира workflows. Работи само в Deploy Preview.</p>
+<div id="state" class="msg info">Проверка на входа…</div>
+<p style="margin-top:18px"><a class="btn" id="login" href="/admin/" hidden>Вход за администратор</a>
+<button class="btn acc" id="run" type="button" disabled>Пусни теста на контакта</button></p>
+<div id="out"></div>
+</section>
+<section style="margin-top:26px;border-top:1px solid var(--line);padding-top:18px">
+<h1>Тест на сделка (opportunity)</h1>
+<p>Създава или обновява само една синтетична сделка за вече съществуващия контакт PTB TEST CONTACT. Преди запис се проверяват контактът, Do Not Disturb, pipeline-ът, етапът и четирите полета. Нищо не се маркира като спечелено.</p>
+<ul><li>Име: <code>PTB TEST BOOKING — NOT A REAL RESERVATION</code></li><li>Pipeline / етап: <code>Rentacar Bookings</code> / <code>Booking Request</code>, статус <code>open</code>, стойност <code>0</code></li><li>PTB Booking ID <code>PTB-GHL-TEST-001</code>, PTB Car <code>TEST CAR</code></li><li>PTB Pickup Date <code>2026-11-01</code>, PTB Return Date <code>2026-11-05</code></li></ul>
+<p><button class="btn acc" id="runOpp" type="button" disabled>Пусни теста на сделката</button></p>
+<div id="outOpp"></div>
+</section>
+</div>
+<script>
+"use strict";
+// Зареждането на страницата само проверява входа (GET). Запис в HighLevel има единствено след натискане на бутон (POST).
+const $=s=>document.querySelector(s);
+const show=(el,cls,text)=>{el.className="msg "+cls;el.textContent=text};
+(async()=>{
+  try{
+    const r=await fetch("/api/admin/ghl-test",{credentials:"same-origin",cache:"no-store"});
+    const j=await r.json().catch(()=>({}));
+    if(r.status===404)return show($("#state"),"err","Тестът е достъпен само в Deploy Preview.");
+    if(r.status===401){$("#login").hidden=false;return show($("#state"),"err","Не сте влезли. Влезте като администратор и отворете тази страница отново.")}
+    if(r.status===403){$("#login").hidden=false;return show($("#state"),"err","Този потребител няма администраторски права.")}
+    if(!r.ok)return show($("#state"),"err","Грешка "+r.status);
+    if(!j.configured)return show($("#state"),"err","Липсват настройки за HighLevel в тази среда.");
+    show($("#state"),"ok","Влезли сте като администратор. Среда: "+j.context+", API версия: "+j.apiVersion);
+    $("#run").disabled=false;$("#runOpp").disabled=false;
+  }catch(_){show($("#state"),"err","Няма връзка със сървъра.")}
+})();
+$("#run").addEventListener("click",async()=>{
+  if(!confirm("Да се създаде/обнови синтетичният контакт PTB TEST CONTACT в HighLevel?"))return;
+  const b=$("#run");b.disabled=true;show($("#out"),"info","Изпълнява се…");
+  try{
+    const r=await fetch("/api/admin/ghl-test",{method:"POST",credentials:"same-origin",cache:"no-store",headers:{"Content-Type":"application/json"},body:"{}"});
+    const j=await r.json().catch(()=>({}));
+    if(r.ok&&j.ok)show($("#out"),"ok",(j.created?"Създаден":"Обновен (същият контакт)")+"\nID: "+j.contactId+"\nDo Not Disturb: "+(j.dnd?"да":"не е потвърдено"));
+    else show($("#out"),"err","Неуспех: "+(j.error||("HTTP "+r.status))+(j.step?"\nСтъпка: "+j.step:"")+(j.upstreamStatus?"\nHTTP от HighLevel: "+j.upstreamStatus:""));
+  }catch(_){show($("#out"),"err","Няма връзка със сървъра.")}
+  b.disabled=false;
+});
+$("#runOpp").addEventListener("click",async()=>{
+  if(!confirm("Да се създаде/обнови синтетичната сделка PTB TEST BOOKING в HighLevel?"))return;
+  const b=$("#runOpp");b.disabled=true;show($("#outOpp"),"info","Изпълнява се…");
+  try{
+    const r=await fetch("/api/admin/ghl-test/opportunity",{method:"POST",credentials:"same-origin",cache:"no-store",headers:{"Content-Type":"application/json"},body:"{}"});
+    const j=await r.json().catch(()=>({}));
+    if(r.ok&&j.ok)show($("#outOpp"),"ok",(j.created?"Създадена":"Обновена (същата сделка)")+"\nID: "+j.opportunityId+"\nКонтакт: "+j.contactId+"\nСтатус: "+j.status+"\n"+Object.entries(j.fields||{}).map(([k,v])=>k+": "+v).join("\n")+(j.remembered?"":"\nВнимание: ID-то не е запазено за следващото пускане"));
+    else show($("#outOpp"),"err","Неуспех: "+(j.error||("HTTP "+r.status))+(j.step?"\nСтъпка: "+j.step:"")+(j.field?"\nПоле: "+j.field:"")+(j.upstreamStatus?"\nHTTP от HighLevel: "+j.upstreamStatus:""));
+  }catch(_){show($("#outOpp"),"err","Няма връзка със сървъра.")}
+  b.disabled=false;
+});
+</script>
+</body>
+</html>
