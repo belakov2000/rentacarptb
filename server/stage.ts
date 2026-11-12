@@ -56,6 +56,8 @@ export function statusView(b: Booking, now = new Date()) {
     total: b.total, totalCents: b.totalCents, payment: b.payment, lines: (b.priceCheck as any)?.server?.lines ?? null,
     ...(d ? { drivers: { count: d.count, requesterDrives: d.requesterDrives, names: d.names } } : {}),
     coupon: b.stage ? couponState(b, now) : null,
+    // Плащане с карта: after_confirm – връзката идва след окончателното потвърждение; awaiting – очаква плащане; paid – проверено плащане
+    card: b.payment === "card" ? { state: b.cardPaidAt ? "paid" : b.status === "confirmed" ? "awaiting" : b.status === "pending" ? "after_confirm" : "closed" } : null,
   };
 }
 
@@ -104,7 +106,7 @@ function appendix(b: Booking, d: Drivers, list: DriverDocs[], lines: Line[], tot
   if (!d.requesterDrives) out.push(`Заявител (не е водач): ${b.name}, тел. ${b.phone}, ${b.email}.`);
   if (dc) out.push(`Отстъпка ${COUPON.code} (${COUPON.pct}% от наема): −${fmtCents(-dc.cents)}.`);
   if (d.requester) out.push(`Заявител: ${b.name}; дата на раждане: ${d.requester.birthDate}; телефон: ${b.phone}; имейл: ${b.email}.`);
-  out.push(`Начин на плащане: ${b.payment === "cash" ? "В брой на място с касов бон" : "По банков път"}.`);
+  out.push(`Начин на плащане: ${b.payment === "cash" ? "В брой на място с касов бон" : b.payment === "card" ? "С карта онлайн чрез защитена връзка след окончателното потвърждение. При успешно плащане наемът се намалява с 10% (без доставка и допълнителни услуги); отстъпката не се комбинира с RENTY10 – прилага се по-голямата. Гаранционният депозит се предоставя отделно при получаване" : "По банков път"}.`);
   if (b.invoice) out.push(`Данни за фактура: ${b.invoice}`);
   if (d.comment) out.push(`Коментар към заявката: ${d.comment}`);
   out.push(`Имена в шофьорската книжка на основния водач: ${list[0].dlname}.`);

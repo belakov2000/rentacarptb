@@ -42,7 +42,8 @@ export type PriceInput = {
   seats: number; del: Leg; ret: Leg; abroad: string[]; chains?: boolean; secondDriver?: boolean;
 };
 // discount – отстъпка RENTY10 (отрицателна сума; само върху наема), добавя се при подаването на документите
-export type Line = { code: "rent" | "seats" | "chains" | "second_driver" | "delivery" | "return" | "abroad" | "discount"; cents: number; qty?: number; unitCents?: number; km?: number; rate?: number; country?: string };
+// card_discount – 10% от наема при проверено плащане с карта онлайн (server/card-pay.ts; не се комбинира с RENTY10)
+export type Line = { code: "rent" | "seats" | "chains" | "second_driver" | "delivery" | "return" | "abroad" | "discount" | "card_discount"; cents: number; qty?: number; unitCents?: number; km?: number; rate?: number; country?: string };
 export type Price = { ok: true; days: number; dailyCents: number; rentCents: number; lines: Line[]; totalCents: number; depositCents: number } | { ok: false; error: "car" | "dates" | "order" | "seats" | "km" | "country" };
 
 export function price(i: PriceInput): Price {
@@ -89,6 +90,7 @@ export function priceLines(p: { days: number; lines: Line[]; totalCents: number;
     if (l.code === "chains") return `Вериги за сняг: ${p.days} ${p.days === 1 ? "ден" : "дни"} × ${fmtCents(l.unitCents!)} = ${fmtCents(l.cents)}`;
     if (l.code === "second_driver") return `Втори (допълнителен) водач: ${p.days} ${p.days === 1 ? "ден" : "дни"} × ${fmtCents(l.unitCents!)} = ${fmtCents(l.cents)}`;
     if (l.code === "discount") return `Отстъпка RENTY10 (10% от наема): −${fmtCents(-l.cents)}`;
+    if (l.code === "card_discount") return `Отстъпка за плащане с карта онлайн (10% от наема): −${fmtCents(-l.cents)}`;
     return `${l.code}: ${fmtCents(l.cents)}`;
   });
   return [...out, `Общо за услугите: ${fmtCents(p.totalCents)}`, `Гаранционен депозит (не е част от сумата): ${fmtCents(p.depositCents)}`];

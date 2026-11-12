@@ -20,6 +20,7 @@ import { ownerRequestText, withServerPrice } from "../../server/request-text.js"
 import { fmtCents, priceLines } from "../../server/pricing.js";
 import { bookingInput, checkInput, claimQuote, contractWithPrice, priceSnapshot, verifyQuote, type QuoteFail } from "../../server/quote.js";
 import { driversInfo, driversOf, STAGE_LABEL, statusView, submitDocuments } from "../../server/stage.js";
+import { cardAvailable } from "../../server/card-pay.js";
 
 // Резервации с потвърждение от фирмата.
 // POST /api/bookings                 – записва заявката, праща имейл до фирмата с бутони „Потвърди“ / „Откажи“ и потвърждение до клиента, че заявката е получена.
@@ -85,6 +86,7 @@ const PAY_BG: Record<string, string> = {
   bankp: "По банков път – физическо лице (фактура)",
   bank: "По банков път – фирма (фактура)",
   cash: "В брой на място с касов бон",
+  card: "С карта онлайн – 10% отстъпка от наема (връзка за плащане след окончателното потвърждение)",
 };
 const STATUS_BG = STATUS_LABEL;
 
@@ -239,7 +241,8 @@ async function handle(req: Request, context: Context) {
       endDate: DATE_RE.test(str(body.endDate, 10)) ? str(body.endDate, 10) : null,
       startTime: TIME_RE.test(str(body.startTime ?? body.contract?.t1, 5)) ? str(body.startTime ?? body.contract?.t1, 5) : "",
       endTime: TIME_RE.test(str(body.endTime ?? body.contract?.t2, 5)) ? str(body.endTime ?? body.contract?.t2, 5) : "",
-      payment: ["bank", "bankp", "cash"].includes(body.payment) ? body.payment : "",
+      // card – плащане с карта онлайн след окончателното потвърждение (само кратката форма и само ако е настроено за средата)
+      payment: ["bank", "bankp", "cash", ...(body.flow === 2 ? ["card"] : [])].includes(body.payment) ? body.payment : "",
       invoice: ["bank", "bankp"].includes(body.payment) ? str(body.invoice, 1000) : "",
     };
     if (b.startDate && b.endDate && b.startDate > b.endDate) return Response.json({ error: "Invalid dates" }, { status: 400 });
@@ -257,6 +260,8 @@ async function handle(req: Request, context: Context) {
     if (!withinHours(b.startDate, b.startTime) || !withinHours(b.endDate, b.endTime)) return Response.json({ error: "hours" }, { status: 400 });
     // Новата кратка форма (flow: 2) – без документи и снимки; те се подават след първото одобрение (server/stage.ts)
     const flow2 = body.flow === 2;
+    if (b.payment === "card" && !cardAvailable())
+      return Response.json({ error: "card_unavailable", detail: "Плащането с карта в момента не е достъпно. Изберете друг начин на плащане – попълнените данни се пазят." }, { status: 409 });
     const contact = flow2 ? parseRequester(body) : null;
     if (contact && "error" in contact) return Response.json({ error: contact.error }, { status: 400 });
     if (contact && "requester" in contact) { b.name = contact.name; b.invoice = contact.invoice; }

@@ -13,6 +13,19 @@ t.use();
 identity.users.set("admin@example.com", { id: "1", email: "admin@example.com", password: "admin-pass-123", roles: ["admin"] });
 const ORIGIN = `http://localhost:${process.env.E2E_PORT}`;
 
+// ===== Само при E2E_BORICA_SIM=1: тестова конфигурация на плащането с карта с ключове, генерирани в паметта при старта =====
+// Не се ползват реални ключове, терминали или адреси на БОРИКА: браузърът не стига до 3dsgate (заявките се прихващат в теста
+// и се пренасочват към /__e2e/borica-sim), а „отговорът на банката“ се подписва тук с тестовия ключ.
+let simKey: any = null;
+if (process.env.E2E_BORICA_SIM === "1") {
+  const { generateKeyPairSync } = await import("node:crypto");
+  const pair = () => generateKeyPairSync("rsa", { modulusLength: 2048, publicKeyEncoding: { type: "spki", format: "pem" }, privateKeyEncoding: { type: "pkcs8", format: "pem" } });
+  const merchant = pair(), bank = pair();
+  simKey = bank.privateKey;
+  Object.assign(process.env, { BORICA_TEST_TERMINAL: "VTEST001", BORICA_TEST_MERCHANT: "0000000000", BORICA_TEST_CURRENCY: "EUR", BORICA_TEST_PRIVATE_KEY: merchant.privateKey, BORICA_TEST_BORICA_PUBLIC_KEY: bank.publicKey });
+  for (const k of Object.keys(process.env)) if (k.startsWith("BORICA_LIVE_")) delete process.env[k];
+}
+
 // Маршрути – както в config.path на функциите
 const ROUTES: [RegExp, any, string[]][] = [
   [/^\/api\/admin\/(login|logout|me)$/, F.auth, []],
@@ -30,6 +43,9 @@ const ROUTES: [RegExp, any, string[]][] = [
   [/^\/api\/documents(?:\/([a-f0-9]{64}))?$/, F.documents, ["id"]],
   [/^\/api\/bookings(?:\/([a-f0-9]{32})(?:\/(?:manage|contract|documents|marketing))?)?$/, F.bookings, ["id"]],
   [/^\/api\/quote$/, F.quote, []],
+  [/^\/pay\/([a-f0-9]{32})$/, F.pay, ["id"]],
+  [/^\/api\/payments\/borica\/backref$/, F.boricaBackref, []],
+  [/^\/api\/admin\/card-payments$/, F.adminCard, []],
 ];
 const TYPES: Record<string, string> = { ".html": "text/html; charset=utf-8", ".png": "image/png", ".jpg": "image/jpeg", ".js": "text/javascript", ".txt": "text/plain", ".xml": "application/xml" };
 
@@ -49,6 +65,15 @@ async function handle(nreq: any, nres: any) {
   if (p === "/__e2e/mail") return send(nres, Response.json(mail.sent.map((m) => ({ to: m.to, subject: m.subject }))));
   if (p === "/__e2e/run/customer-emails") { await F.customerEmails(); return send(nres, Response.json({ ok: true })); }
   if (p === "/__e2e/sql") return send(nres, Response.json((await t.q(url.searchParams.get("q")!)).rows));
+  // Симулирана страница на банката: показва сумата и с бутон връща подписан отговор към BACKREF (успех или отказ)
+  if (p === "/__e2e/borica-sim" && simKey) {
+    const { loadPrivateKey, macString, MAC_RESPONSE, signMac } = await import("../../server/borica.ts");
+    const chunks: Buffer[] = []; for await (const c of nreq) chunks.push(c);
+    const f = Object.fromEntries(new URLSearchParams(Buffer.concat(chunks).toString()));
+    const resp = (ok: boolean) => { const r: Record<string, string> = { ACTION: ok ? "0" : "2", RC: ok ? "00" : "05", APPROVAL: ok ? "S00001" : "", TERMINAL: f.TERMINAL, TRTYPE: "1", AMOUNT: f.AMOUNT, CURRENCY: f.CURRENCY, ORDER: f.ORDER, RRN: "600000000001", INT_REF: "SIMSIMSIMSIM0001", PARES_STATUS: "Y", ECI: "05", TIMESTAMP: new Date().toISOString().replace(/[-:T]/g, "").slice(0, 14), TRAN_DATE: "", NONCE: f.NONCE, STATUSMSG: ok ? "Approved" : "Do not Honour", CARD_BRAND: "VISA" }; r.P_SIGN = signMac(macString(MAC_RESPONSE, r), loadPrivateKey(simKey)!); return r; };
+    const form = (ok: boolean) => `<form method="post" action="${ORIGIN}/api/payments/borica/backref">${Object.entries(resp(ok)).map(([k, v]) => `<input type="hidden" name="${k}" value="${v}">`).join("")}<button id="${ok ? "sim-ok" : "sim-no"}">${ok ? "SIMULATE APPROVE" : "SIMULATE DECLINE"}</button></form>`;
+    return send(nres, new Response(`<!doctype html><meta name="viewport" content="width=device-width"><h1>SIMULATED BORICA (test only)</h1><p>${f.AMOUNT} ${f.CURRENCY} · ORDER ${f.ORDER} · ${f.TERMINAL}</p>${form(true)}${form(false)}`, { headers: { "Content-Type": "text/html; charset=utf-8" } }));
+  }
   for (const [re, fn, names] of ROUTES) {
     const m = re.exec(p);
     if (!m) continue;
