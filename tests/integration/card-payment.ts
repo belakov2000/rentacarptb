@@ -330,9 +330,17 @@ check("9b.7 Повторно освобождаване на вече освоб
   bank.reply = (q) => sign({ ACTION: "3", RC: "-25", STATUSMSG: "Transaction form state was cancelled by user", TERMINAL: "V6200750", TRTYPE: "90", ORDER: q.get("ORDER")!, TRAN_TRTYPE: "1", CURRENCY: "EUR", AMOUNT: FX.AMOUNT, TIMESTAMP: "20261113214500", NONCE: q.get("NONCE")! });
   let br2 = await backref(respFor(FX, cancel));
   let at2 = (await attempts(X.id))[0];
-  check("9c.1 BACKREF с RC -25 (подписан): „Плащането е прекъснато – нищо не е платено“, опитът остава отворен в рамките на GUARDTIME",
-    br2.status === 200 && /Плащането е прекъснато/.test(br2.html) && /след \d/.test(br2.html) && at2.status === "redirected" && at2.rc === "-25" && !(await row(X.id)).cardPaidAt);
+  check("9c.1 BACKREF с RC -25 (подписан): „Плащането е прекъснато. Окончателният резултат още се проверява.“, опитът остава отворен в рамките на GUARDTIME",
+    br2.status === 200 && /Плащането е прекъснато\. Окончателният резултат още се проверява\./.test(br2.html) && !/нищо не е платено/.test(br2.html) && /след \d/.test(br2.html) && at2.status === "redirected" && at2.rc === "-25" && !(await row(X.id)).cardPaidAt);
   let px = await page(X.id, xt[1]);
+  check("9c.1b Страницата на връзката (bg) – същият текст, без „нищо не е платено“", /Окончателният резултат още се проверява/.test(px.html) && !/нищо не е платено/.test(px.html));
+  for (const [lang, re] of [["en", /The payment was interrupted\. The final result is still being checked\./], ["de", /Die Zahlung wurde abgebrochen\. Das endgültige Ergebnis wird noch geprüft\./]] as const) {
+    await t.q("update bookings set lang = $2 where id = $1", [X.id, lang]);
+    const lp = await page(X.id, xt[1]);
+    const lb = await backref(respFor(FX, cancel));
+    check(`9c.1c Текстът през първите 16 мин. на ${lang}: прекъснато, резултатът още се проверява; нов опит е блокиран`, lp.status === 409 && re.test(lp.html) && re.test(lb.html) && !/<form method="post"/.test(lp.html) && !/nothing has been paid|nichts bezahlt/.test(lp.html + lb.html));
+  }
+  await t.q("update bookings set lang = 'bg' where id = $1", [X.id]);
   check("9c.2 Връзката преди 16 мин.: „прекъснато“, нов опит НЕ е разрешен (документът: след „Назад“ може да стане успешна)", px.status === 409 && /Плащането е прекъснато/.test(px.html) && !/<form method="post"/.test(px.html));
   px = await page(X.id, xt[1], HOLDER);
   check("9c.3 POST преди 16 мин. не създава втори опит", px.status === 409 && (await attempts(X.id)).length === 1);

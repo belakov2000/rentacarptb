@@ -43,7 +43,9 @@ export default async (req: Request) => {
   // RC -25 – отказ от картодържателя (напр. „Назад“ на страницата на банката): не е платено; окончателно след проверка за статус
   if (r.state === "cancelled" || (r.state === "pending" && r.attempt.action === "3" && r.attempt.rc === "-25")) {
     const until = new Date(r.attempt.createdAt.getTime() + FINAL_AFTER_MS);
-    return html(L, t(L, "cancelH"), `${head}${msg(L, "warn", "cancelH", r.state === "cancelled" ? "declinedInfo" : "cancelInfo").replace("{until}", esc(sofiaTime(until, L)))}${info}${back}`);
+    // До окончателната проверка за статус (16 мин.) резултатът още може да се промени (стр. 56) – не твърдим, че нищо не е платено
+    const h = r.state === "cancelled" ? "cancelledH" : "cancelH";
+    return html(L, t(L, h), `${head}${msg(L, "warn", h, r.state === "cancelled" ? "declinedInfo" : "cancelInfo").replace("{until}", esc(sofiaTime(until, L)))}${info}${back}`);
   }
   if (r.state === "mismatch") return html(L, t(L, "unknownH"), `${head}${msg(L, "bad", "unknownH", "unknownInfo")}${info}${back}`);
   return html(L, t(L, "pendingH"), `${head}${msg(L, "warn", "pendingH", "pendingInfo")}${info}${back}`);

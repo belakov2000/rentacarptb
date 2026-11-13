@@ -11,6 +11,7 @@ import adsFn from "../../netlify/functions/admin-ads.mts";
 import { parseAttribution, variantLabel } from "../../server/attribution.ts";
 import { buildReport, sofiaMidnight } from "../../server/ad-report.ts";
 import { summarize } from "../../server/payments.ts";
+import { sofiaToday } from "../../db/hours.ts";
 import { deployContext, envKind, storeName } from "../../server/stores.ts";
 import { planRestore, RESTORE_ORDER } from "../../server/restore.ts";
 
@@ -127,8 +128,16 @@ check("34. summarize: неуспешно, друга валута и плаща�
 
 // ===== 7. Отчет по кампания и вариант; разход =====
 await t.q("update bookings set status = 'confirmed' where id = any($1)", [[a.id, b.id]]);
-const today = new Date(Date.now() + 3 * 3600_000).toISOString().slice(0, 10); // приблизително днес по българско време
-const from = new Date(Date.now() - 10 * 864e5).toISOString().slice(0, 10);
+// Календарни дати по Europe/Sofia (зимно UTC+2 и лятно UTC+3 – от Intl, както на сървъра: db/hours.ts → sofiaToday).
+// Преди: фиксирано UTC+3 – през зимата между 22:00 и 24:00 българско време датата излизаше следващия ден и проверка 44 падаше.
+const sofiaDay = (n = 0, now = new Date()) => { const [y, m, d] = sofiaToday(now).split("-").map(Number); return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10); };
+check("38a. Дата по Europe/Sofia: зимно време (13.11 23:57 → 13.11), лятно време (01.07 00:30 → 01.07), около смяната на часа",
+  sofiaDay(0, new Date("2026-11-13T21:57:00Z")) === "2026-11-13" && sofiaDay(-20, new Date("2026-11-13T21:57:00Z")) === "2026-10-24"
+  && sofiaDay(0, new Date("2026-11-13T22:00:00Z")) === "2026-11-14" && sofiaDay(0, new Date("2026-06-30T21:30:00Z")) === "2026-07-01" && sofiaDay(0, new Date("2026-06-30T20:59:00Z")) === "2026-06-30"
+  && sofiaDay(0, new Date("2026-10-24T21:30:00Z")) === "2026-10-25" && sofiaDay(0, new Date("2026-10-25T21:30:00Z")) === "2026-10-25" && sofiaDay(1, new Date("2026-03-29T00:30:00Z")) === "2026-03-30"
+  && sofiaDay(0, new Date("2026-03-28T22:30:00Z")) === "2026-03-29" && sofiaDay(-1, new Date("2026-03-01T10:00:00Z")) === "2026-02-28", sofiaDay());
+const today = sofiaDay();
+const from = sofiaDay(-10);
 const rep = async (q = "") => (await adm(adsFn, `/api/admin/ads/report?from=${from}&to=${today}${q}`)).json;
 let r = await rep();
 const rowOf = (rr: any, c: string | null) => rr.rows.find((x: any) => (c == null ? x.campaign == null : x.content === c));
@@ -140,7 +149,7 @@ check("38. Заявки без източник (директна и изтек�
 let sk = 0;
 const spend = (body: Record<string, unknown>, key = `ads-spend-${++sk}-key`) => adm(adsFn, "/api/admin/ads/spend", { method: "POST", body: { campaign: CAMPAIGN, idempotencyKey: key, ...body } });
 const fix = (id: number, amount: string, key = `ads-fix-${++sk}-key`) => adm(adsFn, `/api/admin/ads/spend/${id}`, { method: "POST", body: { action: "correct", amount, idempotencyKey: key }, params: { id: String(id) } });
-const day = (n: number) => new Date(Date.now() + 3 * 3600_000 + n * 864e5).toISOString().slice(0, 10);
+const day = (n: number) => sofiaDay(n);
 const sp = await spend({ content: "video_a_woman", periodStart: from, periodEnd: today, amount: "17,35" });
 await spend({ content: "video_b_man", periodStart: from, periodEnd: today, amount: "0" });
 // Отделен вариант с период, който започва преди избрания – частично застъпване
