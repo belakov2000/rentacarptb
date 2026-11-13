@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { db } from "../../db/index.js";
 import { bookings, cardPayments } from "../../db/schema.js";
 import { audit, json, requireAdmin } from "../../server/auth.js";
-import { blockOf, breakdown, cardState, checkStatus, envNames, issueLink, payMode, releaseUnknown, sendLink, terminalConfig } from "../../server/card-pay.js";
+import { blockOf, breakdown, cardState, checkStatus, configDiagnostics, envNames, issueLink, payMode, releaseUnknown, sendLink, terminalConfig } from "../../server/card-pay.js";
 import { envKind } from "../../server/stores.js";
 
 // Плащане с карта (БОРИКА) по резервация – само за администратор (Netlify Identity, роля admin; промените – само от същия сайт).
@@ -28,6 +28,8 @@ export default async (req: Request, _context: Context) => {
   const mode = payMode();
   const config = { available: cfg.ok, reason: cfg.ok ? "" : cfg.reason, mode, envKind: envKind(), variables: mode ? Object.values(envNames(mode)) : [], terminal: cfg.ok ? cfg.t.terminal : "", currency: cfg.ok ? cfg.t.currency : "" };
 
+  // Диагностика на ключовете само при недостъпна конфигурация – без стойности на ключове, пароли или променливи
+  if (!cfg.ok && mode && (cfg.reason === "key" || cfg.reason === "missing" || cfg.reason === "currency")) Object.assign(config, { diagnostics: configDiagnostics() });
   if (req.method === "GET") return json({ config, block: blockOf(b), breakdown: breakdown(b), paidAt: b.cardPaidAt, ...(await cardState(id)) });
 
   if (body?.action === "send_link") {

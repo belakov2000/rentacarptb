@@ -342,6 +342,32 @@ ar = await adminCall("GET", undefined, `?booking=${B.id}`, O, adminJar("user@exa
 check("10.2 Потребител без роля admin → 403", ar.status === 403);
 ar = await adminCall("POST", { bookingId: B.id, action: "send_link" }, "", null);
 check("10.3 POST от друг сайт (без Origin) → 403", ar.status === 403);
+// Диагностика на ключовете при reason = "key" – само за администратор, без стойности, без нищо в логовете
+{
+  const encPair = generateKeyPairSync("rsa", { modulusLength: 2048, publicKeyEncoding: { type: "spki", format: "pem" }, privateKeyEncoding: { type: "pkcs8", format: "pem", cipher: "aes-256-cbc", passphrase: "diag-only-pass" } });
+  env({ ...TEST_ENV, BORICA_TEST_PRIVATE_KEY: encPair.privateKey.trim().replace(/\n/g, " "), BORICA_TEST_PRIVATE_KEY_PASSPHRASE: "wrong-diag-pass" });
+  const logs: string[] = [];
+  const orig = { log: console.log, warn: console.warn, error: console.error };
+  for (const k of ["log", "warn", "error"] as const) console[k] = (...a: unknown[]) => { logs.push(a.map(String).join(" ")); };
+  let dj: any;
+  try { dj = (await adminCall("GET", undefined, `?booking=${B.id}`)).json; } finally { Object.assign(console, orig); }
+  const dg = dj.config.diagnostics;
+  check("10.3a Грешна парола: reason key; диагностика – прочетен формат, „wrong“, публичният ключ на БОРИКА е наред",
+    dj.config.available === false && dj.config.reason === "key" && dg.privateKey.encrypted && dg.privateKey.passphrase === "wrong" && dg.privateKey.fixes.includes("spaces") && dg.boricaPublicKey.readable && dg.boricaPublicKey.bitsOk && dg.terminal === "ok", JSON.stringify(dg.privateKey));
+  const blob = JSON.stringify(dj) + logs.join("\n");
+  const secretBits = [encPair.privateKey.split("\n")[1].slice(0, 16), "wrong-diag-pass", boricaTest.publicKey.split("\n")[1].slice(0, 16), "V6200750", "9200203803"];
+  check("10.3b Отговорът и логовете не съдържат ключове, пароли или стойности на променливите", secretBits.every((x) => !blob.includes(x)) && !/BEGIN|PRIVATE KEY-----/.test(blob), logs.length + " реда в лога");
+  env({ ...TEST_ENV, BORICA_TEST_PRIVATE_KEY: encPair.privateKey.trim().replace(/\n/g, "\\n"), BORICA_TEST_PRIVATE_KEY_PASSPHRASE: "diag-only-pass\n" });
+  check("10.3c Ключ с „\\n“ като текст и парола с нов ред в края → наличен", cardAvailable());
+  env({ ...TEST_ENV, BORICA_TEST_PRIVATE_KEY: generateKeyPairSync("rsa", { modulusLength: 1024, publicKeyEncoding: { type: "spki", format: "pem" }, privateKeyEncoding: { type: "pkcs8", format: "pem" } }).privateKey });
+  const sm = (await adminCall("GET", undefined, `?booking=${B.id}`)).json.config;
+  check("10.3d RSA 1024: недостъпно; диагностиката показва размера отделно", sm.reason === "key" && sm.diagnostics.privateKey.readable && sm.diagnostics.privateKey.bits === 1024 && sm.diagnostics.privateKey.bitsOk === false);
+  const noAdmin = await adminCall("GET", undefined, `?booking=${B.id}`, O, adminJar("viewer@example.com", []));
+  check("10.3e Без роля admin диагностиката не се показва (403)", noAdmin.status === 403 && !noAdmin.json.config);
+  env({ ...TEST_ENV });
+  const okc = (await adminCall("GET", undefined, `?booking=${B.id}`)).json.config;
+  check("10.3f При работеща конфигурация не се връща диагностика", okc.available && !("diagnostics" in okc));
+}
 ar = await adminCall("GET", undefined, `?booking=${B.id}`);
 check("10.4 Администратор: среда, имена на променливите (без стойности), сума", ar.status === 200 && ar.json.config.available && ar.json.config.mode === "test" && ar.json.config.variables.includes("BORICA_TEST_PRIVATE_KEY") && !JSON.stringify(ar.json).includes("PRIVATE KEY-----") && ar.json.breakdown.payCents === 8150);
 const pend = await booking({ status: "pending", stage: "review" });

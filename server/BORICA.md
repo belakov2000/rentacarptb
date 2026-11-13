@@ -128,3 +128,22 @@ individual branches“ → `borica-test`; адрес `https://borica-test--renta
 
 ## BACKREF за реалния терминал
 `https://rentacar-ptb.com/api/payments/borica/backref` – само след успешни тестове, след публикуване и с `BORICA_LIVE_*` само за Production.
+
+## Диагностика при `reason: "key"` (админ панел)
+
+`GET /api/admin/card-payments?booking=<id>` (само за администратор) връща `config.diagnostics`, когато конфигурацията е недостъпна
+(`key`, `missing`, `currency`). Същото се показва в панела „Плащане с карта онлайн (БОРИКА)“. Не съдържа ключове, пароли, base64
+или стойности на променливи и нищо не се пише в лога. Поотделно:
+
+- `privateKey`: `present`, `format` (pem / base64_pem / binary / not_pem), `labels` (напр. `ENCRYPTED PRIVATE KEY`, `RSA PRIVATE KEY`),
+  `fixes` (поправен формат: кавички, `\n` като текст, CRLF, интервали вместо нови редове, base64), `wrongFile` (CSR / публичен ключ),
+  `readable`, `error` (само код на OpenSSL, напр. `ERR_OSSL_BAD_DECRYPT`), `encrypted`,
+  `passphrase` (ok / ok_after_trim / wrong / missing / unused / not_needed), `type`, `bits`, `bitsOk` (RSA ≥ 2048),
+  `modulusMd5` – същото като `openssl rsa -noout -modulus -in <ключ> | openssl md5` (т. 5.6) за сравнение с подписания сертификат.
+- `boricaPublicKey`: същите полета за формата, `readable`, `type`, `bits`, `publicSha256`, `certificate.validTo` / `expired` (ако е сертификат).
+- `terminal`, `merchant`, `currency`: ok / missing / invalid / not_eur; `passphraseSet`, `passphraseHasOuterWhitespace`.
+
+Проверките не са отслабени: ключът трябва да е RSA ≥ 2048 бита, паролата трябва да е вярна (опитва се точно и, само ако не става,
+без интервал / нов ред в началото и края – вътрешни символи не се променят), повреден PEM не се „поправя“.
+Препоръка за Netlify: поставете PEM с истинските нови редове (многоредово поле) или като base64 на целия файл
+(`base64 -w0 privatekeyname_T.key`).

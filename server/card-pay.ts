@@ -22,7 +22,7 @@ import { bookingEvents, bookings, cardPaymentLinks, cardPayments, payments } fro
 import { linkMail, ownerPaidMail, ownerUnknownMail, paidMail, type Breakdown } from "../mail/card.js";
 import { OWNER_EMAIL } from "../mail/index.js";
 import {
-  amountOf, centsOf, FINAL_AFTER_MS, fieldsOf, GATEWAY, loadPrivateKey, loadPublicKey, outcomeOf, paymentRequest, pemOf, randomOrder,
+  amountOf, centsOf, diagnosePrivateKey, diagnosePublicKey, FINAL_AFTER_MS, fieldsOf, GATEWAY, loadPrivateKey, loadPublicKey, outcomeOf, paymentRequest, pemOf, randomOrder,
   STATUS_WINDOW_MS, statusRequest, verifyResponse, type Fields, type Mode, type Terminal,
 } from "./borica.js";
 import { pickupPassed } from "./booking-actions.js";
@@ -76,6 +76,22 @@ export function terminalConfig(ctx = deployContext()) {
   return cache.r;
 }
 export const cardAvailable = () => terminalConfig().ok;
+
+// Диагностика на ключовете за админ панела (без стойности – виж server/borica.ts → KeyDiag). Останалите полета: само дали са
+// зададени и дали са във валиден формат. Нищо от това не се записва в лога.
+export function configDiagnostics(ctx = deployContext()) {
+  const mode = payMode(ctx);
+  if (!mode) return null;
+  const n = envNames(mode), env = process.env;
+  const fmt = (v: string | undefined, re: RegExp) => (!String(v ?? "").trim() ? "missing" : re.test(String(v).trim().toUpperCase()) ? "ok" : "invalid");
+  const pass = env[n.pass];
+  return {
+    terminal: fmt(env[n.terminal], /^[A-Z0-9]{8}$/), merchant: fmt(env[n.merchant], /^\d{10}$/),
+    currency: !String(env[n.currency] ?? "").trim() ? "missing" : String(env[n.currency]).trim().toUpperCase() === PRICE_CURRENCY ? "ok" : "not_eur",
+    passphraseSet: !!pass, passphraseHasOuterWhitespace: !!pass && pass.trim() !== pass,
+    privateKey: diagnosePrivateKey(env[n.key], pass), boricaPublicKey: diagnosePublicKey(env[n.borica]),
+  };
+}
 
 // ===== Сума =====
 // Изчислява се само от записаната сървърна цена на резервацията. Ако сумата не може да бъде определена еднозначно
