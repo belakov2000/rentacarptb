@@ -44,7 +44,7 @@ export default async (req: Request, _context: Context) => {
   if (body?.action === "check") {
     const open = await db.select().from(cardPayments).where(eq(cardPayments.bookingId, id));
     const results: string[] = [];
-    for (const a of open.filter((x) => x.status === "redirected")) results.push(await checkStatus(a).catch(() => "network"));
+    for (const a of open.filter((x) => x.status === "redirected" || x.status === "unknown")) results.push(await checkStatus(a, new Date(), { recheckUnknown: true }).catch(() => "network"));
     await audit(admin.email, "card.status_checked", { results }, id);
     return json({ ok: true, results });
   }

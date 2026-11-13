@@ -67,21 +67,29 @@ export default async (req: Request, context: Context) => {
     const r = await startPayment(b, link.link.id, holder);
     if (r.ok) return redirectForm(L, r.action, r.fields);
     if (r.error === "paid") return paidPage((await db.select().from(bookings).where(eq(bookings.id, b.id)))[0]);
-    if (r.error === "in_progress") return inProgress(b, url, cfg.t.mode);
+    if (r.error === "in_progress") {
+      const [o] = await db.select().from(cardPayments).where(and(eq(cardPayments.bookingId, b.id), eq(cardPayments.status, "redirected"))).orderBy(desc(cardPayments.createdAt)).limit(1);
+      return inProgress(b, url, cfg.t.mode, o);
+    }
     if (r.error === "review") return html(L, t(L, "review"), `<h1>${esc(t(L, "title"))}</h1>${msg(L, "bad", "review", "reviewInfo")}`, 409);
     if (r.error === "input") return formPage(b, url, cfg.t.mode, "inputErr", raw);
     return html(L, t(L, "unavail"), `<h1>${esc(t(L, "title"))}</h1>${msg(L, "warn", "unavail", "unavailInfo")}`, 503);
   }
   // Опит без окончателен резултат: не се предлага второ плащане
   const [open] = await db.select().from(cardPayments).where(and(eq(cardPayments.bookingId, b.id), eq(cardPayments.status, "redirected"))).orderBy(desc(cardPayments.createdAt)).limit(1);
-  if (open) return inProgress(b, url, cfg.t.mode);
+  if (open) return inProgress(b, url, cfg.t.mode, open);
   const [unknown] = await db.select({ id: cardPayments.id }).from(cardPayments).where(and(eq(cardPayments.bookingId, b.id), eq(cardPayments.status, "unknown"))).limit(1);
   if (unknown) return html(L, t(L, "review"), `<h1>${esc(t(L, "title"))}</h1>${msg(L, "bad", "review", "reviewInfo")}`, 409);
   return formPage(b, url, cfg.t.mode);
 };
 
-function inProgress(b: Booking, url: URL, mode: string) {
+function inProgress(b: Booking, url: URL, mode: string, open?: typeof cardPayments.$inferSelect) {
   const L = b.lang;
+  // Последният проверен отговор е отказ от картодържателя (RC -25) – прекъснато, но още в рамките на GUARDTIME (стр. 56)
+  if (open && open.action === "3" && open.rc === "-25") {
+    const until = sofiaTime(new Date(open.createdAt.getTime() + 16 * 60_000), L);
+    return html(L, t(L, "cancelH"), `${testBanner(L, mode)}<h1>${esc(t(L, "title"))}</h1><div class="box warn"><b>${esc(t(L, "cancelH"))}</b></div><p>${esc(t(L, "cancelInfo", { until }))}</p><a class="btn dark" href="${esc(url.pathname + url.search)}">${esc(t(L, "check"))}</a>`, 409);
+  }
   return html(L, t(L, "inProgress"), `${testBanner(L, mode)}<h1>${esc(t(L, "title"))}</h1><div class="box warn"><b>${esc(t(L, "inProgress"))}</b></div><p>${esc(t(L, "inProgressInfo"))}</p><a class="btn dark" href="${esc(url.pathname + url.search)}">${esc(t(L, "check"))}</a>`, 409);
 }
 

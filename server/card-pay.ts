@@ -256,7 +256,7 @@ export const paidKey = (bookingId: string) => `customer-card-paid:${bookingId}`;
 export const ownerPaidKey = (attemptId: string) => `owner-card-paid:${attemptId}`;
 export const ownerUnknownKey = (attemptId: string) => `owner-card-unknown:${attemptId}`;
 
-export type Applied = { state: "paid" | "declined" | "pending" | "failed" | "unknown" | "mismatch"; attempt: Attempt; already?: boolean; duplicate?: boolean; notifyUnknown?: boolean };
+export type Applied = { state: "paid" | "declined" | "pending" | "failed" | "cancelled" | "unknown" | "mismatch"; attempt: Attempt; already?: boolean; duplicate?: boolean; notifyUnknown?: boolean };
 // Записва проверен отговор (BACKREF или проверка за статус). Идемпотентно: повторен отговор за вече платен опит не променя нищо
 // и не праща нови писма (заключване на реда + уникални ключове на плащането и на писмата).
 export async function applyResult(attemptId: string, f: Fields, source: "backref" | "status", now = new Date()): Promise<Applied> {
@@ -317,6 +317,12 @@ export async function applyResult(attemptId: string, f: Fields, source: "backref
       if (a.status !== "failed") await tx.insert(bookingEvents).values({ bookingId: a.bookingId, actor: "borica", action: "card.failed", details: { order: a.orderNo, rc: f.RC ?? null, source, rule: "status RC -40 older than GUARDTIME (P-OM-41 p.18)" } });
       return { state: "failed", attempt: u };
     }
+    // Отказ от картодържателя (RC -25), потвърден от проверка за статус след 16 мин. – окончателно прекратен опит, нов опит е разрешен
+    if (outcome === "cancelled" && source === "status" && age > FINAL_AFTER_MS) {
+      const [u] = await tx.update(cardPayments).set({ ...base, status: "cancelled", resultSource: source, resolvedAt: now }).where(eq(cardPayments.id, a.id)).returning();
+      if (a.status !== "cancelled") await tx.insert(bookingEvents).values({ bookingId: a.bookingId, actor: "borica", action: "card.cancelled", details: { order: a.orderNo, rc: f.RC ?? null, source, from: a.status, rule: "status RC -25 after GUARDTIME + 1 min (P-OM-41 p.49, p.56)" } });
+      return { state: "cancelled", attempt: u };
+    }
     // Друг неуспешен резултат от проверката за статус след 16 мин. е окончателен за банката (стр. 56, т. 9.5.1), но документът
     // не казва, че означава неуспешно плащане. Затова: без нов опит и без отбелязване като платено – ръчна проверка в Merchant Portal.
     if (source === "status" && age > FINAL_AFTER_MS) {
@@ -363,8 +369,11 @@ export async function releaseUnknown(attemptId: string, actor: string, note: str
 
 // ===== Проверка за статус (TRTYPE=90) =====
 export type CheckResult = Applied["state"] | "unknown" | "invalid" | "network" | "config" | "skip";
-export async function checkStatus(a: Attempt, now = new Date()): Promise<CheckResult> {
-  if (!OPEN.includes(a.status)) return "skip";
+// recheckUnknown – само от админ панела: опит „неизвестен“ (напр. записан по-стара версия на правилата) се проверява отново в
+// банката, докато APGW пази данните (24 ч.). Състоянието се променя само по подписан отговор; иначе остава „неизвестен“.
+export async function checkStatus(a: Attempt, now = new Date(), o: { recheckUnknown?: boolean } = {}): Promise<CheckResult> {
+  const recheck = !!o.recheckUnknown && a.status === "unknown" && now.getTime() - a.createdAt.getTime() <= STATUS_WINDOW_MS;
+  if (!OPEN.includes(a.status) && !recheck) return "skip";
   const cfg = terminalConfig();
   if (!cfg.ok || cfg.t.mode !== a.mode || cfg.t.terminal !== a.terminal) return "config";
   // APGW пази данни само 24 ч.: след това резултатът не може да бъде установен автоматично

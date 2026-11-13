@@ -257,12 +257,17 @@ export const verifyResponse = (f: Partial<Fields>, borica: KeyObject) => verifyM
 //   timeout  – ACTION 3 и RC -40 (стр. 18, т. 4.2) – окончателен неуспех САМО при проверка за статус на трансакция,
 //              по-стара от GUARDTIME (проверява се в server/card-pay.ts → applyResult)
 //   pending  – всичко останало (други отрицателни RC, ACTION 1 / 7 / 21, непознат отговор): не е плащане и не е доказан неуспех
-export type Outcome = "paid" | "declined" | "timeout" | "pending";
+//   cancelled – ACTION 3 и RC -25 (стр. 49, табл. 23: „Transaction confirmation state was canceled by user – Допълнителното
+//              потвърждение на трансакцията е отказано от картодържателя“). Окончателно САМО при проверка за статус след
+//              GUARDTIME + 1 мин. (стр. 56, т. 9.5.1: при „Back“ отрицателният код може да се промени и трансакцията да е успешна;
+//              „Резултатът, получен след повече от 16 минути … е окончателен“). По-рано – опитът остава отворен.
+export type Outcome = "paid" | "declined" | "timeout" | "cancelled" | "pending";
 export function outcomeOf(f: Partial<Fields>): Outcome {
   const action = String(f.ACTION ?? ""), rc = String(f.RC ?? "");
   if (action === "0" && rc === "00") return "paid";
   if (action === "2" && /^[0-9A-Z]{2}$/.test(rc) && rc !== "00") return "declined";
   if (action === "3" && rc === "-40") return "timeout";
+  if (action === "3" && rc === "-25") return "cancelled";
   return "pending";
 }
 

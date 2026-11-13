@@ -320,6 +320,63 @@ check("9b.6 Администратор освобождава след пров�
   rel.status === 200 && (await attempts(s1.X.id))[0].status === "failed" && (await attempts(s1.X.id))[0].resultSource === "manual" && (await page(s1.X.id, s1.xt[1])).status === 200 && !(await row(s1.X.id)).cardPaidAt);
 check("9b.7 Повторно освобождаване на вече освободен опит → 409", (await adminCall("POST", { bookingId: s1.X.id, action: "release", attemptId: ua.id, confirm: "merchant-portal-not-successful", note: "още веднъж" })).status === 409);
 
+// ===== 9c. „Назад“ на страницата на БОРИКА: ACTION 3 / RC -25 „Transaction Cancelled by Cardholder“ =====
+{
+  const X = await booking();
+  const xt = tokenFrom((await adminCall("POST", { bookingId: X.id, action: "send_link" })).json.url)!;
+  const FX = fieldsIn((await page(X.id, xt[1], HOLDER)).html);
+  const cancel = { ACTION: "3", RC: "-25", APPROVAL: "", RRN: "", INT_REF: "", PARES_STATUS: "", ECI: "", STATUSMSG: "Transaction Cancelled by Cardholder" };
+  // Банката отговаря на проверката за статус със същия код (както при теста на тестовия сайт)
+  bank.reply = (q) => sign({ ACTION: "3", RC: "-25", STATUSMSG: "Transaction form state was cancelled by user", TERMINAL: "V6200750", TRTYPE: "90", ORDER: q.get("ORDER")!, TRAN_TRTYPE: "1", CURRENCY: "EUR", AMOUNT: FX.AMOUNT, TIMESTAMP: "20261113214500", NONCE: q.get("NONCE")! });
+  let br2 = await backref(respFor(FX, cancel));
+  let at2 = (await attempts(X.id))[0];
+  check("9c.1 BACKREF с RC -25 (подписан): „Плащането е прекъснато – нищо не е платено“, опитът остава отворен в рамките на GUARDTIME",
+    br2.status === 200 && /Плащането е прекъснато/.test(br2.html) && /след \d/.test(br2.html) && at2.status === "redirected" && at2.rc === "-25" && !(await row(X.id)).cardPaidAt);
+  let px = await page(X.id, xt[1]);
+  check("9c.2 Връзката преди 16 мин.: „прекъснато“, нов опит НЕ е разрешен (документът: след „Назад“ може да стане успешна)", px.status === 409 && /Плащането е прекъснато/.test(px.html) && !/<form method="post"/.test(px.html));
+  px = await page(X.id, xt[1], HOLDER);
+  check("9c.3 POST преди 16 мин. не създава втори опит", px.status === 409 && (await attempts(X.id)).length === 1);
+  // Проверка за статус в рамките на 16 мин. със същия код – остава отворен
+  bank.reply = (q) => sign({ ACTION: "3", RC: "-25", STATUSMSG: "Transaction form state was cancelled by user", TERMINAL: "V6200750", TRTYPE: "90", ORDER: q.get("ORDER")!, TRAN_TRTYPE: "1", CURRENCY: "EUR", AMOUNT: FX.AMOUNT, TIMESTAMP: "20261113214500", NONCE: q.get("NONCE")! });
+  await t.q("update card_payments set created_at = now() - interval '5 minutes' where order_no = $1", [FX.ORDER]);
+  let ck = await adminCall("POST", { bookingId: X.id, action: "check" });
+  check("9c.4 Проверка за статус с RC -25 след 5 мин. → още отворен", ck.json.results[0] === "pending" && (await attempts(X.id))[0].status === "redirected");
+  // След GUARDTIME + 1 мин. – окончателно прекратен
+  await t.q("update card_payments set created_at = now() - interval '17 minutes', last_check_at = null where order_no = $1", [FX.ORDER]);
+  px = await page(X.id, xt[1]);
+  at2 = (await attempts(X.id))[0];
+  check("9c.5 Проверка за статус с RC -25 след 16 мин. → „прекратено“ (окончателно), без плащане, без писмо за неизвестен резултат",
+    at2.status === "cancelled" && at2.resultSource === "status" && !(await row(X.id)).cardPaidAt && (await pays(X.id)).length === 0 && !mail.sent.some((m) => /Неизвестен резултат/.test(m.subject) && m.html.includes(at2.orderNo)));
+  check("9c.6 Клиентът вижда отново формуляра за плащане (нов опит е разрешен)", px.status === 200 && /<form method="post"/.test(px.html));
+  const FX2 = fieldsIn((await page(X.id, xt[1], HOLDER)).html);
+  check("9c.7 Нов опит: нов ORDER и NONCE, същата сума от сървъра", !!FX2.ORDER && FX2.ORDER !== FX.ORDER && FX2.NONCE !== FX.NONCE && FX2.AMOUNT === FX.AMOUNT && (await attempts(X.id)).length === 2);
+  br2 = await backref(respFor(FX2));
+  check("9c.8 Новият опит може да бъде платен; прекратеният остава прекратен", !!(await row(X.id)).cardPaidAt && (await pays(X.id)).length === 1 && (await attempts(X.id)).find((x: any) => x.orderNo === FX.ORDER)!.status === "cancelled");
+  // Късен успешен отговор за прекратения опит (банката не би трябвало да го изпрати – т. 9.5.1) се записва като второ плащане, не се губи
+  // Защита: RC -25 с чужд подпис или друг NONCE не прекратява опита
+  const Y = await booking();
+  const yt = tokenFrom((await adminCall("POST", { bookingId: Y.id, action: "send_link" })).json.url)!;
+  const FY = fieldsIn((await page(Y.id, yt[1], HOLDER)).html);
+  await t.q("update card_payments set created_at = now() - interval '17 minutes' where order_no = $1", [FY.ORDER]);
+  bank.reply = (q) => sign({ ACTION: "3", RC: "-25", TERMINAL: "V6200750", TRTYPE: "90", ORDER: q.get("ORDER")!, TRAN_TRTYPE: "1", CURRENCY: "EUR", TIMESTAMP: "20261113214500", NONCE: q.get("NONCE")! }, attacker.privateKey);
+  ck = await adminCall("POST", { bookingId: Y.id, action: "check" });
+  check("9c.9 RC -25 с чужд подпис → невалиден, опитът остава отворен", ck.json.results[0] === "invalid" && (await attempts(Y.id))[0].status === "redirected");
+  bank.reply = (q) => sign({ ACTION: "3", RC: "-25", TERMINAL: "V6200750", TRTYPE: "90", ORDER: q.get("ORDER")!, TRAN_TRTYPE: "1", CURRENCY: "EUR", TIMESTAMP: "20261113214500", NONCE: "0".repeat(32) });
+  ck = await adminCall("POST", { bookingId: Y.id, action: "check" });
+  check("9c.10 RC -25 с друг NONCE → невалиден, опитът остава отворен", ck.json.results[0] === "invalid" && (await attempts(Y.id))[0].status === "redirected");
+  br2 = await backref(respFor(FY, { ...cancel }));
+  check("9c.11 BACKREF с RC -25 (дори след 16 мин.) сам не прекратява опита – само проверката за статус", (await attempts(Y.id))[0].status === "redirected");
+  // Опит, записан като „неизвестен“ от по-стара версия: администраторът го проверява отново в рамките на 24 ч.
+  await t.q("update card_payments set status = 'unknown' where order_no = $1", [FY.ORDER]);
+  bank.reply = (q) => sign({ ACTION: "3", RC: "-25", TERMINAL: "V6200750", TRTYPE: "90", ORDER: q.get("ORDER")!, TRAN_TRTYPE: "1", CURRENCY: "EUR", TIMESTAMP: "20261113214500", NONCE: q.get("NONCE")! });
+  ck = await adminCall("POST", { bookingId: Y.id, action: "check" });
+  check("9c.12 „Неизвестен“ опит до 24 ч.: повторна проверка в банката с RC -25 → прекратен, нов опит е разрешен", ck.json.results[0] === "cancelled" && (await attempts(Y.id))[0].status === "cancelled" && (await page(Y.id, yt[1])).status === 200);
+  await t.q("update card_payments set status = 'unknown', created_at = now() - interval '25 hours' where order_no = $1", [FY.ORDER]);
+  const callsB = bank.calls;
+  ck = await adminCall("POST", { bookingId: Y.id, action: "check" });
+  check("9c.13 „Неизвестен“ опит след 24 ч. не се проверява отново и остава неизвестен (без нов опит)", ck.json.results[0] === "skip" && bank.calls === callsB && (await page(Y.id, yt[1])).status === 409);
+}
+
 // Подправен отговор на проверката за статус
 const FD2 = fieldsIn((await page(D.id, dtk[1], HOLDER)).html);
 bank.reply = (q) => sign({ ACTION: "0", RC: "00", TERMINAL: "V6200750", TRTYPE: "90", TRAN_TRTYPE: "1", AMOUNT: FD2.AMOUNT, CURRENCY: "EUR", ORDER: q.get("ORDER")!, TIMESTAMP: "20261112103000", NONCE: q.get("NONCE")! }, attacker.privateKey);
