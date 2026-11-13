@@ -16,6 +16,7 @@ const CUSTOMER: Record<string, Record<string, string>> = {
     note: "Съобщение от нас:",
     car: "Автомобил", pickup: "Получаване", dropoff: "Връщане", total: "Общо за услугите", deposit: "Гаранционен депозит",
     q: "Въпроси? Обадете ни се на {phone} или отговорете на този имейл.",
+    card: "С карта онлайн – 10% отстъпка от наема", cardInfo: "Ще получите отделно писмо със защитена връзка за плащане на наема с карта (10% отстъпка от наема; доставката и допълнителните услуги са без отстъпка). Гаранционният депозит се предоставя отделно при получаване.",
     pay: "Плащане", bank: "По банков път срещу фактура (фирма)", bankp: "По банков път срещу фактура (физическо лице)", cash: "В брой на място при получаване (с касов бон)",
     bankInfo: "Ще ви изпратим фактура с банковите ни данни за плащане.",
     cashInfo: "Плащането е в брой при получаване на автомобила – ще ви издадем касов бон.",
@@ -30,6 +31,7 @@ const CUSTOMER: Record<string, Record<string, string>> = {
     note: "Message from us:",
     car: "Car", pickup: "Pick-up", dropoff: "Return", total: "Total for services", deposit: "Security deposit",
     q: "Questions? Call us on {phone} or reply to this email.",
+    card: "Online card payment – 10% off the rental", cardInfo: "You will receive a separate email with a secure link to pay the rental by card (10% off the rental; delivery and additional services are not discounted). The security deposit is provided separately at pick-up.",
     pay: "Payment", bank: "Bank transfer against invoice (company)", bankp: "Bank transfer against invoice (private person)", cash: "Cash on pick-up (with fiscal receipt)",
     bankInfo: "We will send you an invoice with our bank details for payment.",
     cashInfo: "Payment is in cash when you pick up the car – you will receive a fiscal receipt.",
@@ -44,6 +46,7 @@ const CUSTOMER: Record<string, Record<string, string>> = {
     note: "Nachricht von uns:",
     car: "Fahrzeug", pickup: "Abholung", dropoff: "Rückgabe", total: "Gesamt für Leistungen", deposit: "Kaution",
     q: "Fragen? Rufen Sie uns an unter {phone} oder antworten Sie auf diese E-Mail.",
+    card: "Online-Kartenzahlung – 10 % Rabatt auf die Miete", cardInfo: "Sie erhalten eine separate E-Mail mit einem sicheren Link zur Zahlung der Miete per Karte (10 % Rabatt auf die Miete; Lieferung und Zusatzleistungen ohne Rabatt). Die Kaution wird separat bei der Abholung hinterlegt.",
     pay: "Zahlung", bank: "Banküberweisung gegen Rechnung (Firma)", bankp: "Banküberweisung gegen Rechnung (Privatperson)", cash: "Bar bei Abholung (mit Kassenbon)",
     bankInfo: "Wir senden Ihnen eine Rechnung mit unseren Bankdaten zur Zahlung.",
     cashInfo: "Die Zahlung erfolgt bar bei Abholung des Fahrzeugs – Sie erhalten einen Kassenbon.",
@@ -60,7 +63,7 @@ export function customerMail(b: Booking) {
       `<p style="font-size:18px"><b>${esc(ok ? t.ok : t.no)}</b></p>` +
       (b.note ? `<p>${esc(t.note)}<br>${esc(b.note).replace(/\n/g, "<br>")}</p>` : "") +
       `<table style="border-collapse:collapse;margin:14px 0">${row(t.car, b.car)}${row(t.pickup, b.pickup)}${row(t.dropoff, b.dropoff)}${ok ? row(t.total, b.total) + row(t.deposit, "100 €") + row(t.pay, t[b.payment] || "") : ""}</table>` +
-      (ok && t[b.payment] ? `<p>${esc(b.payment === "cash" ? t.cashInfo : t.bankInfo)}</p>` : "") +
+      (ok && t[b.payment] ? `<p>${esc(b.payment === "cash" ? t.cashInfo : b.payment === "card" ? t.cardInfo : t.bankInfo)}</p>` : "") +
       `<p>${esc(t.q.replace("{phone}", PHONE))}</p>` +
       mailFooter(t.why),
   );

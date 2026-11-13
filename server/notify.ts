@@ -83,6 +83,7 @@ export async function retry(kind: string, bookingId: string | null, dedupeKey: s
   const [b] = await db.select().from(bookings).where(eq(bookings.id, bookingId));
   if (!b) return null;
   if (kind === "customer-received") return sendCustomerReceived(b);
+  if (kind.includes("-card-")) return (await import("./card-pay.js")).retryCard(kind, b.id, dedupeKey);
   // Двуетапна заявка: писмата важат само докато заявката е в съответния етап
   if (kind === "customer-docs-invite" && b.status === "pending" && b.stage === "docs") {
     const r = await sendDocsInvite(b);
@@ -112,6 +113,7 @@ export async function retry(kind: string, bookingId: string | null, dedupeKey: s
   return null;
 }
 export const RETRY_KINDS = ["owner-new", "customer-received", "customer-decision", "customer-closed", "customer-extended",
-  "customer-docs-invite", "customer-docs-reminder", "customer-coupon", "customer-docs-received", "owner-docs"];
+  "customer-docs-invite", "customer-docs-reminder", "customer-coupon", "customer-docs-received", "owner-docs",
+  "customer-card-link", "customer-card-paid", "owner-card-paid"];
 // Писма, които се повтарят и след несигурен резултат (възможно второ копие): само известието до фирмата
-export const UNCERTAIN_RETRY_KINDS = ["owner-new", "owner-docs"];
+export const UNCERTAIN_RETRY_KINDS = ["owner-new", "owner-docs", "owner-card-paid"];

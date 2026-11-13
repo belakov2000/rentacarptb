@@ -1090,6 +1090,7 @@ button.btn-ghost{background:transparent}
 <div class="payopts" role="radiogroup" aria-label="Начин на плащане" data-flow2>
 <label class="opt"><input type="radio" name="pay2" value="cash"><span class="pt"><b>В брой на място</b><small>При вземане на автомобила – с касов бон.</small></span></label>
 <label class="opt"><input type="radio" name="pay2" value="bankp"><span class="pt"><b>По банков път</b></span></label>
+<label class="opt" id="card-choice" hidden><input type="radio" name="pay2" value="card"><span class="pt"><b>Плащане с карта онлайн — 10% отстъпка от наема</b><small>След окончателното потвърждение получавате защитена връзка за плащане на целия наем с 10% отстъпка от наема. Доставката и допълнителните услуги са без отстъпка; не се комбинира с RENTY10. Гаранционният депозит от 100 € се предоставя отделно при получаване.</small></span></label>
 <label class="opt" id="company-choice" hidden><input type="checkbox" id="b-company"><span>Необходима ми е фактура за юридическо лице</span></label>
 </div>
 <div id="invp" class="invbox" hidden>
@@ -1594,6 +1595,14 @@ const I18N={
 "По банков път – фирма":["Bank transfer – company", "Banküberweisung – Firma"],
 "Фактура на фирмата и плащане по банков път.":["Invoice to your company and payment by bank transfer.", "Rechnung an Ihre Firma und Zahlung per Banküberweisung."],
 "В брой на място":["Cash on site", "Bar vor Ort"],
+"Плащане с карта онлайн — 10% отстъпка от наема":["Online card payment — 10% off the rental","Online-Kartenzahlung — 10 % Rabatt auf die Miete"],
+"След окончателното потвърждение получавате защитена връзка за плащане на целия наем с 10% отстъпка от наема. Доставката и допълнителните услуги са без отстъпка; не се комбинира с RENTY10. Гаранционният депозит от 100 € се предоставя отделно при получаване.":["After the final confirmation you receive a secure link to pay the full rental with 10% off the rental. Delivery and additional services are not discounted; not combined with RENTY10. The security deposit of 100 € is provided separately at pick-up.","Nach der endgültigen Bestätigung erhalten Sie einen sicheren Link, um die gesamte Miete mit 10 % Rabatt auf die Miete zu bezahlen. Lieferung und Zusatzleistungen sind nicht rabattiert; nicht mit RENTY10 kombinierbar. Die Kaution von 100 € wird separat bei der Abholung hinterlegt."],
+"С карта онлайн (10% отстъпка от наема)":["Online card payment (10% off the rental)","Online-Kartenzahlung (10 % Rabatt auf die Miete)"],
+"Плащане с карта":["Card payment","Kartenzahlung"],
+"Платено – получихте потвърждение по имейл":["Paid – a confirmation was sent by email","Bezahlt – eine Bestätigung wurde per E-Mail gesendet"],
+"Очаква плащане – връзката е изпратена по имейл":["Awaiting payment – the link was sent by email","Zahlung ausstehend – der Link wurde per E-Mail gesendet"],
+"Връзка за плащане – след окончателното потвърждение":["Payment link – after the final confirmation","Zahlungslink – nach der endgültigen Bestätigung"],
+
 "При вземане на автомобила – с касов бон.":["When you pick up the car – with a fiscal receipt.", "Bei Abholung des Fahrzeugs – mit Kassenbon."],
 "Данни за фактурата – физическо лице":["Invoice details – private person", "Rechnungsdaten – Privatperson"],
 "Данни за фактурата – фирма":["Invoice details – company", "Rechnungsdaten – Firma"],
@@ -2052,11 +2061,11 @@ function syncAdm(){const r=admReq($("#b-cit").value,idt());$$("[data-adm-opt]").
 ["#b-city","#b-reg","#b-mun"].forEach(i=>$(i).addEventListener("change",tidyAdm));
 $("#b-cit").addEventListener("input",syncAdm);$$("input[name=idt]").forEach(e=>e.addEventListener("change",syncAdm));syncAdm();
 // Начин на плащане: bankp – по банков път, физическо лице; bank – по банков път, фирма; cash – в брой на място с касов бон
-const PAY={bankp:"По банков път – физическо лице (фактура)",bank:"По банков път – фирма (фактура)",cash:"В брой на място с касов бон"};
+const PAY={bankp:"По банков път – физическо лице (фактура)",bank:"По банков път – фирма (фактура)",cash:"В брой на място с касов бон",card:"С карта онлайн (10% отстъпка от наема)"};
 if(PAY[S.pay])document.querySelector(`input[name=pay][value=${S.pay}]`).checked=true;
 const pay=()=>{const e=document.querySelector(FLOW2?"input[name=pay2]:checked":"input[name=pay]:checked");return e?(FLOW2&&e.value==="bankp"&&$("#b-company").checked?"bank":e.value):""};
-if(FLOW2){if(S.pay){const e=document.querySelector(`input[name=pay2][value=${S.pay==="cash"?"cash":"bankp"}]`);if(e)e.checked=true}$("#b-company").checked=!!S.company;$("#b-no-vat").checked=!!S.noVat}
-const syncPay=()=>{$("#inv").hidden=pay()!=="bank";$("#invp").hidden=FLOW2||pay()!=="bankp";$("#company-choice").hidden=!FLOW2||pay()==="cash"||!pay();if(FLOW2){$("#b-ivat").disabled=$("#b-no-vat").checked;if($("#b-no-vat").checked)$("#b-ivat").value=""}};syncPay();
+if(FLOW2){if(S.pay){const e=document.querySelector(`input[name=pay2][value=${S.pay==="cash"||S.pay==="card"?S.pay:"bankp"}]`);if(e)e.checked=true}$("#b-company").checked=!!S.company;$("#b-no-vat").checked=!!S.noVat}
+const syncPay=()=>{$("#inv").hidden=pay()!=="bank";$("#invp").hidden=FLOW2||pay()!=="bankp";$("#company-choice").hidden=!FLOW2||pay()==="cash"||pay()==="card"||!pay();if(FLOW2){$("#b-ivat").disabled=$("#b-no-vat").checked;if($("#b-no-vat").checked)$("#b-ivat").value=""}};syncPay();
 $$("input[name=pay2],#b-company,#b-no-vat").forEach(e=>e.addEventListener("change",syncPay));
 $$("input[name=pay]").forEach(e=>e.addEventListener("change",syncPay));
 const invText=R=>FLOW2?(R.pay==="bank"?[`Фирма: ${R.icn}`,`ЕИК / регистрационен номер: ${R.ieik}`,R.noVat?"Фирмата не е регистрирана по ДДС":`ДДС номер: ${R.ivat}`,`Държава: ${R.icountry}`,`Адрес: ${R.iaddr}`].join("\n"):""):R.pay==="bank"?[`Фирма: ${R.icn||"-"}`,`ЕИК / Булстат: ${R.ieik||"-"}`,R.ivat?`ДДС номер: ${R.ivat}`:"",R.imol?`МОЛ: ${R.imol}`:"",`Адрес: ${R.iaddr||"-"}`].filter(Boolean).join("\n")
@@ -2305,7 +2314,7 @@ else{const t1=fitStart(c,ds,S.t1||"12:00");$("#b-d1").value=$("#b-d2").value=ds;
 planChanged()});
 document.addEventListener("click",e=>{if(e.target.closest("[data-lang]")&&cur==="avtomobili")renderCal()});
 // Заетите периоди идват от сървъра (потвърдените резервации)
-function loadAvail(){return fetch("/api/availability",{cache:"no-store"}).then(r=>r.ok?r.json():Promise.reject()).then(j=>{const cars=j.cars||j;if(j.buffer>=0)BUF=j.buffer;Object.keys(BOOKED).forEach(k=>{BOOKED[k]=Array.isArray(cars[k])?cars[k]:[]});if(cur==="avtomobili"){renderCars();renderPick()}}).catch(()=>{})}
+function loadAvail(){return fetch("/api/availability",{cache:"no-store"}).then(r=>r.ok?r.json():Promise.reject()).then(j=>{const cc=$("#card-choice");if(cc){cc.hidden=j.cardPayment!==true;if(cc.hidden){const ci=cc.querySelector("input");if(ci&&ci.checked){ci.checked=false;syncPay()}}}const cars=j.cars||j;if(j.buffer>=0)BUF=j.buffer;Object.keys(BOOKED).forEach(k=>{BOOKED[k]=Array.isArray(cars[k])?cars[k]:[]});if(cur==="avtomobili"){renderCars();renderPick()}}).catch(()=>{})}
 function setupCars(){
 $("#cars-h").textContent="В момента свободни автомобили";
 $("#cars-p").textContent="Изберете автомобил. След това въвеждате дата и час за получаване и връщане и виждате цената за вашия период.";
@@ -2344,7 +2353,7 @@ else if(st==="pending"&&stg==="docs"){set("Заявката е одобрена 
 else if(st==="pending"&&stg==="review")set("Получени документи — очакват проверка","Благодарим! Проверяваме документите и ще ви изпратим окончателно потвърждение по имейл.","Проверка на документите");
 if(V.mailEnabled===false)$("#th-sub").textContent=tr("Тестова версия: реални имейли не се изпращат. Заявката се управлява от админ панела; тази страница показва текущия етап.");
 const c=CARS.find(x=>x.id===V.carId),row=(k,v)=>v?`<div><span>${esc(k)}</span><b>${esc(v)}</b></div>`:"";
-$("#th-sum").innerHTML=`<h2>Вашата резервация</h2><div class="kv">${row("Заявител",V.name)}${row("Телефон",V.phone)}${row("Автомобил",c?c.name:V.car)}${row("Получаване",V.pickup)}${row("Връщане",V.dropoff)}${row("Общо за услугите",V.total)}${PAY[V.payment]?row("Плащане",PAY[V.payment]):""}${V.drivers?row("Водачи",V.drivers.count===2?"2 (основен и допълнителен)":"1"):""}</div>`}
+$("#th-sum").innerHTML=`<h2>Вашата резервация</h2><div class="kv">${row("Заявител",V.name)}${row("Телефон",V.phone)}${row("Автомобил",c?c.name:V.car)}${row("Получаване",V.pickup)}${row("Връщане",V.dropoff)}${row("Общо за услугите",V.total)}${PAY[V.payment]?row("Плащане",PAY[V.payment]):""}${V.card?row("Плащане с карта",V.card.state==="paid"?"Платено – получихте потвърждение по имейл":V.card.state==="awaiting"?"Очаква плащане – връзката е изпратена по имейл":V.card.state==="after_confirm"?"Връзка за плащане – след окончателното потвърждение":""):""}${V.drivers?row("Водачи",V.drivers.count===2?"2 (основен и допълнителен)":"1"):""}</div>`}
 // ===== Документи на водачите (етап „docs“): данни, снимки, RENTY10 → POST /api/bookings/:id/documents =====
 // Плащането, столчетата и коментарът не се попълват отново – те са от заявката.
 const DOCS={busy:false,ph:{},urls:{},seq:{},n:0};

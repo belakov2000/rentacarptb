@@ -7,21 +7,23 @@
 //    (по изключение overwriteSeeded заменя началните редове в cars и settings, създадени от миграцията);
 //  • файловете се записват само ако ключът липсва в целевото хранилище; съществуващ файл не се презаписва;
 //  • след запис всеки ред и всеки файл се сравнява с копието (подробен отчет).
-export const RESTORE_ORDER = ["cars", "settings", "customers", "bookings", "payments", "booking_events", "car_blocks", "expenses", "email_log", "contract_versions", "ad_spend", "booking_extensions"] as const;
+export const RESTORE_ORDER = ["cars", "settings", "customers", "bookings", "payments", "booking_events", "car_blocks", "expenses", "email_log", "contract_versions", "ad_spend", "booking_extensions", "card_payment_links", "card_payments"] as const;
 type Table = (typeof RESTORE_ORDER)[number];
 const PK: Record<Table, string> = {
   cars: "id", settings: "key", bookings: "id", payments: "id", booking_events: "id",
   car_blocks: "id", expenses: "id", email_log: "id", contract_versions: "id", ad_spend: "id", customers: "id", booking_extensions: "id",
+  card_payment_links: "id", card_payments: "id",
 };
 const SEEDED = new Set<Table>(["cars", "settings"]);
 // Таблици, добавени по-късно: в по-старите копия липсват и се приемат за празни
-const ADDED_LATER = new Set<Table>(["ad_spend", "customers", "booking_extensions"]);
+const ADDED_LATER = new Set<Table>(["ad_spend", "customers", "booking_extensions", "card_payment_links", "card_payments"]);
 const SERIAL = ["booking_events", "car_blocks", "expenses", "email_log", "contract_versions", "ad_spend", "customers", "booking_extensions"];
 // Външни ключове: таблица.колона → таблица
 const FK: [Table, string, Table][] = [
   ["payments", "booking_id", "bookings"], ["contract_versions", "booking_id", "bookings"],
   ["car_blocks", "car_id", "cars"], ["expenses", "car_id", "cars"],
   ["bookings", "customer_id", "customers"], ["booking_extensions", "booking_id", "bookings"],
+  ["card_payment_links", "booking_id", "bookings"], ["card_payments", "booking_id", "bookings"],
 ];
 
 export type Query = (text: string, params?: unknown[]) => Promise<{ rows: any[] }>;

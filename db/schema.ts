@@ -101,6 +101,10 @@ export const bookings = pgTable("bookings", {
   // RENTY10: изпратен (валиден 24 ч от изпращането) и използван – само за тази резервация
   couponSentAt: timestamp("coupon_sent_at"),
   couponUsedAt: timestamp("coupon_used_at"),
+  // Плащане с карта онлайн (БОРИКА, server/card-pay.ts): кога е потвърдено проверено успешно плащане и кой опит (card_payments.id).
+  // null – няма потвърдено плащане с карта. Статусът на резервацията не се променя от плащането.
+  cardPaidAt: timestamp("card_paid_at"),
+  cardPaymentId: text("card_payment_id"),
 }, (t) => [
   uniqueIndex("bookings_request_key_idx").on(t.requestKey),
   index("bookings_car_dates_idx").on(t.carId, t.startDate, t.endDate),
@@ -407,4 +411,66 @@ export const routeCache = pgTable(
     expiresAt: timestamp("expires_at").notNull(),
   },
   (t) => [index("route_cache_expires_idx").on(t.expiresAt)],
+);
+
+// ===== Плащане с карта онлайн чрез виртуален ПОС на БОРИКА (server/borica.ts, server/card-pay.ts) =====
+// Защитени връзки за плащане към конкретна резервация. Пази се само SHA-256 на тайния ключ от връзката (самият ключ е само
+// в имейла до клиента). Нова връзка отменя предишните (revokedAt). Връзката важи до expiresAt и само докато резервацията
+// е потвърдена, неплатена и преди часа за получаване.
+export const cardPaymentLinks = pgTable(
+  "card_payment_links",
+  {
+    id: text().primaryKey(),
+    bookingId: text("booking_id").notNull().references(() => bookings.id),
+    tokenHash: text("token_hash").notNull(),
+    createdBy: text("created_by").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    expiresAt: timestamp("expires_at").notNull(),
+    revokedAt: timestamp("revoked_at"),
+    sentAt: timestamp("sent_at"),
+  },
+  (t) => [uniqueIndex("card_payment_links_token_idx").on(t.tokenHash), index("card_payment_links_booking_idx").on(t.bookingId)],
+);
+
+// Опити за плащане (една заявка към БОРИКА = един запис с уникален ORDER за терминала). Сумата и разбивката са изчислени
+// на сървъра от записаната резервация в момента на опита. status:
+//   redirected – формулярът е изпратен към БОРИКА, няма окончателен резултат; paid – проверен успешен отговор (ACTION 0, RC 00);
+//   declined – окончателен отказ от издателя; failed – неуспешен / прекъснат (окончателно по проверката на статуса след GUARDTIME);
+//   unknown – резултатът не може да бъде установен (напр. изтекли 24 ч без отговор) – проверява се ръчно в Merchant Portal.
+// Плащане се отбелязва само след проверен подпис на БОРИКА и съвпадение на терминал, поръчка, NONCE, сума и валута.
+export const cardPayments = pgTable(
+  "card_payments",
+  {
+    id: text().primaryKey(),
+    bookingId: text("booking_id").notNull().references(() => bookings.id),
+    linkId: text("link_id"),
+    mode: text().notNull(), // test | live
+    terminal: text().notNull(),
+    orderNo: text("order_no").notNull(),
+    nonce: text().notNull(),
+    amountCents: integer("amount_cents").notNull(),
+    currency: text().notNull(),
+    breakdown: jsonb().notNull(),
+    status: text().notNull().default("redirected"),
+    action: text(),
+    rc: text(),
+    statusMsg: text("status_msg"),
+    approval: text(),
+    rrn: text(),
+    intRef: text("int_ref"),
+    tranDate: text("tran_date"),
+    cardBrand: text("card_brand"),
+    resultSource: text("result_source"), // backref | status
+    duplicate: boolean().notNull().default(false),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    resolvedAt: timestamp("resolved_at"),
+    lastCheckAt: timestamp("last_check_at"),
+    checks: integer().notNull().default(0),
+  },
+  (t) => [
+    uniqueIndex("card_payments_order_idx").on(t.terminal, t.orderNo),
+    index("card_payments_booking_idx").on(t.bookingId),
+    index("card_payments_open_idx").on(t.status, t.createdAt),
+    check("card_payments_amount_check", sql`${t.amountCents} > 0`),
+  ],
 );
