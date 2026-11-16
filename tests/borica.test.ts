@@ -80,7 +80,6 @@ test("резултат: само ACTION 0 + RC 00 е плащане; полож�
   assert.equal(outcomeOf({ ACTION: "0", RC: "00" }), "paid");
   assert.equal(outcomeOf({ ACTION: "2", RC: "05" }), "declined");
   assert.equal(outcomeOf({ ACTION: "2", RC: "1A" }), "declined");
-  assert.equal(outcomeOf({ ACTION: "3", RC: "-19" }), "pending");
   assert.equal(outcomeOf({ ACTION: "1", RC: "00" }), "pending", "дублирана трансакция не е ново плащане");
   assert.equal(outcomeOf({ ACTION: "21", RC: "65" }), "pending", "Soft Decline – терминалът повтаря автоматично (т. 4.7), не е окончателно");
   assert.equal(outcomeOf({ ACTION: "3", RC: "05" }), "pending", "положителен RC без ACTION 2 не е доказан отказ");
@@ -90,6 +89,7 @@ test("резултат: само ACTION 0 + RC 00 е плащане; полож�
   assert.equal(outcomeOf({ ACTION: "2", RC: "-25" }), "pending", "-25 само с ACTION 3");
   assert.equal(outcomeOf({ ACTION: "2", RC: "-20" }), "expired", "ACTION 2 / RC -20 – окончателен само при проверка за статус след 16 мин.");
   assert.equal(outcomeOf({ ACTION: "3", RC: "-20" }), "pending", "-20 само с ACTION 2");
+  assert.equal(outcomeOf({ ACTION: "3", RC: "-19" }), "authfail", "ACTION 3 / RC -19 – окончателен само при проверка за статус след 16 мин.");
   assert.equal(outcomeOf({ ACTION: "2", RC: "-19" }), "pending", "правилото не важи за други отрицателни кодове");
   assert.equal(outcomeOf({ ACTION: "3", RC: "-24" }), "pending", "непозната трансакция не е доказан неуспех");
   assert.equal(outcomeOf({ RC: "00" }), "pending");

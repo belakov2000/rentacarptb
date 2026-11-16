@@ -5,7 +5,7 @@ import { generateKeyPairSync } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { adminJar, check, finish, freshDb, http, mail, O, schema, setContext } from "./harness.ts";
 import { loadPrivateKey, loadPublicKey, MAC_REQUEST, MAC_RESPONSE, macString, signMac, verifyMac } from "../../server/borica.ts";
-import { breakdown, cardAvailable, terminalConfig } from "../../server/card-pay.ts";
+import { applyResult, breakdown, cardAvailable, terminalConfig } from "../../server/card-pay.ts";
 import { breakdownRows } from "../../mail/card.ts";
 import { decide } from "../../server/booking-actions.ts";
 import { statusView } from "../../server/stage.ts";
@@ -301,7 +301,7 @@ const strict = async (reply: (q: URLSearchParams) => Record<string, string>, age
 };
 let s1 = await strict(() => ({ ACTION: "3", RC: "-40" }), 10);
 check("9b.1 RC -40 в рамките на GUARDTIME → остава отворен, без нов опит", s1.result === "pending" && s1.page.status === 409 && /Има започнато плащане/.test(s1.page.html) && !/възможен след \d/.test(s1.page.html));
-for (const [rc, act] of [["-19", "3"], ["-31", "3"], ["-33", "3"], ["-24", "3"], ["00", "1"], ["65", "21"], ["05", "3"], ["-20", "3"], ["-19", "2"], ["-24", "2"]]) {
+for (const [rc, act] of [["-31", "3"], ["-33", "3"], ["-24", "3"], ["00", "1"], ["65", "21"], ["05", "3"], ["-20", "3"], ["-19", "2"], ["-24", "2"]]) {
   const before = mail.sent.filter((m) => /Неизвестен резултат/.test(m.subject)).length;
   s1 = await strict(() => ({ ACTION: act, RC: rc }), 17);
   check(`9b.2 ACTION ${act} / RC ${rc} след 16 мин. → „неизвестен“: не е платено, нов опит НЕ е разрешен, собственикът е известен`,
@@ -471,6 +471,115 @@ check("9b.7 Повторно освобождаване на вече освоб
   await t.q("update card_payments set status = 'unknown', created_at = now() - interval '48 hours' where order_no = $1", [FX.ORDER]);
   const callsU = bank.calls;
   check("9d.16 „Неизвестен“ опит над 24 ч. → без заявка към банката, остава неизвестен, без нов опит", (await check1(X.id)) === "skip" && bank.calls === callsU && (await attempts(X.id))[0].status === "unknown" && (await page(X.id, xt[1])).status === 409);
+}
+
+// ===== 9e. ACTION 3 / RC -19 „Authentication failed“ от проверка за статус (тест на Пощенска банка: „Изход“ при динамичната парола) =====
+{
+  const mk = async () => {
+    const X = await booking();
+    const xt = tokenFrom((await adminCall("POST", { bookingId: X.id, action: "send_link" })).json.url)!;
+    const FX = fieldsIn((await page(X.id, xt[1], HOLDER)).html);
+    return { X, xt, FX };
+  };
+  const authfail = (o: Record<string, string> = {}, key?: string) => (q: URLSearchParams) =>
+    sign({ ACTION: "3", RC: "-19", STATUSMSG: "Authentication failed. Authentication declined", TERMINAL: "V6200750", TRTYPE: "90", TRAN_TRTYPE: "1", ORDER: q.get("ORDER")!, CURRENCY: "EUR", AMOUNT: "", TIMESTAMP: "20261116150400", NONCE: q.get("NONCE")!, ...o }, key);
+  const age = (order: string, sec: number) => t.q("update card_payments set created_at = now() - make_interval(secs => $2), last_check_at = null where order_no = $1", [order, sec]);
+  const check1 = async (id: string) => (await adminCall("POST", { bookingId: id, action: "check" })).json.results[0];
+  const ev = async (id: string, action: string) => (await t.q("select count(*)::int as n from booking_events where booking_id = $1 and action = $2", [id, action])).rows[0].n;
+  const unknownMails = () => mail.sent.filter((m) => /Неизвестен резултат/.test(m.subject)).length;
+  const blocked = async (X: any, xt: string[]) => (await page(X.id, xt[1])).status === 409 && (await page(X.id, xt[1], HOLDER)).status === 409 && (await attempts(X.id)).length === 1;
+
+  // BACKREF след „Изход“ – опитът остава отворен
+  let { X, xt, FX } = await mk();
+  const backrefRes = await backref(respFor(FX, { ACTION: "3", RC: "-19", APPROVAL: "", RRN: "", INT_REF: "", STATUSMSG: "Authentication failed. Authentication declined" }));
+  check("9e.1 BACKREF с ACTION 3 / RC -19 (подписан) → опитът остава отворен, нов опит НЕ е разрешен", backrefRes.status === 200 && (await attempts(X.id))[0].status === "redirected" && await blocked(X, xt));
+  // Времева граница (проверка за статус през функцията)
+  bank.reply = authfail();
+  await age(FX.ORDER, 5 * 60);
+  check("9e.2 Проверка за статус с RC -19 след 5 мин. → отворен", (await check1(X.id)) === "pending" && await blocked(X, xt));
+  await age(FX.ORDER, 16 * 60 - 5);
+  check("9e.3 15 мин. 55 сек. → отворен", (await check1(X.id)) === "pending" && (await attempts(X.id))[0].status === "redirected");
+  // Точно на границата: applyResult с момент = начало + 16 мин. (без допълнителни милисекунди)
+  const a0 = (await attempts(X.id))[0];
+  const fx = authfail()(new URLSearchParams({ ORDER: FX.ORDER, NONCE: FX.NONCE }));
+  const atEdge = await applyResult(a0.id, fx, "status", new Date(a0.createdAt.getTime() + 16 * 60_000));
+  check("9e.4 Точно 16 мин. 00,000 сек. → не е окончателно (опитът остава отворен)", atEdge.state === "pending" && (await attempts(X.id))[0].status === "redirected" && await blocked(X, xt));
+  const um0 = unknownMails();
+  const afterEdge = await applyResult(a0.id, fx, "status", new Date(a0.createdAt.getTime() + 16 * 60_000 + 1));
+  check("9e.5 16 мин. + 1 мс → неуспешен", afterEdge.state === "failed" && (await attempts(X.id))[0].status === "failed");
+  check("9e.6 Без запис на плащане, без „платено“, без писмо за неизвестен резултат, едно събитие card.failed", (await pays(X.id)).length === 0 && !(await row(X.id)).cardPaidAt && unknownMails() === um0 && (await ev(X.id, "card.failed")) === 1);
+  // Повторна и едновременна обработка
+  const again = await applyResult(a0.id, fx, "status", new Date(a0.createdAt.getTime() + 20 * 60_000));
+  const calls0 = bank.calls;
+  await Promise.all(Array.from({ length: 4 }, () => adminCall("POST", { bookingId: X.id, action: "check" })));
+  await Promise.all(Array.from({ length: 3 }, () => applyResult(a0.id, fx, "status", new Date(a0.createdAt.getTime() + 21 * 60_000))));
+  check("9e.7 Повторна и едновременна обработка: остава неуспешен, едно събитие, без нова заявка към банката", again.state === "failed" && (await attempts(X.id))[0].status === "failed" && (await ev(X.id, "card.failed")) === 1 && bank.calls === calls0);
+  // Нов опит и плащане
+  const px = await page(X.id, xt[1]);
+  check("9e.8 Клиентът вижда формуляра – нов опит е разрешен", px.status === 200 && /<form method="post"/.test(px.html));
+  const FX2 = fieldsIn((await page(X.id, xt[1], HOLDER)).html);
+  check("9e.9 Новият опит: нов ORDER и NONCE, същата сума от сървъра", !!FX2.ORDER && FX2.ORDER !== FX.ORDER && FX2.NONCE !== FX.NONCE && FX2.AMOUNT === FX.AMOUNT && (await attempts(X.id)).length === 2);
+  await backref(respFor(FX2));
+  await backref(respFor(FX2));
+  check("9e.10 Новият опит е платен; един платежен запис; неуспешният остава неуспешен", !!(await row(X.id)).cardPaidAt && (await pays(X.id)).length === 1 && (await attempts(X.id)).find((x: any) => x.orderNo === FX.ORDER)!.status === "failed");
+  // Пълен път през функцията след 16 мин.
+  ({ X, xt, FX } = await mk());
+  bank.reply = authfail();
+  await age(FX.ORDER, 16 * 60 + 5);
+  check("9e.11 Проверка за статус през функцията след 16 мин. 5 сек. → неуспешен, нов опит разрешен", (await check1(X.id)) === "failed" && (await page(X.id, xt[1])).status === 200);
+
+  // Невалиден подпис и несъответстващи данни
+  const bad: [string, (q: URLSearchParams) => Record<string, string>][] = [
+    ["чужд подпис", authfail({}, attacker.privateKey)],
+    ["друг NONCE", authfail({ NONCE: "0".repeat(32) })],
+    ["друг терминал", authfail({ TERMINAL: "V0000001" })],
+    ["друга поръчка", authfail({ ORDER: "000000" })],
+    ["TRTYPE 1 вместо 90", authfail({ TRTYPE: "1" })],
+    ["различен TRAN_TRTYPE (12)", authfail({ TRAN_TRTYPE: "12" })],
+    ["различен TRAN_TRTYPE (24)", authfail({ TRAN_TRTYPE: "24" })],
+  ];
+  for (const [name, reply] of bad) {
+    ({ X, xt, FX } = await mk());
+    bank.reply = reply;
+    await age(FX.ORDER, 17 * 60);
+    const r = await check1(X.id);
+    check(`9e.12 ${name} → невалиден отговор, опитът остава отворен, без нов опит`, r === "invalid" && (await attempts(X.id))[0].status === "redirected" && await blocked(X, xt), r);
+  }
+  ({ X, xt, FX } = await mk());
+  bank.reply = (q) => ({ ...sign({ ACTION: "3", RC: "-40", TERMINAL: "V6200750", TRTYPE: "90", TRAN_TRTYPE: "1", ORDER: q.get("ORDER")!, CURRENCY: "USD", TIMESTAMP: "20261116150400", NONCE: q.get("NONCE")! }), RC: "-19" });
+  await age(FX.ORDER, 17 * 60);
+  check("9e.13 RC, подменен след подписа (-40 → -19) → невалиден, опитът остава отворен", (await check1(X.id)) === "invalid" && (await attempts(X.id))[0].status === "redirected");
+  ({ X, xt, FX } = await mk());
+  bank.reply = (q) => { const f: any = authfail()(q); delete f.TRAN_TRTYPE; delete f.P_SIGN; return sign(f); };
+  await age(FX.ORDER, 17 * 60);
+  check("9e.14 Липсващ TRAN_TRTYPE → „неизвестен“, без нов опит", (await check1(X.id)) === "unknown" && await blocked(X, xt));
+  for (const [act, rc] of [["2", "-19"], ["3", "-20"], ["3", "-24"]]) {
+    ({ X, xt, FX } = await mk());
+    bank.reply = authfail({ ACTION: act, RC: rc });
+    await age(FX.ORDER, 17 * 60);
+    check(`9e.15 ACTION ${act} / RC ${rc} след 16 мин. → „неизвестен“ (правилото не се разширява)`, (await check1(X.id)) === "unknown" && await blocked(X, xt));
+  }
+  // BACKREF след 16 мин. – правилото не важи
+  ({ X, xt, FX } = await mk());
+  await age(FX.ORDER, 17 * 60);
+  await backref(respFor(FX, { ACTION: "3", RC: "-19", APPROVAL: "", RRN: "", INT_REF: "" }));
+  check("9e.16 BACKREF с ACTION 3 / RC -19 след 16 мин. не приключва опита", (await attempts(X.id))[0].status === "redirected" && await blocked(X, xt));
+  // unknown → неуспешен (като ORDER 782294, ако е в 24-часовия прозорец)
+  ({ X, xt, FX } = await mk());
+  bank.reply = authfail();
+  await t.q("update card_payments set status = 'unknown', action = '3', rc = '-19', created_at = now() - interval '17 minutes' where order_no = $1", [FX.ORDER]);
+  check("9e.17 „Неизвестен“ опит (стара версия) + валидна проверка до 24 ч. → неуспешен, нов опит разрешен", (await check1(X.id)) === "failed" && (await page(X.id, xt[1])).status === 200 && (await ev(X.id, "card.failed")) === 1);
+  const FX3 = fieldsIn((await page(X.id, xt[1], HOLDER)).html);
+  await backref(respFor(FX3));
+  check("9e.18 След това новият опит е платен с един платежен запис", !!(await row(X.id)).cardPaidAt && (await pays(X.id)).length === 1);
+  ({ X, xt, FX } = await mk());
+  bank.reply = authfail({}, attacker.privateKey);
+  await t.q("update card_payments set status = 'unknown', created_at = now() - interval '2 hours' where order_no = $1", [FX.ORDER]);
+  check("9e.19 „Неизвестен“ + невалиден подпис при повторната проверка → остава „неизвестен“", (await check1(X.id)) === "invalid" && (await attempts(X.id))[0].status === "unknown" && await blocked(X, xt));
+  ({ X, xt, FX } = await mk());
+  await t.q("update card_payments set status = 'unknown', created_at = now() - interval '25 hours' where order_no = $1", [FX.ORDER]);
+  const callsU = bank.calls;
+  check("9e.20 „Неизвестен“ над 24 ч. → без заявка към банката, остава неизвестен", (await check1(X.id)) === "skip" && bank.calls === callsU && await blocked(X, xt));
 }
 
 // Подправен отговор на проверката за статус

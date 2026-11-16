@@ -265,7 +265,10 @@ export const verifyResponse = (f: Partial<Fields>, borica: KeyObject) => verifyM
 //              TRAN_TRTYPE 1), получен повече от 16 мин. след началото – по потвърждение на Пощенска банка / вендора на БОРИКА
 //              от 16.11.2026 за ORDER 097133. RC -20 е в табл. 23 (стр. 49); т. 9.5.2 (стр. 56–57) описва „Expired transaction“.
 //              Не важи за BACKREF и за други отрицателни кодове.
-export type Outcome = "paid" | "declined" | "timeout" | "cancelled" | "expired" | "pending";
+//   authfail  – ACTION 3 и RC -19 (неуспешна автентикация, стр. 18, табл. 4; т. 9.5.2, стр. 56–57 – вкл. отказ от картодържателя
+//              на страницата за автентикация). Окончателен неуспех САМО в отговор на проверка за статус (TRTYPE 90, TRAN_TRTYPE 1),
+//              получен повече от 16 мин. след началото (т. 9.5.1, стр. 56). Не важи за BACKREF и за други отрицателни кодове.
+export type Outcome = "paid" | "declined" | "timeout" | "cancelled" | "expired" | "authfail" | "pending";
 export function outcomeOf(f: Partial<Fields>): Outcome {
   const action = String(f.ACTION ?? ""), rc = String(f.RC ?? "");
   if (action === "0" && rc === "00") return "paid";
@@ -273,6 +276,7 @@ export function outcomeOf(f: Partial<Fields>): Outcome {
   if (action === "3" && rc === "-40") return "timeout";
   if (action === "3" && rc === "-25") return "cancelled";
   if (action === "2" && rc === "-20") return "expired";
+  if (action === "3" && rc === "-19") return "authfail";
   return "pending";
 }
 
