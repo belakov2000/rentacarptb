@@ -182,16 +182,18 @@ export function paidMail(b: Booking, a: Attempt, paidAt: Date) {
 }
 
 // Известие до собственика (на български)
-export function ownerPaidMail(b: Booking, a: Attempt, paidAt: Date, origin: string) {
-  const dup = a.duplicate;
+// otherReceivedCents – получени преди това картово плащане суми по наема (null – няма): тогава писмото предупреждава за надплащане
+export function ownerPaidMail(b: Booking, a: Attempt, paidAt: Date, origin: string, otherReceivedCents: number | null = null) {
+  const dup = a.duplicate, over = otherReceivedCents != null;
   const html = wrapMail(
     `<p style="font-size:17px"><b>${dup ? "ВНИМАНИЕ: второ успешно плащане с карта за резервация, която вече е платена." : "Получено плащане с карта онлайн (БОРИКА) – проверен подпис на банката."}</b></p>` +
+      (over ? `<p style="background:#fde2e0;color:#9b1c13;padding:12px;border-radius:12px"><b>ВНИМАНИЕ – възможно надплащане.</b> Преди това картово плащане по резервацията вече има получени плащания по наема${otherReceivedCents ? ` за ${esc(money(otherReceivedCents))}` : " (в друга валута)"}. Банковото плащане е записано, защото сумата е получена. Проверете „Плащания“ на резервацията и при нужда уговорете с клиента възстановяване на разликата.</p>` : "") +
       (dup ? `<p>Клиентът е платил повторно. Проверете в Merchant Portal и при нужда направете отмяна или възстановяване на второто плащане чрез банката.</p>` : "") +
       kvTable([["Клиент", b.name], ["Имейл", b.email], ["Телефон", b.phone], ["Среда", a.mode === "live" ? "реална (продукционен терминал)" : "ТЕСТОВА (тестов терминал – не е реално плащане)"], ["Терминал", a.terminal], ["INT_REF", a.intRef || ""], ["Карта", a.cardBrand || ""]]) +
       paidBody(b, a, "bg", paidAt) + `<p>${btn(`${origin}/admin/bookings/${b.id}`, "Отвори в админ панела", "#0f1b2d")}</p>` +
       `<p style="color:#5b6577;font-size:13px">Плащането е записано в „Плащания“ на резервацията. Писмото до клиента е потвърждение за плащане – не е фактура или касов бон.</p>`,
   );
-  return { subject: `${dup ? "[ДВОЙНО ПЛАЩАНЕ] " : ""}${a.mode === "live" ? "" : "[ТЕСТ] "}Платено с карта: ${money(a.amountCents, a.currency)} – ${b.car} – ${b.name} (№ ${refOf(b.id)})`, html };
+  return { subject: `${dup ? "[ДВОЙНО ПЛАЩАНЕ] " : ""}${over ? "[НАДПЛАЩАНЕ] " : ""}${a.mode === "live" ? "" : "[ТЕСТ] "}Платено с карта: ${money(a.amountCents, a.currency)} – ${b.car} – ${b.name} (№ ${refOf(b.id)})`, html };
 }
 
 // Известие до собственика: резултатът от плащането не може да бъде установен автоматично

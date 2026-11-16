@@ -3,8 +3,9 @@ import { eq } from "drizzle-orm";
 import { db } from "../../db/index.js";
 import { bookings, cardPayments } from "../../db/schema.js";
 import { audit, json, requireAdmin } from "../../server/auth.js";
-import { blockOf, breakdown, cardState, checkStatus, configDiagnostics, envNames, issueLink, payMode, releaseUnknown, sendLink, terminalConfig } from "../../server/card-pay.js";
+import { blockFor, breakdown, cardState, paymentsOf, prepaidCents, checkStatus, configDiagnostics, envNames, issueLink, payMode, releaseUnknown, sendLink, terminalConfig } from "../../server/card-pay.js";
 import { envKind } from "../../server/stores.js";
+import { finance } from "../../server/payments.js";
 
 // Плащане с карта (БОРИКА) по резервация – само за администратор (Netlify Identity, роля admin; промените – само от същия сайт).
 // GET  /api/admin/card-payments?booking=:id – настройка на средата (без стойностите), сума, връзки и опити
@@ -30,10 +31,13 @@ export default async (req: Request, _context: Context) => {
 
   // Диагностика на ключовете само при недостъпна конфигурация – без стойности на ключове, пароли или променливи
   if (!cfg.ok && mode && (cfg.reason === "key" || cfg.reason === "missing" || cfg.reason === "currency")) Object.assign(config, { diagnostics: configDiagnostics() });
-  if (req.method === "GET") return json({ config, block: blockOf(b), breakdown: breakdown(b), paidAt: b.cardPaidAt, ...(await cardState(id)) });
+  // Надплащане по наема спрямо договорената сума (напр. картово плащане при вече получен аванс) – само показване
+  const fin = finance(b, await paymentsOf(b.id));
+  const money = { receivedCents: prepaidCents(await paymentsOf(b.id)), overpaidCents: fin.balanceState === "overpaid" ? -(fin.balanceCents ?? 0) : 0 };
+  if (req.method === "GET") return json({ config, money, block: (await blockFor(b)), breakdown: breakdown(b), paidAt: b.cardPaidAt, ...(await cardState(id)) });
 
   if (body?.action === "send_link") {
-    const block = blockOf(b);
+    const block = (await blockFor(b));
     if (block) return json({ error: "block", block }, 409);
     const { link, url: payUrl } = await issueLink(b, admin.email);
     const r = await sendLink(b, link).catch(() => ({ result: "failed" as const }));

@@ -18,7 +18,8 @@
 import { createHash, randomBytes } from "node:crypto";
 import { and, desc, eq, inArray, isNull, lt, or, sql } from "drizzle-orm";
 import { db } from "../db/index.js";
-import { bookingEvents, bookings, cardPaymentLinks, cardPayments, payments } from "../db/schema.js";
+import { bookingEvents, bookings, cardPaymentLinks, cardPayments, emailLog, payments } from "../db/schema.js";
+import { REVENUE_KINDS, summarize, type Pay } from "./payments.js";
 import { linkMail, ownerPaidMail, ownerUnknownMail, paidMail, type Breakdown } from "../mail/card.js";
 import { OWNER_EMAIL } from "../mail/index.js";
 import {
@@ -118,16 +119,34 @@ export function breakdown(b: Booking): Breakdown | null {
   };
 }
 
-// Защо резервацията не може да бъде платена с карта ("" – може)
-export type Block = "method" | "state" | "handed_over" | "paid" | "pickup" | "price";
-export function blockOf(b: Booking, now = new Date()): Block | "" {
+// Вече получени плащания по наема / услугите (нетно след възстановяванията, server/payments.ts → summarize). Гаранционният
+// депозит не се брои. Получено плащане в друга валута също блокира – не може да бъде сравнено автоматично.
+// В тази версия картовото плащане е само за цялата сума: при получен аванс или частично плащане не се предлага остатък.
+const isReceived = (p: Pay) => (p.status === "received" || p.status === "refunded") && !!p.paidAt;
+export function prepaidCents(list: Pay[]) {
+  return summarize(list).rentalNet;
+}
+export function prepaidOf(list: Pay[]) {
+  return prepaidCents(list) > 0 || list.some((p) => p.currency !== "EUR" && isReceived(p) && (REVENUE_KINDS.includes(p.kind) || p.kind === "refund"));
+}
+// Защо резервацията не може да бъде платена с карта ("" – може). list – платежните записи по резервацията; без него
+// (само за показване) проверката за получени плащания не се прави – сървърните действия ползват blockFor().
+export type Block = "method" | "state" | "handed_over" | "paid" | "prepaid" | "pickup" | "price";
+export function blockOf(b: Booking, now = new Date(), list?: Pay[]): Block | "" {
   if (b.payment !== "card") return "method";
   if (b.cardPaidAt) return "paid";
+  if (list && prepaidOf(list)) return "prepaid";
   if (b.status !== "confirmed" || (b.stage && b.stage !== "done")) return "state";
   if (b.handedOverAt) return "handed_over";
   if (pickupPassed(b, now)) return "pickup";
   if (!breakdown(b)) return "price";
   return "";
+}
+
+type Q = Pick<typeof db, "select">;
+export const paymentsOf = (bookingId: string, q: Q = db) => q.select().from(payments).where(eq(payments.bookingId, bookingId));
+export async function blockFor(b: Booking, q: Q = db, now = new Date()) {
+  return blockOf(b, now, await paymentsOf(b.id, q));
 }
 
 // ===== Защитена връзка за плащане =====
@@ -157,7 +176,7 @@ export async function issueLink(b: Booking, actor: string, now = new Date()) {
 export async function sendLink(b: Booking, link: Link) {
   const o = (await outbox().get(linkOutboxKey(link.id), { type: "json" }).catch(() => null)) as { token: string } | null;
   const bd = breakdown(b);
-  if (!o || !bd || link.revokedAt || blockOf(b)) return null;
+  if (!o || !bd || link.revokedAt || (await blockFor(b))) return null;
   const m = linkMail(b, payUrl(b.id, o.token), bd, link.expiresAt);
   const r = await sendLogged("customer-card-link", linkKey(link.id), b.id, { to: b.email, toName: b.name, subject: m.subject, html: m.html, replyTo: OWNER_EMAIL, lang: b.lang, preheader: m.preheader });
   if (r.result === "sent" || r.result === "duplicate") {
@@ -169,7 +188,7 @@ export async function sendLink(b: Booking, link: Link) {
 
 // След окончателното потвърждение на резервация с плащане с карта (от server/booking-actions.ts → decide)
 export async function afterConfirm(b: Booking, actor: string) {
-  if (b.payment !== "card" || blockOf(b)) return null;
+  if (b.payment !== "card" || (await blockFor(b))) return null;
   const { link } = await issueLink(b, actor);
   return sendLink(b, link);
 }
@@ -204,8 +223,10 @@ export async function startPayment(b0: Booking, linkId: string, holder: { name: 
   const t = cfg.t;
   await refreshOpen(b0.id, now); // окончателните резултати от предишни опити (не започваме второ плащане, ако първото е успешно)
   const r = await db.transaction(async (tx): Promise<StartResult> => {
+    // Заключване на резервацията – същото като при записване на плащане от админ панела (admin-payments): получено плащане,
+    // добавено едновременно, или се вижда тук, или се записва след създаването на опита (тогава applyResult предупреждава)
     const [b] = await tx.select().from(bookings).where(eq(bookings.id, b0.id)).for("update");
-    const block = blockOf(b, now);
+    const block = blockOf(b, now, await paymentsOf(b.id, tx));
     if (block) return { ok: false, error: block };
     const prev = await tx.select().from(cardPayments).where(and(eq(cardPayments.bookingId, b.id), inArray(cardPayments.status, [...OPEN, "unknown"])));
     if (prev.some((p) => p.status === "unknown")) return { ok: false, error: "review" };
@@ -273,6 +294,11 @@ export async function applyResult(attemptId: string, f: Fields, source: "backref
       }
       const [b] = await tx.select().from(bookings).where(eq(bookings.id, a.bookingId)).for("update");
       const duplicate = !!b.cardPaidAt && b.cardPaymentId !== a.id;
+      // Други получени плащания по наема (напр. въведени след започването на опита): банковото плащане СЕ записва (парите са
+      // получени), но надплащането се отбелязва и собственикът се предупреждава. Нищо не се прикрива и не се връща автоматично.
+      const before = (await tx.select().from(payments).where(eq(payments.bookingId, b.id))).filter((p) => p.idempotencyKey !== `borica:${a.id}`);
+      const otherCents = prepaidCents(before);
+      const overpaid = !duplicate && (otherCents > 0 || prepaidOf(before));
       const [u] = await tx
         .update(cardPayments)
         .set({ ...base, status: "paid", approval: f.APPROVAL || null, rrn: f.RRN || null, intRef: f.INT_REF || null, tranDate: f.TRAN_DATE || null, cardBrand: f.CARD_BRAND || null, resultSource: source, duplicate, resolvedAt: now })
@@ -281,7 +307,7 @@ export async function applyResult(attemptId: string, f: Fields, source: "backref
       // Плащането влиза в „Плащания“ на резервацията (получено, с карта) – веднъж за опит
       await tx.insert(payments).values({
         id: rnd(), bookingId: b.id, amountCents: a.amountCents, currency: a.currency, method: "card", kind: "final", status: "received", paidAt: now, txnId: (f.RRN || f.INT_REF || "").slice(0, 40),
-        note: `${a.mode === "live" ? "" : "ТЕСТ – "}Плащане с карта онлайн (БОРИКА), ORDER ${a.orderNo}, INT_REF ${f.INT_REF || "-"}, код ${f.APPROVAL || "-"}${duplicate ? " – ВТОРО ПЛАЩАНЕ ЗА ВЕЧЕ ПЛАТЕНА РЕЗЕРВАЦИЯ" : ""}`,
+        note: `${a.mode === "live" ? "" : "ТЕСТ – "}Плащане с карта онлайн (БОРИКА), ORDER ${a.orderNo}, INT_REF ${f.INT_REF || "-"}, код ${f.APPROVAL || "-"}${duplicate ? " – ВТОРО ПЛАЩАНЕ ЗА ВЕЧЕ ПЛАТЕНА РЕЗЕРВАЦИЯ" : ""}${overpaid ? ` – ПРИ ВЕЧЕ ПОЛУЧЕНИ ${fmtCents(otherCents)} ПО НАЕМА (НАДПЛАЩАНЕ – ПРОВЕРЕТЕ)` : ""}`,
         idempotencyKey: `borica:${a.id}`, createdBy: "borica",
       }).onConflictDoNothing();
       let booking = b;
@@ -302,6 +328,7 @@ export async function applyResult(attemptId: string, f: Fields, source: "backref
       }
       await queueEmail(tx, "owner-card-paid", ownerPaidKey(a.id), b.id, OWNER_EMAIL);
       await tx.insert(bookingEvents).values({ bookingId: b.id, actor: "borica", action: "card.paid", details: { mode: a.mode, order: a.orderNo, amountCents: a.amountCents, source, duplicate } });
+      if (overpaid) await tx.insert(bookingEvents).values({ bookingId: b.id, actor: "system", action: "card.overpaid", details: { order: a.orderNo, cardCents: a.amountCents, otherReceivedCents: otherCents } });
       return { state: "paid", attempt: u, duplicate, booking };
     }
     if (outcome === "declined") {
@@ -341,7 +368,11 @@ export async function applyResult(attemptId: string, f: Fields, source: "backref
     // не казва, че означава неуспешно плащане. Затова: без нов опит и без отбелязване като платено – ръчна проверка в Merchant Portal.
     if (source === "status" && age > FINAL_AFTER_MS) {
       const [u] = await tx.update(cardPayments).set({ ...base, status: "unknown", resultSource: source, resolvedAt: now }).where(eq(cardPayments.id, a.id)).returning();
-      if (a.status !== "unknown") await tx.insert(bookingEvents).values({ bookingId: a.bookingId, actor: "system", action: "card.unknown", details: { order: a.orderNo, action: f.ACTION ?? null, rc: f.RC ?? null, source } });
+      if (a.status !== "unknown") {
+        await tx.insert(bookingEvents).values({ bookingId: a.bookingId, actor: "system", action: "card.unknown", details: { order: a.orderNo, action: f.ACTION ?? null, rc: f.RC ?? null, source } });
+        // Известието до собственика се записва в опашката заедно с промяната – при прекъсване го изпраща email-retry
+        await queueEmail(tx, "owner-card-unknown", ownerUnknownKey(a.id), a.bookingId, OWNER_EMAIL);
+      }
       return { state: "unknown", attempt: u, notifyUnknown: a.status !== "unknown" };
     }
     // В рамките на GUARDTIME отрицателните кодове могат да се променят (стр. 56) – опитът остава отворен
@@ -349,7 +380,7 @@ export async function applyResult(attemptId: string, f: Fields, source: "backref
     return { state: "pending", attempt: u };
   });
   if (res.state === "paid" && !res.already) await sendPaidMails(res.attempt.bookingId, res.attempt).catch((e) => console.error("Card payment emails failed, they will be retried", (e as Error)?.message));
-  if (res.notifyUnknown) await notifyUnknown(res.attempt, "final_code").catch(() => null);
+  if (res.notifyUnknown) await notifyUnknown(res.attempt.id).catch(() => null);
   return { state: res.state, attempt: res.attempt, already: res.already, duplicate: res.duplicate };
 }
 
@@ -361,15 +392,35 @@ async function sendPaidMails(bookingId: string, a: Attempt) {
     const m = paidMail(b, a, at);
     await sendLogged("customer-card-paid", paidKey(b.id), b.id, { to: b.email, toName: b.name, subject: m.subject, html: m.html, replyTo: OWNER_EMAIL, lang: b.lang, preheader: m.preheader });
   }
-  const o = ownerPaidMail(b, a, at, siteOrigin());
-  await sendLogged("owner-card-paid", ownerPaidKey(a.id), b.id, { to: OWNER_EMAIL, toName: "Rent a Car PTB", subject: o.subject, html: o.html, replyTo: b.email }, { retryUncertain: true });
+  await sendOwnerPaid(b, a);
+}
+// Получените преди това картово плащане суми по наема (без него) – за предупреждението за надплащане в писмото до собственика
+// null – няма други получени суми; иначе нетно получените в EUR (0, ако другите плащания са само в друга валута)
+async function otherReceived(b: Booking, a: Attempt): Promise<number | null> {
+  if (a.duplicate) return null;
+  const list = (await paymentsOf(b.id)).filter((p) => p.idempotencyKey !== `borica:${a.id}`);
+  return prepaidOf(list) ? Math.max(prepaidCents(list), 0) : null;
+}
+async function sendOwnerPaid(b: Booking, a: Attempt, key = ownerPaidKey(a.id)) {
+  const o = ownerPaidMail(b, a, a.resolvedAt || new Date(), siteOrigin(), await otherReceived(b, a));
+  return sendLogged("owner-card-paid", key, b.id, { to: OWNER_EMAIL, toName: "Rent a Car PTB", subject: o.subject, html: o.html, replyTo: b.email }, { retryUncertain: true });
 }
 
-async function notifyUnknown(a: Attempt, why: "final_code" | "no_result_24h") {
-  const [b] = await db.select().from(bookings).where(eq(bookings.id, a.bookingId));
-  if (!b) return;
-  const m = ownerUnknownMail(b, a, siteOrigin(), why);
-  await sendLogged("owner-card-unknown", ownerUnknownKey(a.id), b.id, { to: OWNER_EMAIL, toName: "Rent a Car PTB", subject: m.subject, html: m.html }, { retryUncertain: true });
+// Известие „неизвестен резултат“. Изпраща се само докато опитът е още „неизвестен“ – ако междувременно е разрешен (платен,
+// неуспешен, прекратен, освободен ръчно), записът в опашката се отбелязва като пропуснат (skipped), без остаряло предупреждение.
+// Причината се взема от записа на опита: resultSource "no_result_24h" – без отговор 24 ч.; иначе – окончателен код от проверката.
+async function notifyUnknown(attemptId: string) {
+  const [a] = await db.select().from(cardPayments).where(eq(cardPayments.id, attemptId));
+  if (!a) return null;
+  const key = ownerUnknownKey(a.id);
+  const [b] = a.status === "unknown" ? await db.select().from(bookings).where(eq(bookings.id, a.bookingId)) : [];
+  if (!b) {
+    await db.update(emailLog).set({ status: "skipped", error: "attempt resolved", updatedAt: new Date(), nextAttemptAt: null })
+      .where(and(eq(emailLog.dedupeKey, key), inArray(emailLog.status, ["queued", "failed", "unknown"])));
+    return { result: "skipped" as const };
+  }
+  const m = ownerUnknownMail(b, a, siteOrigin(), a.resultSource === "no_result_24h" ? "no_result_24h" : "final_code");
+  return sendLogged("owner-card-unknown", key, b.id, { to: OWNER_EMAIL, toName: "Rent a Car PTB", subject: m.subject, html: m.html }, { retryUncertain: true });
 }
 
 // Ръчно освобождаване на опит с неизвестен резултат – само от администратор, след проверка в Merchant Portal, че трансакцията
@@ -392,11 +443,15 @@ export async function checkStatus(a: Attempt, now = new Date(), o: { recheckUnkn
   if (!cfg.ok || cfg.t.mode !== a.mode || cfg.t.terminal !== a.terminal) return "config";
   // APGW пази данни само 24 ч.: след това резултатът не може да бъде установен автоматично
   if (now.getTime() - a.createdAt.getTime() > STATUS_WINDOW_MS) {
-    const [u] = await db.update(cardPayments).set({ status: "unknown", resolvedAt: now }).where(and(eq(cardPayments.id, a.id), inArray(cardPayments.status, OPEN))).returning();
-    if (u) {
-      await db.insert(bookingEvents).values({ bookingId: a.bookingId, actor: "system", action: "card.unknown", details: { order: a.orderNo, reason: "no_result_24h" } });
-      await notifyUnknown(u, "no_result_24h").catch(() => null);
-    }
+    const u = await db.transaction(async (tx) => {
+      const [x] = await tx.update(cardPayments).set({ status: "unknown", resultSource: "no_result_24h", resolvedAt: now }).where(and(eq(cardPayments.id, a.id), inArray(cardPayments.status, OPEN))).returning();
+      if (x) {
+        await tx.insert(bookingEvents).values({ bookingId: a.bookingId, actor: "system", action: "card.unknown", details: { order: a.orderNo, reason: "no_result_24h" } });
+        await queueEmail(tx, "owner-card-unknown", ownerUnknownKey(a.id), a.bookingId, OWNER_EMAIL);
+      }
+      return x;
+    });
+    if (u) await notifyUnknown(u.id).catch(() => null);
     return "unknown";
   }
   const req = statusRequest(cfg.t, a.orderNo);
@@ -458,10 +513,10 @@ export async function retryCard(kind: string, bookingId: string, dedupeKey: stri
       const m = paidMail(b, a, a.resolvedAt || new Date());
       return sendLogged(kind, dedupeKey, b.id, { to: b.email, toName: b.name, subject: m.subject, html: m.html, replyTo: OWNER_EMAIL, lang: b.lang, preheader: m.preheader });
     }
-    const o = ownerPaidMail(b, a, a.resolvedAt || new Date(), siteOrigin());
-    return sendLogged(kind, dedupeKey, b.id, { to: OWNER_EMAIL, toName: "Rent a Car PTB", subject: o.subject, html: o.html, replyTo: b.email }, { retryUncertain: true });
+    return sendOwnerPaid(b, a, dedupeKey);
   }
+  if (kind === "owner-card-unknown") return notifyUnknown(dedupeKey.split(":")[1] || "");
   return null;
 }
-export const CARD_RETRY_KINDS = ["customer-card-link", "customer-card-paid", "owner-card-paid"];
+export const CARD_RETRY_KINDS = ["customer-card-link", "customer-card-paid", "owner-card-paid", "owner-card-unknown"];
 export { amountOf };

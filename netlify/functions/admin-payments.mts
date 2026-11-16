@@ -58,6 +58,11 @@ export default async (req: Request, context: Context) => {
     const paidAt = status === "received" ? paidAtOf(body.paidAt) : null;
     if (status === "received" && !paidAt) return json({ error: "paid_at" }, 400);
     const r = await db.transaction(async (tx) => {
+      // Същият ред на заключване като при ново плащане и при започване на плащане с карта (server/card-pay.ts → startPayment):
+      // първо резервацията, после плащането
+      const [ref] = await tx.select({ bookingId: payments.bookingId }).from(payments).where(eq(payments.id, id));
+      if (!ref) return { error: "not_found" as const };
+      await tx.select({ id: bookings.id }).from(bookings).where(eq(bookings.id, ref.bookingId)).for("update");
       const [p] = await tx.select().from(payments).where(eq(payments.id, id)).for("update");
       if (!p) return { error: "not_found" as const };
       if (p.status !== "expected") return { error: "not_expected" as const, bookingId: p.bookingId };

@@ -13,6 +13,7 @@ import payFn from "../../netlify/functions/pay.mts";
 import backrefFn from "../../netlify/functions/borica-backref.mts";
 import cardStatusFn from "../../netlify/functions/card-status.mts";
 import adminCardFn from "../../netlify/functions/admin-card-payments.mts";
+import adminPaymentsFn from "../../netlify/functions/admin-payments.mts";
 import availabilityFn from "../../netlify/functions/availability.mts";
 import bookingsFn from "../../netlify/functions/bookings.mts";
 import retryFn from "../../netlify/functions/email-retry.mts";
@@ -689,6 +690,174 @@ const gp = await pays(G.id), ga = await attempts(G.id);
 check("12.1 Второ одобрено плащане: записано (парите са получени), отбелязано като второ, клиентът получава едно потвърждение",
   gp.length === 2 && ga.filter((x: any) => x.duplicate).length === 1 && mailsTo(G.email, /Потвърждение за плащане/) === 1 && !!lastMail(/ДВОЙНО ПЛАЩАНЕ/));
 check("12.2 Договорената сума е намалена само веднъж", (await row(G.id)).totalCents === 8150);
+
+// ===== 13. Вече получени плащания по наема =====
+{
+  let pk = 0;
+  const pay = async (bookingId: string, kind: string, amount: string, o: Record<string, unknown> = {}) => {
+    setContext("deploy-preview", { cookies: jar, ip: "203.0.113.9" });
+    const r = await adminPaymentsFn(new Request(`${O}/api/admin/payments${o.id ? "/" + o.id : ""}`, { method: "POST", headers: { "Content-Type": "application/json", Origin: O },
+      body: JSON.stringify(o.id ? o.body : { bookingId, kind, method: "bank", amount, status: "received", idempotencyKey: `card-pre-${++pk}-key`, ...o }) }), { params: o.id ? { id: o.id } : {} } as any);
+    setContext("deploy-preview");
+    return { status: r.status, json: (await r.json().catch(() => ({}))) as any };
+  };
+  const withLink = async () => {
+    const X = await booking();
+    const r = await adminCall("POST", { bookingId: X.id, action: "send_link" });
+    return { X, xt: tokenFrom(r.json.url)! };
+  };
+  const ev = async (id: string, action: string) => (await t.q("select count(*)::int as n from booking_events where booking_id = $1 and action = $2", [id, action])).rows[0].n;
+  const cantStart = async (X: any, xt: string[]) => {
+    const g = await page(X.id, xt[1]), p2 = await page(X.id, xt[1], HOLDER);
+    return g.status === 409 && !/<form method="post"/.test(g.html) && p2.status === 409 && (await attempts(X.id)).length === 0;
+  };
+
+  // Аванс
+  let { X, xt } = await withLink();
+  check("13.1 Получен аванс (50 €) се записва", (await pay(X.id, "deposit", "50")).status === 201);
+  let ar2 = await adminCall("POST", { bookingId: X.id, action: "send_link" });
+  check("13.2 Аванс: администраторът не може да изпрати връзка (prepaid)", ar2.status === 409 && ar2.json.block === "prepaid");
+  check("13.3 Аванс: старата връзка не позволява картово плащане (GET и POST), без опит", await cantStart(X, xt));
+  check("13.4 Аванс: GET в админ показва блокирането и получената сума", (await adminCall("GET", undefined, `?booking=${X.id}`)).json.block === "prepaid" && (await adminCall("GET", undefined, `?booking=${X.id}`)).json.money.receivedCents === 5000);
+  // Частично възстановен аванс – още блокира; изцяло възстановен – не
+  const depId = (await pays(X.id))[0].id;
+  check("13.5 Частично възстановен аванс (20 от 50 €) → пак блокирано", (await pay(X.id, "refund", "20", { refundOf: depId })).status === 201 && await cantStart(X, xt));
+  check("13.6 Изцяло възстановен аванс (нетно 0) → картовото плащане е позволено", (await pay(X.id, "refund", "30", { refundOf: depId })).status === 201 && (await page(X.id, xt[1])).status === 200);
+  // Пълно плащане
+  ({ X, xt } = await withLink());
+  await pay(X.id, "final", "89");
+  check("13.7 Пълно плащане по банков път → без картово плащане", await cantStart(X, xt) && (await adminCall("POST", { bookingId: X.id, action: "send_link" })).json.block === "prepaid");
+  // Гаранционен депозит – не блокира
+  ({ X, xt } = await withLink());
+  await pay(X.id, "security", "100");
+  let px = await page(X.id, xt[1]);
+  const FS = fieldsIn((await page(X.id, xt[1], HOLDER)).html);
+  check("13.8 Само гаранционен депозит → картовото плащане е позволено", px.status === 200 && !!FS.ORDER);
+  await backref(respFor(FS));
+  check("13.9 Плащането с карта се записва; депозитът остава отделно; без предупреждение за надплащане",
+    !!(await row(X.id)).cardPaidAt && (await pays(X.id)).length === 2 && (await ev(X.id, "card.overpaid")) === 0 && !/НАДПЛАЩАНЕ/.test(lastMail(/Платено с карта/)!.subject));
+  // Очаквано (неполучено) плащане не блокира
+  ({ X, xt } = await withLink());
+  await pay(X.id, "deposit", "50", { status: "expected" });
+  check("13.10 Очаквано, неполучено плащане → не блокира", (await page(X.id, xt[1])).status === 200);
+  // Получено след започването на банковия опит → плащането се записва, надплащането се показва, собственикът е предупреден
+  ({ X, xt } = await withLink());
+  const FO = fieldsIn((await page(X.id, xt[1], HOLDER)).html);
+  check("13.11 Опитът е започнат", !!FO.ORDER);
+  await pay(X.id, "deposit", "50");
+  const brO = await backref(respFor(FO));
+  const po = await pays(X.id);
+  check("13.12 Валидно банково плащане след въведен аванс → записано (2 получени записа), резервацията е платена", /Плащането е успешно/.test(brO.html) && !!(await row(X.id)).cardPaidAt && po.filter((p: any) => p.status === "received").length === 2 && po.some((p: any) => p.method === "card" && p.amountCents === 8150 && /НАДПЛАЩАНЕ/.test(p.note)));
+  const om2 = lastMail(/Платено с карта/)!;
+  check("13.13 Собственикът е предупреден: [НАДПЛАЩАНЕ] и получената преди това сума 50 €", /\[НАДПЛАЩАНЕ\]/.test(om2.subject) && /възможно надплащане/.test(om2.html) && /50,00 €/.test(om2.html) && (await ev(X.id, "card.overpaid")) === 1);
+  const gO = (await adminCall("GET", undefined, `?booking=${X.id}`)).json;
+  check("13.14 Админ панелът показва надплащането (50 €) – нищо не е скрито", gO.money.overpaidCents === 5000 && gO.money.receivedCents === 13150);
+  check("13.15 Клиентът получава обичайното потвърждение за плащането", mailsTo((await row(X.id)).email, /Потвърждение за плащане/) === 1);
+  // Получаването на очаквано плащане (admin: expected → received) също се вижда при започването
+  ({ X, xt } = await withLink());
+  const exp = await pay(X.id, "deposit", "40", { status: "expected" });
+  const expId = exp.json.payments[0].id;
+  check("13.16 Очаквано плащане, отбелязано като получено → блокирано", (await pay(X.id, "", "", { id: expId, body: { status: "received", paidAt: new Date().toISOString() } })).status === 200 && await cantStart(X, xt));
+
+  // Едновременни операции: започване на картово плащане и записване на получен аванс
+  let both = 0, cardFirst = 0, depFirst = 0;
+  for (let i = 0; i < 6; i++) {
+    ({ X, xt } = await withLink());
+    const [pp, dp] = await Promise.all([page(X.id, xt[1], HOLDER), pay(X.id, "deposit", "30")]);
+    const at3 = await attempts(X.id);
+    if (pp.status !== 200 && pp.status !== 409 || dp.status !== 201) both = -100;
+    if (at3.length === 1) {
+      cardFirst++;
+      await backref(respFor(fieldsIn(pp.html)));
+      if (!(await row(X.id)).cardPaidAt || (await ev(X.id, "card.overpaid")) !== 1) both = -100;
+    } else if (at3.length === 0) {
+      depFirst++;
+      if (!(await cantStart(X, xt))) both = -100;
+    } else both = -100;
+  }
+  // Детерминиран случай „между проверката на страницата и транзакцията“: блокирането идва от транзакцията в startPayment
+  ({ X, xt } = await withLink());
+  {
+    const { startPayment, checkLink } = await import("../../server/card-pay.ts");
+    const lk: any = await checkLink(X.id, xt[1]);
+    await pay(X.id, "deposit", "30");
+    const sr = await startPayment(lk.booking, lk.link.id, { name: "IVAN IVANOV", addr: "Plovdiv 1" });
+    check("13.16b Аванс, записан след проверката на страницата → транзакцията отказва (prepaid), без опит", !sr.ok && (sr as any).error === "prepaid" && (await attempts(X.id)).length === 0);
+  }
+  check("13.17 Едновременно: всяка двойка завършва последователно – или опит + предупреждение за надплащане, или блокирано; без грешки и без загубен запис",
+    both === 0 && cardFirst + depFirst === 6, `първо карта: ${cardFirst}, първо аванс: ${depFirst}`);
+  ({ X, xt } = await withLink());
+  const exp2 = (await pay(X.id, "deposit", "40", { status: "expected" })).json.payments[0].id;
+  const [pp2, rp2] = await Promise.all([page(X.id, xt[1], HOLDER), pay(X.id, "", "", { id: exp2, body: { status: "received", paidAt: new Date().toISOString() } })]);
+  const at4 = await attempts(X.id);
+  check("13.18 Едновременно: картов опит и „очаквано → получено“ – без грешка, резултатът е последователен", rp2.status === 200 && (pp2.status === 200 ? at4.length === 1 : pp2.status === 409 && at4.length === 0));
+}
+
+// ===== 14. Известие „неизвестен резултат“ до собственика: опашка, повторен опит, разрешен опит =====
+{
+  const um = () => mail.sent.filter((m) => m.to === "rentaptb_stroi@abv.bg" && /Неизвестен резултат/.test(m.subject));
+  const logOf = async (attemptId: string) => (await t.q("select status, attempts, kind from email_log where dedupe_key = $1", ["owner-card-unknown:" + attemptId])).rows[0];
+  const mk = async () => {
+    const X = await booking();
+    const xt = tokenFrom((await adminCall("POST", { bookingId: X.id, action: "send_link" })).json.url)!;
+    const F = fieldsIn((await page(X.id, xt[1], HOLDER)).html);
+    const a = (await attempts(X.id))[0];
+    return { X, xt, F, a };
+  };
+  const due = (id: string) => t.q("update email_log set next_attempt_at = now() - interval '1 minute', at = at - interval '5 minutes' where dedupe_key = $1", ["owner-card-unknown:" + id]);
+  // а) неуспешно изпращане → повторен опит → изпратено веднъж, с причината „24 часа“
+  let { X, xt, a } = await mk();
+  mail.fail = (m) => (m.to === "rentaptb_stroi@abv.bg" ? "Brevo 503" : null);
+  await t.q("update card_payments set created_at = now() - interval '25 hours' where id = $1", [a.id]);
+  const n0 = um().length;
+  check("14.1 Над 24 ч. без резултат → „неизвестен“; писмото до собственика не минава (503) и е записано като неуспешно", (await adminCall("POST", { bookingId: X.id, action: "check" })).json.results[0] === "unknown" && um().length === n0 && (await logOf(a.id)).status === "failed");
+  mail.fail = null;
+  await due(a.id);
+  await retryFn();
+  check("14.2 Повторният опит изпраща известието с причината (без отговор 24 ч.)", um().length === n0 + 1 && /в рамките на 24 часа/.test(um().at(-1)!.html) && (await logOf(a.id)).status === "sent");
+  await due(a.id); await retryFn(); await retryFn();
+  check("14.3 Без дублиране при следващи повторни опити", um().length === n0 + 1);
+  // б) прекъсване между записването и изпращането: „неизвестен“ + опашка в базата, без опит за изпращане
+  ({ X, xt, a } = await mk());
+  await t.q("update card_payments set status = 'unknown', action = '3', rc = '-24', result_source = 'status', resolved_at = now() where id = $1", [a.id]);
+  await t.q("insert into email_log (kind, dedupe_key, booking_id, recipient, status) values ('owner-card-unknown', $1, $2, 're***@abv.bg', 'queued')", ["owner-card-unknown:" + a.id, X.id]);
+  await due(a.id);
+  const n1 = um().length;
+  await retryFn();
+  check("14.4 Прекъснато изпращане (само запис в опашката) → email-retry изпраща известието с причината „окончателен код“", um().length === n1 + 1 && /проверката за статус след 16 минути върна ACTION 3, RC -24/.test(um().at(-1)!.html));
+  // Записът в опашката е в същата транзакция като „неизвестен“ (applyResult)
+  ({ X, xt, a } = await mk());
+  mail.network = (m) => (m.to === "rentaptb_stroi@abv.bg" && /Неизвестен/.test(m.subject) ? "timeout" : null);
+  bank.reply = (q) => sign({ ACTION: "3", RC: "-31", TERMINAL: "V6200750", TRTYPE: "90", TRAN_TRTYPE: "1", ORDER: q.get("ORDER")!, CURRENCY: "USD", TIMESTAMP: "20261116150400", NONCE: q.get("NONCE")! });
+  await t.q("update card_payments set created_at = now() - interval '17 minutes' where id = $1", [a.id]);
+  const n2 = um().length;
+  check("14.5 „Неизвестен“ от проверката + изтекло време при пощата → записът остава за повторен опит (unknown)", (await adminCall("POST", { bookingId: X.id, action: "check" })).json.results[0] === "unknown" && (await logOf(a.id)).status === "unknown" && um().length === n2);
+  mail.network = null;
+  await t.q("update email_log set next_attempt_at = now() - interval '1 minute' where dedupe_key = $1", ["owner-card-unknown:" + a.id]);
+  await retryFn();
+  check("14.6 Известието до собственика се повтаря и след несигурен резултат (като другите известия до фирмата)", um().length === n2 + 1 && (await logOf(a.id)).status === "sent");
+  // в) вече разрешен опит → без остаряло предупреждение
+  ({ X, xt, a } = await mk());
+  await t.q("update card_payments set status = 'unknown', action = '3', rc = '-24', result_source = 'status', resolved_at = now() where id = $1", [a.id]);
+  await t.q("insert into email_log (kind, dedupe_key, booking_id, recipient, status) values ('owner-card-unknown', $1, $2, 're***@abv.bg', 'queued')", ["owner-card-unknown:" + a.id, X.id]);
+  await adminCall("POST", { bookingId: X.id, action: "release", attemptId: a.id, confirm: "merchant-portal-not-successful", note: "Проверено в Merchant Portal" });
+  await due(a.id);
+  const n3 = um().length;
+  await retryFn();
+  check("14.7 Освободен (неуспешен) опит → известието не се изпраща, записът е „пропуснат“", um().length === n3 && (await logOf(a.id)).status === "skipped");
+  await retryFn();
+  check("14.8 Пропуснатото известие не се опитва отново", um().length === n3 && (await logOf(a.id)).status === "skipped");
+  ({ X, xt, a } = await mk());
+  const F2 = fieldsIn((await page(X.id, xt[1])).html);
+  await t.q("update card_payments set status = 'unknown', created_at = now() - interval '2 hours' where id = $1", [a.id]);
+  await t.q("insert into email_log (kind, dedupe_key, booking_id, recipient, status, attempts) values ('owner-card-unknown', $1, $2, 're***@abv.bg', 'failed', 1)", ["owner-card-unknown:" + a.id, X.id]);
+  bank.reply = (q) => sign({ ACTION: "0", RC: "00", APPROVAL: "S12345", TERMINAL: "V6200750", TRTYPE: "90", TRAN_TRTYPE: "1", AMOUNT: "81.50", CURRENCY: "EUR", ORDER: q.get("ORDER")!, RRN: "612345678999", INT_REF: "97E2F39EFCA1CAF9", TIMESTAMP: "20261116150400", NONCE: q.get("NONCE")! });
+  check("14.9 „Неизвестен“ опит, потвърден като платен при повторната проверка", (await adminCall("POST", { bookingId: X.id, action: "check" })).json.results[0] === "paid" && !!(await row(X.id)).cardPaidAt && !F2.ORDER);
+  await due(a.id);
+  const n4 = um().length;
+  await retryFn();
+  check("14.10 Платен опит → чакащото известие „неизвестен резултат“ не се изпраща (пропуснато)", um().length === n4 && (await logOf(a.id)).status === "skipped");
+}
 
 http.handler = prevHandler;
 env({});

@@ -5,7 +5,7 @@ import { bookings, cardPayments } from "../../db/schema.js";
 import { esc } from "../../mail/index.js";
 import { tranDateText, type Breakdown } from "../../mail/card.js";
 import { sameOrigin } from "../../server/auth.js";
-import { blockOf, breakdown, cardholderOf, checkLink, refreshOpen, startPayment, terminalConfig } from "../../server/card-pay.js";
+import { blockFor, breakdown, cardholderOf, checkLink, refreshOpen, startPayment, terminalConfig } from "../../server/card-pay.js";
 import { breakdownTable, html, msg, redirectForm, sofiaTime, t, testBanner } from "../../server/card-page.js";
 import { statusLink } from "../../server/stage.js";
 
@@ -53,7 +53,7 @@ export default async (req: Request, context: Context) => {
   await refreshOpen(b.id);
   [b] = await db.select().from(bookings).where(eq(bookings.id, b.id));
   if (b.cardPaidAt) return paidPage(b);
-  const block = blockOf(b);
+  const block = await blockFor(b);
   if (block) return html(L, t(L, "blocked"), `<h1>${esc(t(L, "title"))}</h1>${msg(L, "bad", "blocked", "blockedInfo")}`, 409);
 
   if (req.method === "POST") {
@@ -73,6 +73,8 @@ export default async (req: Request, context: Context) => {
     }
     if (r.error === "review") return html(L, t(L, "review"), `<h1>${esc(t(L, "title"))}</h1>${msg(L, "bad", "review", "reviewInfo")}`, 409);
     if (r.error === "input") return formPage(b, url, cfg.t.mode, "inputErr", raw);
+    // Резервацията междувременно не може да бъде платена с карта (напр. получено плащане, отмяна) – проверено в транзакцията
+    if (["method", "state", "handed_over", "prepaid", "pickup", "price"].includes(r.error)) return html(L, t(L, "blocked"), `<h1>${esc(t(L, "title"))}</h1>${msg(L, "bad", "blocked", "blockedInfo")}`, 409);
     return html(L, t(L, "unavail"), `<h1>${esc(t(L, "title"))}</h1>${msg(L, "warn", "unavail", "unavailInfo")}`, 503);
   }
   // Опит без окончателен резултат: не се предлага второ плащане

@@ -114,6 +114,6 @@ export async function retry(kind: string, bookingId: string | null, dedupeKey: s
 }
 export const RETRY_KINDS = ["owner-new", "customer-received", "customer-decision", "customer-closed", "customer-extended",
   "customer-docs-invite", "customer-docs-reminder", "customer-coupon", "customer-docs-received", "owner-docs",
-  "customer-card-link", "customer-card-paid", "owner-card-paid"];
+  "customer-card-link", "customer-card-paid", "owner-card-paid", "owner-card-unknown"];
 // Писма, които се повтарят и след несигурен резултат (възможно второ копие): само известието до фирмата
-export const UNCERTAIN_RETRY_KINDS = ["owner-new", "owner-docs", "owner-card-paid"];
+export const UNCERTAIN_RETRY_KINDS = ["owner-new", "owner-docs", "owner-card-paid", "owner-card-unknown"];
