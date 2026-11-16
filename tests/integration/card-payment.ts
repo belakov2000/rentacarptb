@@ -301,7 +301,7 @@ const strict = async (reply: (q: URLSearchParams) => Record<string, string>, age
 };
 let s1 = await strict(() => ({ ACTION: "3", RC: "-40" }), 10);
 check("9b.1 RC -40 в рамките на GUARDTIME → остава отворен, без нов опит", s1.result === "pending" && s1.page.status === 409 && /Има започнато плащане/.test(s1.page.html) && !/възможен след \d/.test(s1.page.html));
-for (const [rc, act] of [["-19", "3"], ["-31", "3"], ["-33", "3"], ["-24", "3"], ["00", "1"], ["65", "21"], ["05", "3"]]) {
+for (const [rc, act] of [["-19", "3"], ["-31", "3"], ["-33", "3"], ["-24", "3"], ["00", "1"], ["65", "21"], ["05", "3"], ["-20", "3"], ["-19", "2"], ["-24", "2"]]) {
   const before = mail.sent.filter((m) => /Неизвестен резултат/.test(m.subject)).length;
   s1 = await strict(() => ({ ACTION: act, RC: rc }), 17);
   check(`9b.2 ACTION ${act} / RC ${rc} след 16 мин. → „неизвестен“: не е платено, нов опит НЕ е разрешен, собственикът е известен`,
@@ -383,6 +383,94 @@ check("9b.7 Повторно освобождаване на вече освоб
   const callsB = bank.calls;
   ck = await adminCall("POST", { bookingId: Y.id, action: "check" });
   check("9c.13 „Неизвестен“ опит след 24 ч. не се проверява отново и остава неизвестен (без нов опит)", ck.json.results[0] === "skip" && bank.calls === callsB && (await page(Y.id, yt[1])).status === 409);
+}
+
+// ===== 9d. ACTION 2 / RC -20 „Expired transaction“ от проверка за статус (потвърждение на Пощенска банка, 16.11.2026) =====
+{
+  const mk = async () => {
+    const X = await booking();
+    const xt = tokenFrom((await adminCall("POST", { bookingId: X.id, action: "send_link" })).json.url)!;
+    const FX = fieldsIn((await page(X.id, xt[1], HOLDER)).html);
+    return { X, xt, FX };
+  };
+  const expired = (o: Record<string, string> = {}, key?: string) => (q: URLSearchParams) =>
+    sign({ ACTION: "2", RC: "-20", STATUSMSG: "Expired transaction", TERMINAL: "V6200750", TRTYPE: "90", TRAN_TRTYPE: "1", ORDER: q.get("ORDER")!, CURRENCY: "EUR", TIMESTAMP: "20261114004900", NONCE: q.get("NONCE")!, ...o }, key);
+  const age = (order: string, sec: number) => t.q("update card_payments set created_at = now() - make_interval(secs => $2), last_check_at = null where order_no = $1", [order, sec]);
+  const check1 = async (id: string) => (await adminCall("POST", { bookingId: id, action: "check" })).json.results[0];
+  const ev = async (id: string, action: string) => (await t.q("select count(*)::int as n from booking_events where booking_id = $1 and action = $2", [id, action])).rows[0].n;
+  const unknownMails = () => mail.sent.filter((m) => /Неизвестен резултат/.test(m.subject)).length;
+
+  // Времева граница
+  let { X, xt, FX } = await mk();
+  bank.reply = (q) => sign({ ACTION: "3", RC: "-40", TERMINAL: "V6200750", TRTYPE: "90", TRAN_TRTYPE: "1", ORDER: q.get("ORDER")!, CURRENCY: "USD", TIMESTAMP: "20261113233500", NONCE: q.get("NONCE")! });
+  await age(FX.ORDER, 5 * 60);
+  check("9d.1 Преди 16 мин.: ACTION 3 / RC -40 → опитът остава отворен", (await check1(X.id)) === "pending" && (await attempts(X.id))[0].status === "redirected");
+  bank.reply = expired();
+  await age(FX.ORDER, 10 * 60);
+  check("9d.2 ACTION 2 / RC -20 след 10 мин. → остава отворен, нов опит НЕ е разрешен", (await check1(X.id)) === "pending" && (await page(X.id, xt[1])).status === 409);
+  await age(FX.ORDER, 16 * 60 - 5);
+  check("9d.3 Граница: 15 мин. 55 сек. → още отворен", (await check1(X.id)) === "pending" && (await attempts(X.id))[0].status === "redirected");
+  const um0 = unknownMails();
+  await age(FX.ORDER, 16 * 60 + 5);
+  const r3 = await check1(X.id);
+  const ax = (await attempts(X.id))[0];
+  check("9d.4 Граница: 16 мин. 5 сек., подписан отговор ACTION 2 / RC -20 → неуспешен (окончателно), източник – проверка за статус",
+    r3 === "failed" && ax.status === "failed" && ax.resultSource === "status" && ax.action === "2" && ax.rc === "-20" && ax.statusMsg === "Expired transaction", r3);
+  check("9d.5 Без запис на плащане, без „платено“, без писмо за неизвестен резултат", (await pays(X.id)).length === 0 && !(await row(X.id)).cardPaidAt && unknownMails() === um0 && (await ev(X.id, "card.failed")) === 1);
+  // Повторна обработка
+  const callsR = bank.calls;
+  check("9d.6 Повторна проверка на неуспешния опит → не се праща нова заявка към банката", (await check1(X.id)) === undefined && bank.calls === callsR);
+  await Promise.all(Array.from({ length: 3 }, () => adminCall("POST", { bookingId: X.id, action: "check" })));
+  check("9d.7 Едновременни повторни проверки → едно събитие card.failed, статусът не се променя", (await ev(X.id, "card.failed")) === 1 && (await attempts(X.id))[0].status === "failed");
+  // Нов опит
+  let px = await page(X.id, xt[1]);
+  check("9d.8 Клиентът вижда формуляра – нов опит е разрешен", px.status === 200 && /<form method="post"/.test(px.html));
+  const FX2 = fieldsIn((await page(X.id, xt[1], HOLDER)).html);
+  check("9d.9 Новият опит е с нов ORDER и NONCE и същата сума от сървъра", !!FX2.ORDER && FX2.ORDER !== FX.ORDER && FX2.NONCE !== FX.NONCE && FX2.AMOUNT === FX.AMOUNT && (await attempts(X.id)).length === 2);
+  await backref(respFor(FX2));
+  check("9d.10 Новият опит може да бъде платен; изтеклият остава неуспешен; един платежен запис", !!(await row(X.id)).cardPaidAt && (await pays(X.id)).length === 1 && (await attempts(X.id)).find((x: any) => x.orderNo === FX.ORDER)!.status === "failed");
+
+  // Невалиден подпис и несъответстващи данни (опитът е по-стар от 16 мин.)
+  const bad: [string, (q: URLSearchParams) => Record<string, string>][] = [
+    ["чужд подпис", expired({}, attacker.privateKey)],
+    ["друг NONCE", expired({ NONCE: "0".repeat(32) })],
+    ["друг терминал", expired({ TERMINAL: "V0000001" })],
+    ["друга поръчка", expired({ ORDER: "000000" })],
+    ["TRTYPE 1 вместо 90", expired({ TRTYPE: "1" })],
+    ["TRAN_TRTYPE 12", expired({ TRAN_TRTYPE: "12" })],
+  ];
+  for (const [name, reply] of bad) {
+    ({ X, xt, FX } = await mk());
+    bank.reply = reply;
+    await age(FX.ORDER, 17 * 60);
+    const r = await check1(X.id);
+    check(`9d.11 ${name} → невалиден отговор, опитът остава отворен, без нов опит`, r === "invalid" && (await attempts(X.id))[0].status === "redirected" && (await page(X.id, xt[1])).status === 409 && !(await row(X.id)).cardPaidAt, r);
+  }
+  // Подписът покрива ACTION и RC: подменен код след подписа
+  ({ X, xt, FX } = await mk());
+  bank.reply = (q) => ({ ...sign({ ACTION: "3", RC: "-40", TERMINAL: "V6200750", TRTYPE: "90", TRAN_TRTYPE: "1", ORDER: q.get("ORDER")!, CURRENCY: "USD", TIMESTAMP: "20261114004900", NONCE: q.get("NONCE")! }), ACTION: "2", RC: "-20" });
+  await age(FX.ORDER, 17 * 60);
+  check("9d.12 ACTION / RC, подменени след подписа → невалиден, опитът остава отворен", (await check1(X.id)) === "invalid" && (await attempts(X.id))[0].status === "redirected");
+  // Без TRAN_TRTYPE: не е доказано, че е статус на плащане → неизвестен (не неуспешен)
+  ({ X, xt, FX } = await mk());
+  bank.reply = (q) => { const f = expired()(q); delete (f as any).TRAN_TRTYPE; return sign(Object.fromEntries(Object.entries(f).filter(([k]) => k !== "P_SIGN")) as any); };
+  await age(FX.ORDER, 17 * 60);
+  check("9d.13 ACTION 2 / RC -20 без TRAN_TRTYPE → „неизвестен“, без нов опит", (await check1(X.id)) === "unknown" && (await page(X.id, xt[1])).status === 409);
+  // BACKREF с ACTION 2 / RC -20 след 16 мин. – правилото не важи
+  ({ X, xt, FX } = await mk());
+  await age(FX.ORDER, 17 * 60);
+  await backref(respFor(FX, { ACTION: "2", RC: "-20", APPROVAL: "", RRN: "", INT_REF: "", STATUSMSG: "Expired transaction" }));
+  check("9d.14 BACKREF с ACTION 2 / RC -20 (дори след 16 мин.) не приключва опита", (await attempts(X.id))[0].status === "redirected" && (await page(X.id, xt[1])).status === 409);
+  // Опит, записан „неизвестен“ от по-стара версия, до 24 ч.: повторна проверка в банката → неуспешен
+  ({ X, xt, FX } = await mk());
+  await t.q("update card_payments set status = 'unknown', created_at = now() - interval '2 hours' where order_no = $1", [FX.ORDER]);
+  bank.reply = expired();
+  check("9d.15 „Неизвестен“ опит до 24 ч. + ACTION 2 / RC -20 при повторна проверка → неуспешен, нов опит е разрешен", (await check1(X.id)) === "failed" && (await page(X.id, xt[1])).status === 200);
+  // Над 24 ч. – не се проверява отново (както ORDER 097133)
+  ({ X, xt, FX } = await mk());
+  await t.q("update card_payments set status = 'unknown', created_at = now() - interval '48 hours' where order_no = $1", [FX.ORDER]);
+  const callsU = bank.calls;
+  check("9d.16 „Неизвестен“ опит над 24 ч. → без заявка към банката, остава неизвестен, без нов опит", (await check1(X.id)) === "skip" && bank.calls === callsU && (await attempts(X.id))[0].status === "unknown" && (await page(X.id, xt[1])).status === 409);
 }
 
 // Подправен отговор на проверката за статус

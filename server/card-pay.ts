@@ -317,6 +317,13 @@ export async function applyResult(attemptId: string, f: Fields, source: "backref
       if (a.status !== "failed") await tx.insert(bookingEvents).values({ bookingId: a.bookingId, actor: "borica", action: "card.failed", details: { order: a.orderNo, rc: f.RC ?? null, source, rule: "status RC -40 older than GUARDTIME (P-OM-41 p.18)" } });
       return { state: "failed", attempt: u };
     }
+    // Изтекла трансакция: ACTION 2 / RC -20 в подписан отговор на проверка за статус на плащане (TRAN_TRTYPE 1) след 16 мин.
+    // (потвърждение на Пощенска банка / вендора от 16.11.2026). Окончателно неуспешен опит, нов опит е разрешен.
+    if (outcome === "expired" && source === "status" && f.TRAN_TRTYPE === "1" && age > FINAL_AFTER_MS) {
+      const [u] = await tx.update(cardPayments).set({ ...base, status: "failed", resultSource: source, resolvedAt: now }).where(eq(cardPayments.id, a.id)).returning();
+      if (a.status !== "failed") await tx.insert(bookingEvents).values({ bookingId: a.bookingId, actor: "borica", action: "card.failed", details: { order: a.orderNo, action: f.ACTION ?? null, rc: f.RC ?? null, source, from: a.status, rule: "status ACTION 2 / RC -20 Expired transaction after GUARDTIME + 1 min (Postbank/BORICA vendor confirmation 16.11.2026)" } });
+      return { state: "failed", attempt: u };
+    }
     // Отказ от картодържателя (RC -25), потвърден от проверка за статус след 16 мин. – окончателно прекратен опит, нов опит е разрешен
     if (outcome === "cancelled" && source === "status" && age > FINAL_AFTER_MS) {
       const [u] = await tx.update(cardPayments).set({ ...base, status: "cancelled", resultSource: source, resolvedAt: now }).where(eq(cardPayments.id, a.id)).returning();

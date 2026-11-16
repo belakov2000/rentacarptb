@@ -261,13 +261,18 @@ export const verifyResponse = (f: Partial<Fields>, borica: KeyObject) => verifyM
 //              потвърждение на трансакцията е отказано от картодържателя“). Окончателно САМО при проверка за статус след
 //              GUARDTIME + 1 мин. (стр. 56, т. 9.5.1: при „Back“ отрицателният код може да се промени и трансакцията да е успешна;
 //              „Резултатът, получен след повече от 16 минути … е окончателен“). По-рано – опитът остава отворен.
-export type Outcome = "paid" | "declined" | "timeout" | "cancelled" | "pending";
+//   expired   – ACTION 2 и RC -20 („Expired transaction“). Окончателен неуспех САМО в отговор на проверка за статус (TRTYPE 90,
+//              TRAN_TRTYPE 1), получен повече от 16 мин. след началото – по потвърждение на Пощенска банка / вендора на БОРИКА
+//              от 16.11.2026 за ORDER 097133. RC -20 е в табл. 23 (стр. 49); т. 9.5.2 (стр. 56–57) описва „Expired transaction“.
+//              Не важи за BACKREF и за други отрицателни кодове.
+export type Outcome = "paid" | "declined" | "timeout" | "cancelled" | "expired" | "pending";
 export function outcomeOf(f: Partial<Fields>): Outcome {
   const action = String(f.ACTION ?? ""), rc = String(f.RC ?? "");
   if (action === "0" && rc === "00") return "paid";
   if (action === "2" && /^[0-9A-Z]{2}$/.test(rc) && rc !== "00") return "declined";
   if (action === "3" && rc === "-40") return "timeout";
   if (action === "3" && rc === "-25") return "cancelled";
+  if (action === "2" && rc === "-20") return "expired";
   return "pending";
 }
 

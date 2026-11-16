@@ -88,6 +88,9 @@ test("резултат: само ACTION 0 + RC 00 е плащане; полож�
   assert.equal(outcomeOf({ ACTION: "3", RC: "-31" }), "pending");
   assert.equal(outcomeOf({ ACTION: "3", RC: "-25" }), "cancelled", "отказ от картодържателя (стр. 49) – окончателен само след проверка за статус след 16 мин.");
   assert.equal(outcomeOf({ ACTION: "2", RC: "-25" }), "pending", "-25 само с ACTION 3");
+  assert.equal(outcomeOf({ ACTION: "2", RC: "-20" }), "expired", "ACTION 2 / RC -20 – окончателен само при проверка за статус след 16 мин.");
+  assert.equal(outcomeOf({ ACTION: "3", RC: "-20" }), "pending", "-20 само с ACTION 2");
+  assert.equal(outcomeOf({ ACTION: "2", RC: "-19" }), "pending", "правилото не важи за други отрицателни кодове");
   assert.equal(outcomeOf({ ACTION: "3", RC: "-24" }), "pending", "непозната трансакция не е доказан неуспех");
   assert.equal(outcomeOf({ RC: "00" }), "pending");
   assert.equal(outcomeOf({}), "pending");
