@@ -199,6 +199,10 @@ export async function decide(
   if (notify) {
     const r = await sendDecision(out.booking).catch(() => ({ result: "failed" as const }));
     email = r.result === "sent" || r.result === "duplicate" ? "sent" : r.result === "uncertain" ? "uncertain" : "queued";
+    // Плащане с карта онлайн: след окончателното потвърждение клиентът получава защитена връзка за плащане (server/card-pay.ts).
+    // Без отметнато „Изпрати имейл“ връзката се изпраща от админ панела. Грешка тук не отменя потвърждението.
+    if (out.booking.status === "confirmed" && out.booking.payment === "card")
+      await import("./card-pay.js").then((m) => m.afterConfirm(out.booking, o.actor)).catch((e) => console.error("Card payment link failed", (e as Error)?.message));
   }
   return { ok: true, booking: out.booking, email, ...(out.booking.stage === "done" ? { step: "confirmed" as const } : {}) };
 }

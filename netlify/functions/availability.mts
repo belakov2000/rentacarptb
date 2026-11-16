@@ -4,6 +4,7 @@ import { bookings, carBlocks, cars } from "../../db/schema.js";
 import { addDays, BUFFER_MIN, endTimeOf, startTimeOf } from "../../db/slots.js";
 import { sofiaToday } from "../../db/hours.js";
 import { activeBlocksIn, busySpan, confirmedIn, SPAN_COLS } from "../../server/conflicts.js";
+import { cardAvailable } from "../../server/card-pay.js";
 
 // GET /api/availability – заети периоди по автомобили (същите правила като сървърната проверка server/conflicts.ts):
 //  • потвърдени резервации – от получаването до договореното връщане, до реалното връщане при приключен наем
@@ -28,7 +29,8 @@ export default async () => {
   for (const b of blocks) add(b.carId, [b.startDate, b.endDate, startTimeOf(b.startTime), endTimeOf(b.endTime)]);
   for (const c of await db.select({ id: cars.id, status: cars.status }).from(cars))
     if (c.status !== "active") add(c.id, [today, to, "00:00", "23:59"]);
-  return Response.json({ buffer: BUFFER_MIN, cars: out }, { headers: { "Cache-Control": "no-store" } });
+  // cardPayment – дали плащането с карта онлайн е настроено за тази среда (формата показва опцията само тогава)
+  return Response.json({ buffer: BUFFER_MIN, cars: out, cardPayment: cardAvailable() }, { headers: { "Cache-Control": "no-store" } });
 };
 
 export const config: Config = {

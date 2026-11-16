@@ -15,3 +15,6 @@ export { default as documents } from "../../netlify/functions/documents.mts";
 export { default as bookings } from "../../netlify/functions/bookings.mts";
 export { default as quote } from "../../netlify/functions/quote.mts";
 export { default as customerEmails } from "../../netlify/functions/customer-emails.mts";
+export { default as pay } from "../../netlify/functions/pay.mts";
+export { default as boricaBackref } from "../../netlify/functions/borica-backref.mts";
+export { default as adminCard } from "../../netlify/functions/admin-card-payments.mts";
