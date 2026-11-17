@@ -632,7 +632,7 @@ button.btn-ghost{background:transparent}
 #bk.short .payopts .pt b{font-size:1rem;line-height:1.4}
 #bk.short .payopts .pt small{flex-basis:100%;font-size:.875rem;line-height:1.5;margin:0}
 #bk.short .pay-discount{display:inline-block;border-radius:6px;padding:3px 7px;background:#fff0b8;color:#664700;font-weight:700;font-size:.75rem;white-space:nowrap}
-#bk.short .pay-brands{display:flex;align-items:center;gap:8px;flex-basis:100%;margin-top:4px}
+#bk.short .pay-brands{display:flex;flex-wrap:wrap;align-items:center;gap:8px;flex-basis:100%;margin-top:4px}
 #bk.short .pay-brands img{display:block;object-fit:contain;width:52px;height:34px;background:#fff;border:1px solid var(--line);border-radius:5px;padding:5px}
 #bk.short #company-choice{border:0;background:transparent;padding:10px 2px;font-size:.9rem}
 #bk.short .payopts>[hidden]{display:none}
@@ -1109,7 +1109,7 @@ button.btn-ghost{background:transparent}
 <div class="payopts" role="group" aria-label="Начин на плащане" data-flow2>
 <label class="opt"><input type="radio" name="pay2" value="cash"><span class="pt"><b>В брой на място</b><small>При вземане на автомобила – с касов бон.</small></span></label>
 <label class="opt"><input type="radio" name="pay2" value="bankp"><span class="pt"><b>По банков път</b><small>С банков превод след потвърждение на резервацията.</small></span></label>
-<label class="opt" id="card-choice" hidden><input type="radio" name="pay2" value="card"><span class="pt"><b>Плащане с карта онлайн</b><span class="pay-discount">−10% от наема</span><small>Защитена връзка по имейл след окончателно потвърждение. Отстъпката важи само за наема и не се комбинира с други отстъпки. Депозитът от 100 € се плаща отделно при получаване.</small><span class="pay-brands" translate="no"><img src="/images/payments/visa.png" alt="Visa" width="52" height="34"><img src="/images/payments/mastercard.svg" alt="Mastercard" width="52" height="34"></span></span></label>
+<label class="opt" id="card-choice" hidden><input type="radio" name="pay2" value="card"><span class="pt"><b>Плащане с карта онлайн</b><span class="pay-discount">−10% от наема</span><small>Защитена връзка по имейл след окончателно потвърждение. Отстъпката важи само за наема и не се комбинира с други отстъпки. Депозитът от 100 € се плаща отделно при получаване.</small><span class="pay-brands" translate="no"><img src="/images/payments/visa.png" alt="Visa" width="52" height="34"><img src="/images/payments/mastercard.svg" alt="Mastercard" width="52" height="34"><img src="/images/payments/bcard.png" alt="Bcard" width="52" height="34"><img src="/images/payments/diners-club.jpg" alt="Diners Club" width="52" height="34"></span></span></label>
 <label class="opt" id="company-choice" hidden><input type="checkbox" id="b-company"><span>Необходима ми е фактура за юридическо лице</span></label>
 </div>
 <div id="invp" class="invbox" hidden>
