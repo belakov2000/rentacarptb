@@ -28,7 +28,7 @@ for(const [lang,card] of [['bg',true],['en',true],['de',true],['ru',true],['bg',
  await poll(()=>!$('#card-choice').hidden);
  check(lang+': card option visible when configured',!$('#card-choice').hidden);
  check(lang+': option text translated',$('#card-choice b').textContent.trim()===TXT[lang]);
- check(lang+': explains deposit without exposing the promotion code',!/RENTY10/.test($('#card-choice small').textContent)&&/100 €/.test($('#card-choice small').textContent));
+ check(lang+': explains deposit without exposing the promotion code',!/RENTY10/.test($('#card-choice small').textContent)&&/(?:100 €|€100)/.test($('#card-choice small').textContent));
  check(lang+': cash option still offered',!!$('input[name=pay2][value=cash]'));
  const ci=$('input[name=pay2][value=card]');ci.checked=true;ci.dispatchEvent(new w.Event('change',{bubbles:true}));
  check(lang+': card offers company invoice',!$('#company-choice').hidden&&$('#inv').hidden);

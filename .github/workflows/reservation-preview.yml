@@ -33,6 +33,14 @@ jobs:
       - name: Install test-only browser dependencies
         run: npm install --no-save --package-lock=false esbuild playwright-core@1.51.1 happy-dom
       - run: npx playwright-core install --with-deps chromium
+      - name: Payment layout on desktop and mobile (Chromium)
+        run: node tests/browser/payment-layout.mjs
+      - name: Upload payment layout screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: payment-layout
+          path: test-artifacts/payment-layout/
       - name: Payment options and explicit language switching (DOM)
         run: node tests/browser/language-payments.mjs
       - name: Card option and invoice availability (DOM/API)

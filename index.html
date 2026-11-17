@@ -44,6 +44,8 @@
 <link rel="icon" type="image/png" href="/images/favicon.png">
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;800&family=Oswald:wght@600;700&display=swap&subset=cyrillic" rel="stylesheet">
 <style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}
+/* Keep all four explicit language buttons inside narrow mobile headers. */
+@media(max-width:420px){.bar{gap:6px}.bar .logo{min-width:0;gap:6px}.logo>span:last-child{min-width:0;overflow-wrap:anywhere}.lang a{min-width:28px;padding:6px 4px;font-size:.72rem}}
 /* Payment choices: same alignment at every form width. */
 #bk.short .payopts{grid-template-columns:minmax(0,1fr);gap:10px}
 #bk.short .payopts>.opt{align-items:flex-start;gap:12px;padding:16px;border-radius:16px;transition:border-color .15s,background .15s}
@@ -634,6 +636,8 @@ button.btn-ghost{background:transparent}
 .photo-review img{display:block;width:100%;max-height:80dvh;object-fit:contain}.photo-review button{display:block;margin:0 0 10px auto;padding:10px 18px;min-height:44px;border:0;border-radius:10px;background:var(--navy);color:#fff;font:inherit;cursor:pointer}
 
 
+/* Keep all four explicit language buttons inside narrow mobile headers. */
+@media(max-width:420px){.bar{gap:6px}.bar .logo{min-width:0;gap:6px}.logo>span:last-child{min-width:0;overflow-wrap:anywhere}.lang a{min-width:28px;padding:6px 4px;font-size:.72rem}}
 /* Payment choices: same alignment at every form width. */
 #bk.short .payopts{grid-template-columns:minmax(0,1fr);gap:10px}
 #bk.short .payopts>.opt{align-items:flex-start;gap:12px;padding:16px;border-radius:16px;transition:border-color .15s,background .15s}
@@ -2530,6 +2534,8 @@ setLang(LANG);
 .fck:hover{color:var(--acc)}
 @media (prefers-reduced-motion:reduce){.ck{animation:none}}
 
+/* Keep all four explicit language buttons inside narrow mobile headers. */
+@media(max-width:420px){.bar{gap:6px}.bar .logo{min-width:0;gap:6px}.logo>span:last-child{min-width:0;overflow-wrap:anywhere}.lang a{min-width:28px;padding:6px 4px;font-size:.72rem}}
 /* Payment choices: same alignment at every form width. */
 #bk.short .payopts{grid-template-columns:minmax(0,1fr);gap:10px}
 #bk.short .payopts>.opt{align-items:flex-start;gap:12px;padding:16px;border-radius:16px;transition:border-color .15s,background .15s}
