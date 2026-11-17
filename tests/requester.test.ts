@@ -10,3 +10,16 @@ test('different sole driver requires their own name',()=>{const b=body();b.drive
 test('company invoice conditional, VAT checkbox respected',()=>{const b:any={...body(),payment:'bank',invoiceData:{name:'ТЕСТ',registration:'123456789',country:'България',address:'Тест 1'}};assert.deepEqual(parseRequester(b),{error:'invoice'});b.invoiceData.notVatRegistered=true;const p=parseRequester(b);assert.ok('invoice'in p&&p.invoice.includes('не е регистрирана'));b.invoiceData.notVatRegistered=false;b.invoiceData.vat='BG123456789';assert.ok('invoice'in parseRequester(b))});
 
 test('payment method is required on the server',()=>assert.deepEqual(parseRequester({...body(),payment:''}),{error:'payment'}));
+
+
+test('card and cash company invoices retain the selected payment method',()=>{
+  for(const payment of ['card','cash']){
+    const b:any={...body(),payment,invoiceRequested:true,invoiceData:{name:'ТЕСТ',registration:'123456789',country:'България',address:'Тест 1',notVatRegistered:true}};
+    const p=parseRequester(b);assert.ok('invoice'in p&&p.invoice.includes('ТЕСТ'));assert.equal(b.payment,payment);
+    b.invoiceData.address='';assert.deepEqual(parseRequester(b),{error:'invoice'});
+  }
+});
+test('unchecked invoice ignores stale company fields for card payment',()=>{
+ const p=parseRequester({...body(),payment:'card',invoiceRequested:false,invoiceData:{name:'old'}});
+ assert.ok('invoice'in p);assert.equal(p.invoice,'');
+});

@@ -1,4 +1,4 @@
-// DOM: опцията „Плащане с карта онлайн — 10% отстъпка от наема“ в кратката форма на трите езика.
+// DOM: опцията „Плащане с карта онлайн — 10% отстъпка от наема“ в кратката форма на четирите езика.
 // npm install --no-save happy-dom embedded-postgres@17.5.0-beta.15 esbuild
 // TEST_USE_PGLITE=1 node tests/e2e/run.mjs tests/browser/card-option-dom.mjs
 // Опцията се показва само когато сървърът отчете настроено плащане (/api/availability → cardPayment). Тук отговорът се подменя
@@ -9,10 +9,10 @@ const B=process.argv[2]; if(!/^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(B||'
 const html=readFileSync('index.html','utf8');let passed=0;
 const check=(name,value)=>{console.log(`${value?'PASS':'FAIL'} | ${name}`);if(!value)throw Error(name);passed++};
 const poll=async(fn)=>{for(let i=0;i<150;i++){if(await fn())return;await new Promise(r=>setTimeout(r,40));}throw Error('Timed out')};
-const TXT={bg:'Плащане с карта онлайн — 10% отстъпка от наема',en:'Online card payment — 10% off the rental',de:'Online-Kartenzahlung — 10 % Rabatt auf die Miete'};
+const TXT={bg:'Плащане с карта онлайн',en:'Online card payment',de:'Online-Kartenzahlung',ru:'Оплата картой онлайн'};
 const windows=[];
 try{
-for(const [lang,card] of [['bg',true],['en',true],['de',true],['bg',false]]){
+for(const [lang,card] of [['bg',true],['en',true],['de',true],['ru',true],['bg',false]]){
  const w=new Window({url:B+(lang==='bg'?'/':'/'+lang+'/')+'#avtomobili',settings:{enableJavaScriptEvaluation:true,disableJavaScriptFileLoading:true,disableCSSFileLoading:true,disableIframePageLoading:true,suppressInsecureJavaScriptEnvironmentWarning:true,timer:{maxIntervalIterations:3}}});windows.push(w);
  const errors=[];w.addEventListener('error',e=>errors.push(e.message));
  w.HTMLElement.prototype.scrollIntoView=function(){};w.scrollTo=()=>{};
@@ -28,10 +28,16 @@ for(const [lang,card] of [['bg',true],['en',true],['de',true],['bg',false]]){
  await poll(()=>!$('#card-choice').hidden);
  check(lang+': card option visible when configured',!$('#card-choice').hidden);
  check(lang+': option text translated',$('#card-choice b').textContent.trim()===TXT[lang]);
- check(lang+': explains deposit and no combination with RENTY10',/RENTY10/.test($('#card-choice small').textContent)&&/100 €/.test($('#card-choice small').textContent));
+ check(lang+': explains deposit without exposing the promotion code',!/RENTY10/.test($('#card-choice small').textContent)&&/100 €/.test($('#card-choice small').textContent));
  check(lang+': cash option still offered',!!$('input[name=pay2][value=cash]'));
  const ci=$('input[name=pay2][value=card]');ci.checked=true;ci.dispatchEvent(new w.Event('change',{bubbles:true}));
- check(lang+': card selected hides company invoice choice',$('#company-choice').hidden&&$('#inv').hidden);
+ check(lang+': card offers company invoice',!$('#company-choice').hidden&&$('#inv').hidden);
+ const invoice=$('#b-company');invoice.checked=true;invoice.dispatchEvent(new w.Event('change',{bubbles:true}));
+ check(lang+': invoice fields show without changing card selection',!$('#inv').hidden&&ci.checked);
+ invoice.checked=false;invoice.dispatchEvent(new w.Event('change',{bubbles:true}));
+ check(lang+': invoice fields hide when unchecked',$('#inv').hidden);
+ check(lang+': card brand images exist',$('#card-choice img[alt=Visa]')&&$('#card-choice img[alt=Mastercard]'));
 }
 console.log(`\nОБЩО: ${passed} PASS, 0 FAIL`);
 }finally{for(const w of windows)await w.happyDOM.close().catch(()=>{})}
+

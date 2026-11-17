@@ -24,7 +24,7 @@ export const STAGE_LABEL: Record<string, string> = {
 // Адресът на сайта за линковете в писмата (в Deploy Preview – адресът на Preview; писмата там не се изпращат)
 export const siteOrigin = () => (deployContext() === "production" ? process.env.URL : process.env.DEPLOY_PRIME_URL || process.env.URL) || "";
 // Страницата за състоянието на заявката и подаването на документите (един и същ адрес за целия процес)
-export const statusLink = (b: Pick<Booking, "id" | "viewToken">, origin = siteOrigin()) => `${origin}/?b=${b.id}&t=${b.viewToken}#blagodarim`;
+export const statusLink = (b: Pick<Booking, "id" | "viewToken"> & Partial<Pick<Booking, "lang">>, origin = siteOrigin()) => `${origin}/${["en", "de", "ru"].includes(b.lang || "") ? b.lang + "/" : ""}?b=${b.id}&t=${b.viewToken}#blagodarim`;
 
 // ===== Заявител и водачи =====
 // Кратката форма: заявителят (име, телефон, имейл) и дали той ще шофира; вторият допълнителен водач е услуга (3 €/ден).
@@ -182,6 +182,28 @@ export const docsReceivedKey = (id: string) => `customer-docs-received:${id}`;
 export const ownerDocsKey = (id: string) => `owner-docs:${id}`;
 
 const T: Record<string, Record<string, string>> = {
+  ru: {
+    "hi": "Здравствуйте, {name}!",
+    "car": "Автомобиль",
+    "pickup": "Получение",
+    "dropoff": "Возврат",
+    "total": "Итого за услуги",
+    "q": "Есть вопросы? Позвоните {phone} или ответьте на это письмо.",
+    "why": "Вы получили это письмо, потому что подали заявку на аренду автомобиля на rentacar-ptb.com.",
+    "invSubj": "Заявка одобрена — отправьте документы",
+    "inv": "Автомобиль доступен, и ваша заявка одобрена.",
+    "invInfo": "Остался один шаг: заполните данные и приложите фотографии удостоверения личности (паспорта) и водительского удостоверения водителя. После проверки вы получите окончательное подтверждение.",
+    "invBtn": "Предоставить документы",
+    "remSubj": "Напоминание: отправьте документы для бронирования",
+    "rem": "Ваше бронирование всё ещё ожидает документы водителя.",
+    "cpSubj": "Скидка 10% на аренду, если отправите документы сегодня",
+    "cp": "Подарок для вас: скидка 10% на аренду по коду RENTY10.",
+    "cpInfo": "Введите код при предоставлении документов. Код предназначен только для этого бронирования, используется один раз и действует до {until}.",
+    "recSubj": "Мы получили документы — ожидают проверки",
+    "rec": "Спасибо! Мы получили ваши документы.",
+    "recInfo": "Проверяем их и отправим окончательное подтверждение по email. Бронирование станет окончательным только после него.",
+    "status": "Статус бронирования"
+},
   bg: {
     hi: "Здравейте, {name}!", car: "Автомобил", pickup: "Получаване", dropoff: "Връщане", total: "Общо за услугите",
     q: "Въпроси? Обадете ни се на {phone} или отговорете на този имейл.", why: "Получавате това писмо, защото направихте заявка за наем на автомобил на rentacar-ptb.com.",
@@ -219,7 +241,7 @@ const T: Record<string, Record<string, string>> = {
     status: "Buchungsstatus",
   },
 };
-const sofiaTime = (d: Date, lang: string) => d.toLocaleString(lang === "de" ? "de-DE" : lang === "en" ? "en-GB" : "bg-BG", { timeZone: "Europe/Sofia", dateStyle: "short", timeStyle: "short" });
+const sofiaTime = (d: Date, lang: string) => d.toLocaleString(lang === "de" ? "de-DE" : lang === "en" ? "en-GB" : lang === "ru" ? "ru-RU" : "bg-BG", { timeZone: "Europe/Sofia", dateStyle: "short", timeStyle: "short" });
 type Kind = "invite" | "reminder" | "coupon" | "received";
 export function stageMail(kind: Kind, b: Booking) {
   const t = T[b.lang] || T.bg;
@@ -232,7 +254,7 @@ export function stageMail(kind: Kind, b: Booking) {
       : kind === "coupon" ? [t.cpSubj, t.cp, t.cpInfo, t.invBtn] : [t.recSubj, t.rec, t.recInfo, t.status];
   const note = kind === "invite" && b.note ? `<p style="background:#f3f5f9;padding:12px;border-radius:10px">${esc(b.note)}</p>` : "";
   const html = wrapMail(`<p>${esc(fill(t.hi))}</p><p style="font-size:18px"><b>${esc(lead)}</b></p>${note}${sum}<p>${esc(fill(info))}</p><p>${btn(link, button, "#1a8f4c")}</p><p>${esc(fill(t.q))}</p>` + mailFooter(t.why));
-  const unsubscribe = kind === "coupon" ? `<p><a href="${esc(`${siteOrigin()}/api/bookings/${b.id}/marketing?t=${b.viewToken}`)}">${b.lang === "en" ? "Stop promotional emails" : b.lang === "de" ? "Werbe-E-Mails abbestellen" : "Спри рекламните имейли"}</a></p>` : "";
+  const unsubscribe = kind === "coupon" ? `<p><a href="${esc(`${siteOrigin()}/api/bookings/${b.id}/marketing?t=${b.viewToken}`)}">${b.lang === "en" ? "Stop promotional emails" : b.lang === "de" ? "Werbe-E-Mails abbestellen" : b.lang === "ru" ? "Отписаться от рекламных писем" : "Спри рекламните имейли"}</a></p>` : "";
   return { subject: `${subject} (№ ${ref})`, html: html + unsubscribe, preheader: lead };
 }
 export const sendStage = (kind: Kind, mailKind: string, key: string, b: Booking) => {
@@ -295,3 +317,4 @@ export async function docsReminders(now = new Date()) {
   }
   return sent;
 }
+

@@ -33,6 +33,10 @@ jobs:
       - name: Install test-only browser dependencies
         run: npm install --no-save --package-lock=false esbuild playwright-core@1.51.1 happy-dom
       - run: npx playwright-core install --with-deps chromium
+      - name: Payment options and explicit language switching (DOM)
+        run: node tests/browser/language-payments.mjs
+      - name: Card option and invoice availability (DOM/API)
+        run: node tests/e2e/run.mjs tests/browser/card-option-dom.mjs
       - name: New short form and two approvals (Chromium)
         run: node tests/e2e/run.mjs tests/browser/two-stage-ui.mjs
       - name: Existing reservation flow (Chromium)
@@ -41,3 +45,4 @@ jobs:
         run: node tests/e2e/run.mjs tests/browser/two-stage-dom.mjs
       - name: Server integration and unit tests (native PostgreSQL)
         run: node tests/integration/run.mjs
+
