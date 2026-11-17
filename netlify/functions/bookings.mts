@@ -232,7 +232,7 @@ async function handle(req: Request, context: Context) {
       name: str(body.name, 120),
       email: str(body.email, 200),
       phone: str(body.phone, 40),
-      lang: ["bg", "en", "de"].includes(body.lang) ? body.lang : "bg",
+      lang: ["bg", "en", "de", "ru"].includes(body.lang) ? body.lang : "bg",
       car: str(body.car, 120),
       pickup: str(body.pickup),
       dropoff: str(body.dropoff),
@@ -532,3 +532,4 @@ export const config: Config = {
   path: ["/api/bookings", "/api/bookings/:id", "/api/bookings/:id/manage", "/api/bookings/:id/contract", "/api/bookings/:id/documents", "/api/bookings/:id/marketing"],
   method: ["GET", "POST"],
 };
+

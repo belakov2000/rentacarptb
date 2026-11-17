@@ -34,10 +34,11 @@ export function breakdownTable(bd: Breakdown, lang: string) {
   return `<table>${rows.map(([k, v, n], i) => `<tr${i === rows.length - 1 ? ' class="sum"' : ""}><td>${esc(k)}${n ? `<br><small>${esc(n)}</small>` : ""}</td><td>${esc(v)}</td></tr>`).join("")}</table>
 <p class="hint">${esc(t(lang, "deposit", { dep: (bd.depositCents / 100).toFixed(2).replace(".", ",").replace(/,00$/, "") + " €" }))}</p>`;
 }
-export const sofiaTime = (d: Date, lang: string) => d.toLocaleString(langOf(lang) === "bg" ? "bg-BG" : langOf(lang) === "de" ? "de-DE" : "en-GB", { timeZone: "Europe/Sofia", dateStyle: "short", timeStyle: "short" });
+export const sofiaTime = (d: Date, lang: string) => d.toLocaleString(langOf(lang) === "bg" ? "bg-BG" : langOf(lang) === "de" ? "de-DE" : langOf(lang) === "ru" ? "ru-RU" : "en-GB", { timeZone: "Europe/Sofia", dateStyle: "short", timeStyle: "short" });
 
 // Автоматично изпращане на подписания формуляр към БОРИКА (с бутон, ако скриптовете са спрени)
 export function redirectForm(lang: string, action: string, fields: Record<string, string>) {
   const inputs = Object.entries(fields).map(([k, v]) => `<input type="hidden" name="${esc(k)}" value="${esc(v)}">`).join("");
   return html(lang, t(lang, "title"), `<h1>${esc(t(lang, "title"))}</h1><p>${esc(t(lang, "goBank"))}</p><form id="borica" method="post" action="${esc(action)}" accept-charset="UTF-8">${inputs}<button>${esc(t(lang, "goBankBtn"))}</button></form><p class="hint">${esc(t(lang, "noScript"))}</p><script>document.getElementById("borica").submit()</script>`);
 }
+

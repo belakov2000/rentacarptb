@@ -32,7 +32,7 @@ export function parseRequester(body: any): { requester: Requester; name: string;
     driverNames.push(fullName(n));
   }
   let invoice = '';
-  if (body.payment === 'bank') {
+  if (body.payment === 'bank' || body.invoiceRequested === true) {
     const i = body.invoiceData;
     if (!i || !text(i.name) || !text(i.registration, 40) || !text(i.country, 80) || !text(i.address, 200) ||
       (i.notVatRegistered !== true && !text(i.vat, 40))) return { error: 'invoice' };
@@ -42,3 +42,4 @@ export function parseRequester(body: any): { requester: Requester; name: string;
   }
   return { requester: { ...p, birthDate: dob, phoneCountry: text(body.requester.phoneCountry, 2), citizen: text(body.requester.citizen, 80) }, name: fullName(p), invoice, driverNames };
 }
+

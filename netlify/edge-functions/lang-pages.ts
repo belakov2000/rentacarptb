@@ -5,6 +5,14 @@ import type { Config, Context } from "@netlify/edge-functions";
 const SITE = "https://rentacar-ptb.com";
 
 const PAGES: Record<string, { lang: string; locale: string; title: string; description: string; social: string; imageAlt: string }> = {
+  ru: {
+    lang: "ru",
+    locale: "ru_RU",
+    title: "Аренда автомобилей в Пловдиве от 15 € в день | Рента ПТБ Строй",
+    description: "Аренда автомобилей в Пловдиве от 15 € в день. Доставка в аэропорт Пловдива и по адресам по всей Болгарии, неограниченный пробег при аренде более 2 дней, залог 100 €. Бронируйте онлайн.",
+    social: "Обслуженные автомобили, доставка в аэропорт Пловдива и по всей Болгарии, неограниченный пробег при аренде более 2 дней и залог 100 €.",
+    imageAlt: "Рента ПТБ Строй — аренда автомобилей в Пловдиве",
+  },
   en: {
     lang: "en",
     locale: "en_GB",
@@ -39,7 +47,7 @@ export default async (req: Request, context: Context) => {
   if (!res.ok || !(res.headers.get("content-type") || "").includes("text/html")) return res;
 
   const url = `${SITE}/${key}/`;
-  const others = ["bg_BG", "en_GB", "de_DE"].filter((l) => l !== page.locale);
+  const others = ["bg_BG", "en_GB", "de_DE", "ru_RU"].filter((l) => l !== page.locale);
   const head = [
     `<title>${esc(page.title)}</title>`,
     `<meta name="description" content="${esc(page.description)}">`,
@@ -68,5 +76,6 @@ export default async (req: Request, context: Context) => {
 };
 
 export const config: Config = {
-  path: ["/en/", "/de/"],
+  path: ["/en/", "/de/", "/ru/"],
 };
+
