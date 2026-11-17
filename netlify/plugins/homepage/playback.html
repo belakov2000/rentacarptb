@@ -1,0 +1,21 @@
+<script>
+(() => {
+  const video = document.getElementById("home-video");
+  const motion = matchMedia("(prefers-reduced-motion: reduce)");
+  let onScreen = false;
+  function updatePlayback() {
+    if (!onScreen || document.hidden || motion.matches) {
+      video.pause();
+      return;
+    }
+    if (!video.hasAttribute("src")) video.src = video.dataset.src;
+    video.play().catch(() => {}); // The poster remains visible if autoplay is blocked.
+  }
+  new IntersectionObserver(([entry]) => {
+    onScreen = entry.isIntersecting;
+    updatePlayback();
+  }).observe(video);
+  motion.addEventListener("change", updatePlayback);
+  document.addEventListener("visibilitychange", updatePlayback);
+})();
+</script>

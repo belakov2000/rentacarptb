@@ -166,3 +166,6 @@
     X-Content-Type-Options = "nosniff"
     Content-Security-Policy = "sandbox allow-scripts; default-src 'none'; script-src 'unsafe-inline' https://connect.facebook.net; img-src https://www.facebook.com; connect-src https://www.facebook.com https://connect.facebook.net; frame-ancestors 'self'; base-uri 'none'; form-action 'none'"
 
+
+[[plugins]]
+  package = "./netlify/plugins/homepage"

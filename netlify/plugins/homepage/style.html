@@ -1,0 +1,26 @@
+<style>
+/* Opening shot of the office and parking lot */
+#home{position:relative;isolation:isolate;background:#08101f}
+.home-film{position:absolute;inset:0;z-index:-1;overflow:hidden;pointer-events:none}
+.home-film video{display:block;width:100%;height:100%;object-fit:cover;object-position:50% 58%}
+.home-film::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(8,16,31,.8),rgba(8,16,31,.52) 34%,rgba(8,16,31,.1) 58%,transparent 70%),linear-gradient(0deg,rgba(8,16,31,.45),transparent 22%)}
+#home .hcard{background:rgba(8,16,31,.58);border-color:rgba(255,255,255,.22)}
+#home .hcard p{color:#e4eaf3}
+#home .free{background:rgba(8,40,26,.62)}
+#home .pill{background:rgba(8,16,31,.45)}
+@media(min-width:960px){
+  #home{min-height:clamp(560px,calc(100svh - 125px),calc(100vw / 1.75));display:grid;align-content:center}
+}
+@media(max-width:959px){
+  .home-film video{height:auto;aspect-ratio:7/4;object-fit:contain}
+  .home-film::after{background:linear-gradient(180deg,rgba(8,16,31,.28),rgba(8,16,31,.38) calc(100vw / 1.75 * .72),#08101f calc(100vw / 1.75 + 1px))}
+}
+.ck{padding:14px 16px;max-height:70vh;max-height:70dvh;overflow-y:auto;overscroll-behavior:contain}
+#ck-main h2{font-size:16px;margin-bottom:4px}
+#ck-main p{font-size:14px;line-height:1.4;margin:0 0 8px}
+#ck-main .ck-act{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+#ck-main .ck-btn{min-height:44px;padding:6px 3px;font:700 .85rem/1.15 Manrope,system-ui,sans-serif;overflow-wrap:anywhere}
+#ck-main .ck-set{grid-column:auto}
+@media(max-width:600px){.ck{bottom:calc(6px + env(safe-area-inset-bottom,0px));padding:10px 12px;border-radius:16px}}
+
+</style>
