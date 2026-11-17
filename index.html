@@ -43,24 +43,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="icon" type="image/png" href="/images/favicon.png">
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;800&family=Oswald:wght@600;700&display=swap&subset=cyrillic" rel="stylesheet">
-<style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}
-/* Keep all four explicit language buttons inside narrow mobile headers. */
-@media(max-width:420px){.bar{gap:6px}.bar .logo{min-width:0;gap:6px}.logo>span:last-child{min-width:0;overflow-wrap:anywhere}.lang a{min-width:28px;padding:6px 4px;font-size:.72rem}}
-/* Payment choices: same alignment at every form width. */
-#bk.short .payopts{grid-template-columns:minmax(0,1fr);gap:10px}
-#bk.short .payopts>.opt{align-items:flex-start;gap:12px;padding:16px;border-radius:16px;transition:border-color .15s,background .15s}
-#bk.short .payopts>.opt:has(input[type=radio]:checked){border-color:#b88500;background:#fffdf5;box-shadow:0 0 0 1px #b88500}
-#bk.short .payopts>.opt:focus-within{outline:2px solid #0f1b2d;outline-offset:3px}
-#bk.short .payopts input{flex-shrink:0;margin-top:2px;accent-color:#0f1b2d}
-#bk.short .payopts .pt{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;min-width:0}
-#bk.short .payopts .pt b{font-size:1rem;line-height:1.4}
-#bk.short .payopts .pt small{flex-basis:100%;font-size:.875rem;line-height:1.5;margin:0}
-#bk.short .pay-discount{display:inline-block;border-radius:6px;padding:3px 7px;background:#fff0b8;color:#664700;font-weight:700;font-size:.75rem;white-space:nowrap}
-#bk.short .pay-brands{display:flex;align-items:center;gap:8px;flex-basis:100%;margin-top:4px}
-#bk.short .pay-brands img{display:block;object-fit:contain;width:52px;height:34px;background:#fff;border:1px solid var(--line);border-radius:5px;padding:5px}
-#bk.short #company-choice{border:0;background:transparent;padding:10px 2px;font-size:.9rem}
-#bk.short .payopts>[hidden]{display:none}
-</style>
+<style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style>
 <style>
 :root{--navy:#0f1b2d;--navy2:#18283f;--ink:#1b2433;--muted:#5b6678;--bg:#ffffff;--soft:#eef1f5;--line:#dde2ea;--acc:#ffb703;--acc-ink:#1b1400;--r:18px;
 box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
@@ -2533,23 +2516,6 @@ setLang(LANG);
 .fck{background:none;border:0;padding:0;font:inherit;color:inherit;cursor:pointer}
 .fck:hover{color:var(--acc)}
 @media (prefers-reduced-motion:reduce){.ck{animation:none}}
-
-/* Keep all four explicit language buttons inside narrow mobile headers. */
-@media(max-width:420px){.bar{gap:6px}.bar .logo{min-width:0;gap:6px}.logo>span:last-child{min-width:0;overflow-wrap:anywhere}.lang a{min-width:28px;padding:6px 4px;font-size:.72rem}}
-/* Payment choices: same alignment at every form width. */
-#bk.short .payopts{grid-template-columns:minmax(0,1fr);gap:10px}
-#bk.short .payopts>.opt{align-items:flex-start;gap:12px;padding:16px;border-radius:16px;transition:border-color .15s,background .15s}
-#bk.short .payopts>.opt:has(input[type=radio]:checked){border-color:#b88500;background:#fffdf5;box-shadow:0 0 0 1px #b88500}
-#bk.short .payopts>.opt:focus-within{outline:2px solid #0f1b2d;outline-offset:3px}
-#bk.short .payopts input{flex-shrink:0;margin-top:2px;accent-color:#0f1b2d}
-#bk.short .payopts .pt{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;min-width:0}
-#bk.short .payopts .pt b{font-size:1rem;line-height:1.4}
-#bk.short .payopts .pt small{flex-basis:100%;font-size:.875rem;line-height:1.5;margin:0}
-#bk.short .pay-discount{display:inline-block;border-radius:6px;padding:3px 7px;background:#fff0b8;color:#664700;font-weight:700;font-size:.75rem;white-space:nowrap}
-#bk.short .pay-brands{display:flex;align-items:center;gap:8px;flex-basis:100%;margin-top:4px}
-#bk.short .pay-brands img{display:block;object-fit:contain;width:52px;height:34px;background:#fff;border:1px solid var(--line);border-radius:5px;padding:5px}
-#bk.short #company-choice{border:0;background:transparent;padding:10px 2px;font-size:.9rem}
-#bk.short .payopts>[hidden]{display:none}
 </style>
 <div class="ck" id="ck" role="dialog" aria-live="polite" aria-labelledby="ck-t" hidden>
 <div id="ck-main">

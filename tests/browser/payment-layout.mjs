@@ -32,7 +32,7 @@ try{
   const bounds=await page.locator('.bar .lang').boundingBox();assert.ok(bounds.x>=0&&bounds.x+bounds.width<=width,'Language buttons fit '+width);
   if(width<=900){const b=await page.locator('#burger').boundingBox();assert.ok(b.x+b.width<=width,'Mobile menu fits '+width)}
   const form=await page.locator('#bk').boundingBox();assert.ok(form.x>=0&&form.x+form.width<=width+1,'Booking form fits '+width);
-  const methods=await page.locator('#bk .fb-pay .payopts').boundingBox();assert.ok(methods.x>=0&&methods.x+methods.width<=width+1,'Payment options fit '+width);
+  const methods=await page.locator('#bk .fb-pay .payopts[data-flow2]').boundingBox();assert.ok(methods.x>=0&&methods.x+methods.width<=width+1,'Payment options fit '+width);
   assert.ok(!await page.locator('#card-choice').textContent().then(t=>t.includes('RENTY10')));
   await page.locator('#bk .fb-pay').screenshot({path:out+'/'+lang+'-'+width+'.png'});
   await page.locator('header').screenshot({path:out+'/'+lang+'-'+width+'-header.png'});
