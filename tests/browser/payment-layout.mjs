@@ -31,6 +31,7 @@ try{
   assert.equal(await page.locator('html').getAttribute('lang'),lang);
   const bounds=await page.locator('.bar .lang').boundingBox();assert.ok(bounds.x>=0&&bounds.x+bounds.width<=width,'Language buttons fit '+width);
   if(width<=900){const b=await page.locator('#burger').boundingBox();assert.ok(b.x+b.width<=width,'Mobile menu fits '+width)}
+  const title=await page.locator('.bar .logo>span:last-child').boundingBox(),header=await page.locator('header').boundingBox();assert.ok(title.y>=header.y&&title.y+title.height<=header.y+header.height+1,'Brand text fits header '+width);
   const form=await page.locator('#bk').boundingBox();assert.ok(form.x>=0&&form.x+form.width<=width+1,'Booking form fits '+width);
   const methods=await page.locator('#bk .fb-pay .payopts[data-flow2]').boundingBox();assert.ok(methods.x>=0&&methods.x+methods.width<=width+1,'Payment options fit '+width);
   assert.ok(!await page.locator('#card-choice').textContent().then(t=>t.includes('RENTY10')));

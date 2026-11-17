@@ -621,11 +621,12 @@ button.btn-ghost{background:transparent}
 
 /* Keep all four explicit language buttons inside narrow mobile headers. */
 @media(max-width:420px){.bar{gap:6px}.bar .logo{min-width:0;gap:6px}.logo>span:last-child{min-width:0;overflow-wrap:anywhere}.lang a{min-width:28px;padding:6px 4px;font-size:.72rem}}
+@media(max-width:360px){.bar{height:auto;min-height:72px;flex-wrap:wrap;padding-block:10px;row-gap:8px}.bar .logo{flex:1 1 calc(100% - 50px)}.bar .lang{order:3;margin:0 auto}.bar nav{top:100%}}
 /* Payment choices: same alignment at every form width. */
 #bk.short .payopts{grid-template-columns:minmax(0,1fr);gap:10px}
 #bk.short .payopts>.opt{align-items:flex-start;gap:12px;padding:16px;border-radius:16px;transition:border-color .15s,background .15s}
 #bk.short .payopts>.opt:has(input[type=radio]:checked){border-color:#b88500;background:#fffdf5;box-shadow:0 0 0 1px #b88500}
-#bk.short .payopts>.opt:focus-within{outline:2px solid #0f1b2d;outline-offset:3px}
+#bk.short .payopts>.opt:has(input:focus-visible){outline:2px solid #0f1b2d;outline-offset:3px}
 #bk.short .payopts input{flex-shrink:0;margin-top:2px;accent-color:#0f1b2d}
 #bk.short .payopts .pt{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;min-width:0}
 #bk.short .payopts .pt b{font-size:1rem;line-height:1.4}
