@@ -18,7 +18,7 @@ mkdirSync(resolve(dir, ".out"), { recursive: true });
 
 export const bundle = (entry, outfile) => build({
   entryPoints: [entry], bundle: true, platform: "node", format: "esm", outfile, target: "node22",
-  external: ["pg", "pg-native", "@electric-sql/pglite"], logLevel: "warning",
+  external: ["pg", "pg-native", "xmllint-wasm", "@electric-sql/pglite"], logLevel: "warning",
   banner: { js: "import { createRequire as __cr } from 'module'; const require = __cr(import.meta.url);" },
   plugins: [{ name: "stubs", setup(b) {
     b.onResolve({ filter: /^(\.\.\/)+db\/index\.js$/ }, () => ({ path: resolve(dir, "stubs/db.ts") }));

@@ -1,4 +1,4 @@
-import { boolean, check, date, doublePrecision, index, integer, jsonb, pgTable, serial, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { bigint, boolean, check, date, doublePrecision, index, integer, jsonb, pgTable, serial, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
 // Резервации от сайта. Тук пазим само данните, нужни за потвърждението –
@@ -474,3 +474,19 @@ export const cardPayments = pgTable(
     check("card_payments_amount_check", sql`${t.amountCents} > 0`),
   ],
 );
+
+// Numbers are allocated under a row lock in the same transaction as the document.
+export const fiscalSeries = pgTable("fiscal_series", {
+  id: text().primaryKey(),
+  next: bigint("next", { mode: "number" }).notNull(),
+  last: bigint("last", { mode: "number" }).notNull(),
+});
+export const fiscalSales = pgTable("fiscal_sales", {
+  id: text().primaryKey().references(() => payments.id),
+  bookingId: text("booking_id").notNull().references(() => bookings.id),
+  receipt: text().unique(),
+  invoice: text().unique(),
+  invoiceIssuedAt: timestamp("invoice_issued_at"),
+  snapshot: jsonb().notNull(),
+  issuedAt: timestamp("issued_at").notNull(),
+}, t => [index("fiscal_sales_booking").on(t.bookingId)]);

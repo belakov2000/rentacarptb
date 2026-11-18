@@ -27,12 +27,13 @@ export const TABLES = {
   // Плащане с карта (БОРИКА): връзките пазят само хеш на ключа; опитите – резултата от банката (без данни на картата)
   card_payment_links: schema.cardPaymentLinks,
   card_payments: schema.cardPayments,
+  fiscal_series: schema.fiscalSeries, fiscal_sales: schema.fiscalSales,
 } as const;
 // Първичен ключ на всяка таблица (име на колоната в базата)
 const PK: Record<keyof typeof TABLES, string> = {
   bookings: "id", payments: "id", booking_events: "id", cars: "id", car_blocks: "id",
   expenses: "id", email_log: "id", contract_versions: "id", settings: "key", ad_spend: "id", customers: "id", booking_extensions: "id",
-  card_payment_links: "id", card_payments: "id",
+  card_payment_links: "id", card_payments: "id", fiscal_series: "id", fiscal_sales: "id",
 };
 export const SOURCE_STORES = ["contracts", "documents"] as const;
 const KEEP_DAYS = 35;
