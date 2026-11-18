@@ -21,6 +21,7 @@ import { db } from "../db/index.js";
 import { bookingEvents, bookings, cardPaymentLinks, cardPayments, emailLog, payments } from "../db/schema.js";
 import { REVENUE_KINDS, summarize, type Pay } from "./payments.js";
 import { linkMail, ownerPaidMail, ownerUnknownMail, paidMail, type Breakdown } from "../mail/card.js";
+import { recordSale, deliverSale } from "./fiscal.js";
 import { OWNER_EMAIL } from "../mail/index.js";
 import {
   amountOf, centsOf, diagnosePrivateKey, diagnosePublicKey, FINAL_AFTER_MS, fieldsOf, GATEWAY, loadPrivateKey, loadPublicKey, outcomeOf, paymentRequest, pemOf, randomOrder,
@@ -305,11 +306,14 @@ export async function applyResult(attemptId: string, f: Fields, source: "backref
         .where(eq(cardPayments.id, a.id))
         .returning();
       // Плащането влиза в „Плащания“ на резервацията (получено, с карта) – веднъж за опит
-      await tx.insert(payments).values({
+      const [received] = await tx.insert(payments).values({
         id: rnd(), bookingId: b.id, amountCents: a.amountCents, currency: a.currency, method: "card", kind: "final", status: "received", paidAt: now, txnId: (f.RRN || f.INT_REF || "").slice(0, 40),
         note: `${a.mode === "live" ? "" : "ТЕСТ – "}Плащане с карта онлайн (БОРИКА), ORDER ${a.orderNo}, INT_REF ${f.INT_REF || "-"}, код ${f.APPROVAL || "-"}${duplicate ? " – ВТОРО ПЛАЩАНЕ ЗА ВЕЧЕ ПЛАТЕНА РЕЗЕРВАЦИЯ" : ""}${overpaid ? ` – ПРИ ВЕЧЕ ПОЛУЧЕНИ ${fmtCents(otherCents)} ПО НАЕМА (НАДПЛАЩАНЕ – ПРОВЕРЕТЕ)` : ""}`,
         idempotencyKey: `borica:${a.id}`, createdBy: "borica",
-      }).onConflictDoNothing();
+      }).onConflictDoNothing().returning();
+      if (received && a.mode === "live" && !duplicate) {
+        await recordSale(tx,b,received,{rrn:u.rrn || "",terminal:u.terminal,breakdown:u.breakdown as Breakdown});
+      }
       let booking = b;
       if (!duplicate) {
         // Отстъпката за карта става част от договорената сума само при успешно плащане (иначе цената остава непроменена)
@@ -380,6 +384,10 @@ export async function applyResult(attemptId: string, f: Fields, source: "backref
     return { state: "pending", attempt: u };
   });
   if (res.state === "paid" && !res.already) await sendPaidMails(res.attempt.bookingId, res.attempt).catch((e) => console.error("Card payment emails failed, they will be retried", (e as Error)?.message));
+  if (res.state === "paid" && res.attempt.mode === "live" && !res.duplicate && !res.already) {
+    const [p]=await db.select({id:payments.id}).from(payments).where(eq(payments.idempotencyKey,"borica:"+attemptId));
+    if(p) await deliverSale(p.id).catch(()=>console.error("Fiscal email queued for retry",attemptId));
+  }
   if (res.notifyUnknown) await notifyUnknown(res.attempt.id).catch(() => null);
   return { state: res.state, attempt: res.attempt, already: res.already, duplicate: res.duplicate };
 }

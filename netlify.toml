@@ -169,3 +169,10 @@
 
 [[plugins]]
   package = "./netlify/plugins/homepage"
+
+[functions]
+  included_files = ["server/fiscal-assets/*"]
+  external_node_modules = ["xmllint-wasm"]
+
+[[plugins]]
+  package = "./netlify/plugins/fiscal-admin"

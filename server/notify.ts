@@ -79,6 +79,7 @@ export function sendExtended(b: Booking, e: Extension) {
 // Повторен опит по запис от email_log
 export async function retry(kind: string, bookingId: string | null, dedupeKey: string | null = null) {
   if (!bookingId) return null;
+  if (kind === "sale-invoice" || kind === "sale-receipt") return (await import("./fiscal.js")).deliverFiscal(kind, dedupeKey?.split(":")[1] || "");
   if (kind === "owner-new") return sendOwnerNew(bookingId);
   const [b] = await db.select().from(bookings).where(eq(bookings.id, bookingId));
   if (!b) return null;
@@ -112,7 +113,7 @@ export async function retry(kind: string, bookingId: string | null, dedupeKey: s
   }
   return null;
 }
-export const RETRY_KINDS = ["owner-new", "customer-received", "customer-decision", "customer-closed", "customer-extended",
+export const RETRY_KINDS = ["sale-invoice", "sale-receipt", "owner-new", "customer-received", "customer-decision", "customer-closed", "customer-extended",
   "customer-docs-invite", "customer-docs-reminder", "customer-coupon", "customer-docs-received", "owner-docs",
   "customer-card-link", "customer-card-paid", "owner-card-paid", "owner-card-unknown"];
 // Писма, които се повтарят и след несигурен резултат (възможно второ копие): само известието до фирмата
