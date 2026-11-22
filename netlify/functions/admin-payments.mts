@@ -24,11 +24,17 @@ function paidAtOf(v: unknown) {
   return Number.isFinite(t) && t <= Date.now() + 5 * 60_000 && t >= Date.UTC(2020, 0, 1) ? new Date(t) : null;
 }
 
+function earlyReturn(b: {returnedAt: Date | null; endDate: string | null; endTime: string | null}) {
+  if (!b.returnedAt || !b.endDate || !b.endTime) return false;
+  const actual = new Intl.DateTimeFormat("sv-SE", {timeZone:"Europe/Sofia",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"}).format(b.returnedAt);
+  return actual < b.endDate + " " + b.endTime;
+}
+
 async function forBooking(bookingId: string) {
   const list = await db.select().from(payments).where(eq(payments.bookingId, bookingId)).orderBy(payments.createdAt);
-  const [b] = await db.select({ status: bookings.status, totalCents: bookings.totalCents, totalReview: bookings.totalReview }).from(bookings).where(eq(bookings.id, bookingId));
+  const [b] = await db.select({ returnedAt: bookings.returnedAt, endDate: bookings.endDate,endTime: bookings.endTime, status: bookings.status, totalCents: bookings.totalCents, totalReview: bookings.totalReview }).from(bookings).where(eq(bookings.id, bookingId));
   // finance: договорена сума, остатък / надплащане и гаранционен депозит (server/payments.ts) – само показване, без нови записи
-  return { payments: list.map((p) => ({ ...p, refundable: refundableLeft(p, list) })), summary: summarize(list), finance: b ? finance(b, list) : null };
+  return { earlyReturn: !!b && earlyReturn(b), payments: list.map((p) => ({ ...p, refundable: refundableLeft(p, list) })), summary: summarize(list), finance: b ? finance(b, list) : null };
 }
 
 export default async (req: Request, context: Context) => {
@@ -50,6 +56,23 @@ export default async (req: Request, context: Context) => {
   }
   const body = await req.json().catch(() => null);
   if (!body || typeof body !== "object") return json({ error: "invalid" }, 400);
+
+  if (!id && body.action === "settleEarlyReturn") {
+    if (!ID_RE.test(body.bookingId || "")) return json({ error:"not_found" },404);
+    const changed = await db.transaction(async tx => {
+      const [b] = await tx.select().from(bookings).where(eq(bookings.id,body.bookingId)).for("update");
+      if (!b || !earlyReturn(b)) return false;
+      const list = await tx.select().from(payments).where(eq(payments.bookingId,b.id));
+      const f = finance(b,list);
+      if (f.balanceState !== "due" || f.expected || f.nonEur || f.rentalNet <= 0 ||
+          f.agreedCents !== body.previousCents || f.rentalNet !== body.finalCents) return false;
+      await tx.update(bookings).set({totalCents:f.rentalNet,total:(f.rentalNet / 100).toFixed(2).replace(".",",") + " €",updatedAt:new Date()}).where(eq(bookings.id,b.id));
+      await tx.insert(bookingEvents).values({bookingId:b.id, actor:admin.email,action:"booking.early_return_settled",
+        details:{oldTotalCents:f.agreedCents,newTotalCents:f.rentalNet,reason:"Предсрочно връщане по взаимно съгласие"}});
+      return true;
+    });
+    return changed ? json({ok:true}) : json({error:"Обнови резервацията и провери сумите."},409);
+  }
 
   // ===== Промяна на статуса на очаквано плащане =====
   if (id) {
