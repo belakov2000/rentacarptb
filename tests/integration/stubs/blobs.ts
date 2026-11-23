@@ -37,7 +37,16 @@ export function getStore(arg: string | { name: string; consistency?: string }) {
   const m = stores.get(name)!;
   const out = (it: Item, type?: string) => type === "text" ? new TextDecoder().decode(it.data) : type === "json" ? JSON.parse(new TextDecoder().decode(it.data)) : it.data.buffer.slice(it.data.byteOffset, it.data.byteOffset + it.data.byteLength);
   return {
-    async set(key: string, data: any, o: any = {}) { const d = await buf(data); writtenAt.set(name + "\u0000" + key, Date.now()); m.set(key, { data: d, metadata: JSON.parse(JSON.stringify(o.metadata || {})), etag: '"' + createHash("md5").update(d).digest("hex") + '"' }); },
+    async set(key: string, data: any, o: any = {}) {
+      const d = await buf(data);
+      const current = m.get(key);
+      if ((o.onlyIfNew && current) || (o.onlyIfMatch && current?.etag !== o.onlyIfMatch))
+        return {modified:false, etag:current?.etag};
+      const etag = '"' + createHash("md5").update(d).digest("hex") + '"';
+      writtenAt.set(name + "\u0000" + key, Date.now());
+      m.set(key, {data:d, metadata:JSON.parse(JSON.stringify(o.metadata || {})), etag});
+      return {modified:true, etag};
+    },
     async setJSON(key: string, v: any, o: any = {}) { return this.set(key, JSON.stringify(v), o); },
     async get(key: string, o: any = {}) { const it = m.get(key); return it ? out(it, o.type) : null; },
     async getWithMetadata(key: string, o: any = {}) {

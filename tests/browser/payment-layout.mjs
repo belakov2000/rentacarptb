@@ -19,6 +19,7 @@ try{
    return route.abort();
   });
   await page.addInitScript(()=>{
+   if(window!==window.top || location.origin!=='http://localhost')return;
    localStorage.setItem('lang','de');
    localStorage.setItem('cookie-consent',JSON.stringify({v:2,necessary:true,marketing:false,date:new Date().toISOString()}));
    sessionStorage.setItem('req',JSON.stringify({car:'golf',d1:'2028-03-06',d2:'2028-03-08',t1:'10:00',t2:'10:00',m1:'office',m2:'office',open:true}));
