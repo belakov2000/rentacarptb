@@ -1,3 +1,4 @@
+import { noteCardActivity, shouldPollCards } from "../../server/card-poll.js";
 import type { Config } from "@netlify/functions";
 import { checkStatus, dueChecks, terminalConfig } from "../../server/card-pay.js";
 import { recordJob } from "../../server/settings.js";
@@ -9,9 +10,11 @@ import { recordJob } from "../../server/settings.js";
 // за плащане и от админ панела.
 export default async () => {
   const cfg = terminalConfig();
-  if (!cfg.ok) return;
+  if (!cfg.ok || !(await shouldPollCards())) return;
   const out: Record<string, number> = {};
-  for (const a of await dueChecks()) {
+  const attempts = await dueChecks();
+  if (attempts.length) await noteCardActivity();
+  for (const a of attempts) {
     const r = await checkStatus(a).catch(() => "network");
     out[r] = (out[r] || 0) + 1;
   }
