@@ -1,3 +1,4 @@
+import { noteCardActivity } from "../../server/card-poll.js";
 import type { Config, Context } from "@netlify/functions";
 import { and, desc, eq } from "drizzle-orm";
 import { db } from "../../db/index.js";
@@ -65,7 +66,10 @@ export default async (req: Request, context: Context) => {
     const holder = cardholderOf(raw.name, raw.addr);
     if (!holder) return formPage(b, url, cfg.t.mode, "inputErr", raw);
     const r = await startPayment(b, link.link.id, holder);
-    if (r.ok) return redirectForm(L, r.action, r.fields);
+    if (r.ok) {
+      await noteCardActivity();
+      return redirectForm(L, r.action, r.fields);
+    }
     if (r.error === "paid") return paidPage((await db.select().from(bookings).where(eq(bookings.id, b.id)))[0]);
     if (r.error === "in_progress") {
       const [o] = await db.select().from(cardPayments).where(and(eq(cardPayments.bookingId, b.id), eq(cardPayments.status, "redirected"))).orderBy(desc(cardPayments.createdAt)).limit(1);
